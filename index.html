@@ -1,0 +1,1338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ecological Jurisprudence Initiatives</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600;700&family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+    :root {
+        --color-off-black: #3D3D31;
+        --color-white: #ffffff;
+        --color-sand: #B8B8A0;
+        --color-dark-sand: #5A5A48;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Geist Mono',monospace; background:#fff; color:#3D3D31; overflow-x:hidden; }
+
+    /* ── SCROLLYTELLING VIEWPORT ── */
+    #scroll-container { pointer-events:none; }
+    .scroll-section { height:200vh; width:100%; pointer-events:none; position:relative; }
+
+    /* ── FIXED CANVAS ── */
+    #p5-canvas { position:fixed; top:0; left:0; width:100%; height:100vh; z-index:1; cursor:default; will-change:transform; touch-action:none; }
+    #p5-canvas canvas { touch-action:none; }
+
+    /* ── FIXED OVERLAYS ── */
+    #fixed-overlays {
+        position:fixed; top:0; left:0; width:100%; height:100vh;
+        z-index:30; pointer-events:none;
+        display:flex; align-items:center; justify-content:center;
+    }
+
+    #stats-display {
+        font-family:'Geist',sans-serif; font-size:34px; font-weight:600;
+        line-height:42px; letter-spacing:-0.01em;
+        color:var(--color-off-black); opacity:0; transition:opacity 0.6s ease;
+        position:absolute; white-space:nowrap;
+    }
+    #stats-display .sep { font-weight:400; margin:0 0.4rem; }
+
+    /* narrative — scrolling in-flow boxes inside each section */
+    .narrative-scroll-box {
+        position:absolute; left:4vw;
+        /* sits in the bottom half of its 200vh section */
+        top:calc(100vh + (100vh - var(--box-h, 160px)) / 2);
+        max-width:460px; z-index:30; pointer-events:auto;
+    }
+    .narrative-inner {
+        font-family:'Geist',sans-serif; font-size:18px; font-weight:400;
+        color:var(--color-off-black); line-height:1.5;
+        background:rgba(255,255,255,0.92); padding:1.4rem 1.2rem;
+        border-radius:8px; backdrop-filter:blur(4px);
+        user-select:none;
+    }
+    .narrative-inner p { margin:0; }
+    /* zoom controls */
+    #zoom-controls {
+        position:fixed; bottom:68px; left:50%; transform:translateX(-50%);
+        z-index:50; display:none; flex-direction:row; align-items:center; gap:8px;
+        pointer-events:auto;
+    }
+    #zoom-controls.visible { display:flex; }
+    .zoom-slider-label {
+        font-family:'Geist',sans-serif; font-size:11px; color:var(--color-off-black);
+        opacity:0.55; user-select:none; line-height:1;
+    }
+    #zoom-slider {
+        -webkit-appearance:none; appearance:none;
+        width:120px; height:4px;
+        background:rgba(61,61,49,0.15); border-radius:999px;
+        outline:none; cursor:pointer; pointer-events:auto;
+    }
+    #zoom-slider::-webkit-slider-thumb {
+        -webkit-appearance:none; appearance:none;
+        width:14px; height:14px; border-radius:50%;
+        background:var(--color-off-black); cursor:pointer;
+        border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,0.25);
+    }
+    #zoom-slider::-moz-range-thumb {
+        width:14px; height:14px; border-radius:50%;
+        background:var(--color-off-black); cursor:pointer;
+        border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,0.25);
+    }
+    /* vertical line-by-line fade-in for narrative text */
+    #narrative-p .fade-line {
+        display:block;
+        opacity:0;
+        transform:translateY(6px);
+        transition:opacity 0.45s ease, transform 0.45s ease;
+    }
+    #narrative-p .fade-line.revealed {
+        opacity:1;
+        transform:translateY(0);
+    }
+
+    /* skip */
+    #skip-btn {
+        position:fixed; bottom:36px; right:36px; z-index:50; display:block;
+        box-sizing:border-box; padding:10px 16px; height:40px; width:auto;
+        background:var(--color-off-black); border:none; border-radius:8px;
+        font-family:'Geist',sans-serif; font-weight:500; font-size:16px; line-height:20px;
+        color:var(--color-white); text-decoration:none; white-space:nowrap;
+        cursor:pointer; box-shadow:none; text-transform:none; pointer-events:auto;
+        transition:opacity 0.2s;
+    }
+    #skip-btn:hover { opacity:0.85; }
+
+    /* chart labels */
+    #axis-labels-container { position:fixed; top:78vh; left:0; width:100%; height:64px; pointer-events:auto; z-index:15; }
+    #main-labels-container  { position:fixed; top:88vh; left:0; width:100%; height:30px; pointer-events:none; z-index:15; }
+    .chart-label { position:absolute; font-family:'Geist Mono',monospace; font-size:7pt; font-weight:500; color:#666; white-space:normal; word-break:break-word; max-width:80px; line-height:1.3; pointer-events:none; top:0; }
+    .chart-label.main { font-size:10pt; font-weight:600; color:#3D3D31; }
+    .chart-label.axis.clickable { pointer-events:auto; cursor:pointer; color:#3D3D31; }
+    .chart-label.axis.clickable:hover { text-decoration:underline; }
+
+    /* tooltips */
+    #tooltip,#country-tooltip {
+        position:fixed; background:#3D3D31; color:#fff;
+        padding:8px 12px; border-radius:4px; font-family:'Geist',sans-serif;
+        font-size:8.5pt; pointer-events:none; z-index:1000; width:260px; max-width:260px;
+        line-height:1.5; display:none; box-shadow:0 4px 14px rgba(0,0,0,.22);
+    }
+    #country-tooltip { max-width:160px; width:auto; }
+    .tt-title { font-weight:700; margin-bottom:3px; }
+    .tt-meta  { font-size:7.5pt; color:#b0b0b0; margin-bottom:4px; }
+    .tt-link a { color:#3D3D31; text-decoration:none; font-size:7.5pt; font-weight:600; }
+    .tt-link a:hover { text-decoration:underline; }
+    .tt-nature { font-size:7.5pt; font-weight:600; margin-bottom:3px; }
+    #pinned-tooltip {
+        position:fixed; background:#FBFBEE; color:#3D3D31;
+        padding:10px 14px; border-radius:4px; font-family:'Geist',sans-serif;
+        font-size:9pt; pointer-events:auto; z-index:2000; width:260px; max-width:260px;
+        line-height:1.5; display:none; box-shadow:0 4px 16px rgba(0,0,0,.25);
+        border-left:6px solid var(--pt-accent,#8ECBF0);
+    }
+    #pinned-tooltip .tt-title { font-weight:700; margin-bottom:3px; color:#3D3D31; }
+    #pinned-tooltip .tt-meta  { font-size:7.5pt; color:#b0b0b0; margin-bottom:5px; }
+    #pinned-tooltip .tt-link a { color:#3D3D31; text-decoration:none; font-size:7.5pt; font-weight:600; }
+    #pt-close { position:absolute; top:5px; right:7px; cursor:pointer; color:#888; font-size:11pt; background:none; border:none; padding:0; }
+    #pt-close:hover { color:#fff; }
+
+    /* country name display */
+    #country-name-display {
+        position:fixed; top:4vh; left:0; width:100%; text-align:center;
+        z-index:30; pointer-events:none; opacity:0; transition:opacity 0.3s ease;
+        font-family:'Geist',sans-serif; font-size:0.95rem; font-weight:400;
+        color:#3D3D31; line-height:1.65;
+    }
+
+    /* zoom hint */
+    #zoom-hint {
+        position:fixed; bottom:28px; left:50%; transform:translateX(-50%);
+        z-index:50; font-family:'Geist',sans-serif; font-size:0.75rem;
+        color:#3D3D31; background:rgba(255,255,255,0.88); backdrop-filter:blur(4px);
+        padding:0.35rem 0.9rem; border-radius:999px; border:1px solid rgba(61,61,49,0.2);
+        pointer-events:none; opacity:0; transition:opacity 0.5s ease;
+        white-space:nowrap;
+    }
+    #zoom-hint.visible { opacity:1; }
+
+
+
+    /* ── SECTION DOT NAV ── */
+    #section-nav {
+        position:fixed; right:24px; top:50%; transform:translateY(-50%);
+        z-index:100; display:flex; flex-direction:column; align-items:flex-end;
+        gap:10px; pointer-events:none;
+    }
+    .section-nav-item {
+        display:flex; align-items:center; gap:8px;
+    }
+    .section-nav-label {
+        font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.06em;
+        text-transform:uppercase; color:var(--color-off-black);
+        opacity:0; transform:translateX(6px);
+        transition:opacity 0.25s ease, transform 0.25s ease;
+        white-space:nowrap;
+    }
+    .section-nav-dot {
+        width:6px; height:6px; border-radius:50%;
+        background:var(--color-sand);
+        transition:background 0.3s ease, transform 0.3s ease;
+        flex-shrink:0;
+    }
+    .section-nav-item.active .section-nav-dot {
+        background:var(--color-off-black);
+        transform:scale(1.5);
+    }
+    .section-nav-item.active .section-nav-label {
+        opacity:1; transform:translateX(0);
+    }
+
+    </style>
+</head>
+<body>
+
+
+<div id="section-nav">
+    <div class="section-nav-item" data-nav="s0-hero">
+        <span class="section-nav-label">Introduction</span><span class="section-nav-dot"></span>
+    </div>
+    <div class="section-nav-item" data-nav="s1-stats">
+        <span class="section-nav-label">Overview</span><span class="section-nav-dot"></span>
+    </div>
+    <div class="section-nav-item" data-nav="s2-narrate1">
+        <span class="section-nav-label">Context</span><span class="section-nav-dot"></span>
+    </div>
+    <div class="section-nav-item" data-nav="s4-regions">
+        <span class="section-nav-label">By Region</span><span class="section-nav-dot"></span>
+    </div>
+    <div class="section-nav-item" data-nav="s5-year">
+        <span class="section-nav-label">By Year</span><span class="section-nav-dot"></span>
+    </div>
+    <div class="section-nav-item" data-nav="s6-framework">
+        <span class="section-nav-label">By Framework</span><span class="section-nav-dot"></span>
+    </div>
+    <div class="section-nav-item" data-nav="s7-status">
+        <span class="section-nav-label">By Status</span><span class="section-nav-dot"></span>
+    </div>
+    <div class="section-nav-item" data-nav="s8-nature">
+        <span class="section-nav-label">Nature Type</span><span class="section-nav-dot"></span>
+    </div>
+    <div class="section-nav-item" data-nav="s9-end">
+        <span class="section-nav-label">Explore</span><span class="section-nav-dot"></span>
+    </div>
+</div>
+
+<!-- Fixed overlays (pills + narrative) -->
+<div id="fixed-overlays">
+    <div id="stats-display"><span id="stat-initiatives">0</span> Initiatives<span class="sep">·</span><span id="stat-countries">0</span> Countries<span class="sep">·</span>1 Movement</div>
+</div>
+<!-- (narrative boxes are injected into each scroll section by JS) -->
+<button id="skip-btn">skip →</button>
+<div id="zoom-hint">slider to zoom · drag to pan</div>
+<div id="zoom-controls">
+    <span class="zoom-slider-label">−</span>
+    <input id="zoom-slider" type="range" min="1" max="12" step="0.01" value="1">
+    <span class="zoom-slider-label">+</span>
+</div>
+<div id="country-name-display"></div>
+
+<!-- Tooltips -->
+<div id="tooltip"><div class="tt-title" id="tt-title"></div><div class="tt-meta" id="tt-meta"></div><div class="tt-nature" id="tt-nature"></div><div class="tt-link" id="tt-link"></div></div>
+<div id="country-tooltip"></div>
+<div id="pinned-tooltip">
+    <button id="pt-close">×</button>
+    <div class="tt-title" id="pt-title"></div>
+    <div class="tt-meta"  id="pt-meta"></div>
+    <div class="tt-nature" id="pt-nature"></div>
+    <div class="tt-link"  id="pt-link"></div>
+</div>
+
+<!-- Chart labels -->
+<div id="axis-labels-container"></div>
+<div id="main-labels-container"></div>
+
+<!-- Canvas -->
+<div id="p5-canvas"></div>
+
+<!-- Scrollytelling spacers -->
+<div id="scroll-container">
+    <div class="scroll-section" data-section="s0-hero"></div>
+    <div class="scroll-section" data-section="s1-stats"></div>
+    <div class="scroll-section" data-section="s2-narrate1"></div>
+    <div class="scroll-section" data-section="s4-regions"></div>
+    <div class="scroll-section" data-section="s5-year"></div>
+    <div class="scroll-section" data-section="s6-framework"></div>
+    <div class="scroll-section" data-section="s7-status"></div>
+    <div class="scroll-section" data-section="s8-nature"></div>
+    <div class="scroll-section" data-section="s9-end"></div>
+</div>
+
+
+<script>
+/* ════════════════════════════════════════════════════
+   STATE
+════════════════════════════════════════════════════ */
+let data=[], particles=[];
+let currentSection='s0-hero';
+let p5Instance, worldGeoJson=null, mapProjection=null;
+let selectedParticle=null;
+let showMap=true;
+let showCountryFills=true;
+let highlightCountries=new Set();
+let typewriterTimers=[];
+let statsAnimated=false;
+let particleMapPos=[];
+let hoveredCountry=null;
+let selectedCountry=null;
+let selectedCountryParticles=new Set();
+let countryCounts={};
+
+/* ── MAP ZOOM (active in s2-narrate1) ── */
+let mapZoom={ k:1, tx:0, ty:0 };
+let mapZoomActive=false;
+let _drag={ down:false, x:0, y:0, tx:0, ty:0 };
+let _pinch={ active:false, dist:0, k0:1, tx0:0, ty0:0 };
+const MAP_ZOOM_MIN=1, MAP_ZOOM_MAX=12;
+
+/* ════════════════════════════════════════════════════
+   CONSTANTS
+════════════════════════════════════════════════════ */
+const NATURE_COLORS={
+    // All Nature (incl. Space, Urban)
+    'All Nature':'#85854D','Space':'#85854D','Urban':'#85854D','General':'#85854D','Climate':'#85854D',
+    // Plant + Forest + Fungi
+    'Plant':'#7A3F0F','Forest':'#7A3F0F','Fungi':'#7A3F0F',
+    // Animal
+    'Animal':'#FF9B00','Species':'#FF9B00',
+    // Freshwater + Marine + Arctic
+    'Freshwater Ecosystem':'#8ECBF0','Marine Ecosystem':'#8ECBF0','Arctic':'#8ECBF0',
+    'Marine':'#8ECBF0','Freshwater':'#8ECBF0','Ocean':'#8ECBF0','River':'#8ECBF0',
+    'Lake':'#8ECBF0','Wetland':'#8ECBF0',
+    // Mountain + Grassland + Desert
+    'Mountain':'#DCC240','Grassland':'#DCC240','Desert':'#DCC240',
+    // Multiple / fallback
+    'Multiple':'#985475','Ecosystem':'#985475'
+};
+
+/*I reordered the arrays based on the length of the labels */
+
+const FORMAL_LAW=['Constitution','Indigenous Law','Court Case','Policy','Legislation','Declaration'];
+const SOFT_LAW=['Civil Society Declaration', 'Private Sector Governance', 'Civil Society Tribunal','Indigenous Declaration','Position Statement'];
+const FRAMEWORK_ORDER=[...FORMAL_LAW,...SOFT_LAW];
+const REGION_ORDER=['North America','Latin America','Europe','Africa','Asia','Oceania','International'];
+const NATURE_ORDER=['All Nature','Plant + Forest + Fungi','Animal','Freshwater + Marine + Arctic','Mountain + Grassland + Desert'];
+const REGION_URLS={
+    'North America':'https://ecojurisprudence.org/region/north-america/',
+    'Latin America':'https://ecojurisprudence.org/region/latin-america/',
+    'Europe':'https://ecojurisprudence.org/region/europe/',
+    'Africa':'https://ecojurisprudence.org/region/africa/',
+    'Asia':'https://ecojurisprudence.org/region/asia/',
+    'Oceania':'https://ecojurisprudence.org/region/oceania/',
+    'International':'https://ecojurisprudence.org/region/international/',
+};
+// GeoJSON feature names that differ from how countries appear in the data.
+// Maps GeoJSON name → canonical name used in CSV (after pipe-parsing).
+const GEO_ALIASES={
+    'England':'United Kingdom',
+    'Wales':'United Kingdom',
+    'Scotland':'United Kingdom',
+    'Northern Ireland':'United Kingdom',
+    'W. Sahara':'Morocco',
+    'Somaliland':'Somalia',
+    'N. Cyprus':'Cyprus',
+    'Kosovo':'Serbia',
+    'Falkland Is.':'Argentina',
+    'Fr. S. Antarctic Lands':'France',
+};
+
+// Data country name (lowercase) → canonical GeoJSON feature name, for cases
+// where bestGeoMatch can't find a match (e.g. GeoJSON splits UK into constituents).
+const DATA_TO_GEO_OVERRIDE={
+    'united kingdom':'England',
+    'uk':'England',
+};
+
+// Resolve a raw GeoJSON feature name to the canonical country name used in data
+function resolveGeoName(geoName){ return GEO_ALIASES[geoName]||geoName; }
+
+const GEO_TO_REGION={
+    'USA':'North America','Canada':'North America','Mexico':'North America',
+    'Brazil':'Latin America','Colombia':'Latin America','Ecuador':'Latin America',
+    'Bolivia':'Latin America','Peru':'Latin America','Argentina':'Latin America',
+    'Chile':'Latin America','Venezuela':'Latin America','Uruguay':'Latin America',
+    'Paraguay':'Latin America','Panama':'Latin America','Costa Rica':'Latin America',
+    'Guatemala':'Latin America','Honduras':'Latin America','El Salvador':'Latin America',
+    'Nicaragua':'Latin America','Cuba':'Latin America','Haiti':'Latin America','Dominican Rep.':'Latin America',
+    'United Kingdom':'Europe','France':'Europe','Germany':'Europe','Spain':'Europe',
+    'Italy':'Europe','Netherlands':'Europe','Belgium':'Europe','Sweden':'Europe',
+    'Norway':'Europe','Denmark':'Europe','Finland':'Europe','Switzerland':'Europe',
+    'Austria':'Europe','Portugal':'Europe','Ireland':'Europe','Poland':'Europe',
+    'Czech Rep.':'Europe','Slovakia':'Europe','Hungary':'Europe','Romania':'Europe',
+    'Bulgaria':'Europe','Croatia':'Europe','Slovenia':'Europe','Estonia':'Europe',
+    'Latvia':'Europe','Lithuania':'Europe','Greece':'Europe','Iceland':'Europe',
+    'Nigeria':'Africa','South Africa':'Africa','Kenya':'Africa','Uganda':'Africa',
+    'Tanzania':'Africa','Ghana':'Africa','Ethiopia':'Africa','Senegal':'Africa',
+    'Cameroon':'Africa','Mozambique':'Africa','Zambia':'Africa','Zimbabwe':'Africa',
+    'Madagascar':'Africa','Morocco':'Africa','Egypt':'Africa','Algeria':'Africa',
+    'Sudan':'Africa','South Sudan':'Africa','Rwanda':'Africa','Congo':'Africa',
+    'Dem. Rep. Congo':'Africa','Angola':'Africa','Namibia':'Africa','Botswana':'Africa',
+    'China':'Asia','India':'Asia','Japan':'Asia','South Korea':'Asia',
+    'Indonesia':'Asia','Philippines':'Asia','Vietnam':'Asia','Thailand':'Asia',
+    'Malaysia':'Asia','Bangladesh':'Asia','Pakistan':'Asia','Nepal':'Asia',
+    'Sri Lanka':'Asia','Cambodia':'Asia','Myanmar':'Asia','Mongolia':'Asia',
+    'Iran':'Asia','Iraq':'Asia','Turkey':'Asia','Jordan':'Asia',
+    'Israel':'Asia','Saudi Arabia':'Asia','UAE':'Asia','Yemen':'Asia',
+    'Armenia':'Asia','Georgia':'Asia','Azerbaijan':'Asia',
+    'Australia':'Oceania','New Zealand':'Oceania','Papua New Guinea':'Oceania',
+    'Fiji':'Oceania','Solomon Is.':'Oceania','Vanuatu':'Oceania',
+};
+
+/* ════════════════════════════════════════════════════
+   GEO JSON
+════════════════════════════════════════════════════ */
+fetch('https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson')
+    .then(r=>r.json()).then(geo=>{
+        geo.features=geo.features.filter(f=>f.properties.name!=='Antarctica');
+        worldGeoJson=geo;
+        resolveCountryCounts();
+        if (p5Instance){
+            mapProjection=buildProjection(p5Instance.width,p5Instance.height);
+            cacheMapPositions(); placeParticlesOnMap();
+        }
+    });
+
+// Extract the full country name from "CODE|Full Name" format
+function parseCountryName(raw){
+    if(!raw) return '';
+    const pipe=raw.indexOf('|');
+    return (pipe>=0 ? raw.slice(pipe+1) : raw).trim();
+}
+
+// Lookup table: parsed data country name (lowercase) → canonical GeoJSON feature name
+// Built once in resolveCountryCounts() after both data and GeoJSON are ready.
+const dataToGeoName={};
+
+// Find the best GeoJSON name for a data country string.
+// Priority: 1) exact (case-insensitive), 2) shortest GeoJSON name that wholly
+// contains the data name as a complete word (avoids Niger→Nigeria, Oman→Romania).
+function bestGeoMatch(dataName, geoNames){
+    const dl=dataName.toLowerCase().trim();
+    if(!dl) return null;
+    // 1. Exact
+    const exact=geoNames.find(g=>g.toLowerCase()===dl);
+    if(exact) return exact;
+    // 2. Word-boundary substring: data name must appear as a whole word inside geo name
+    //    e.g. "Niger" matches "Niger" (exact, caught above) but NOT "Nigeria"
+    //    Use \b word boundaries on the data name within the geo name.
+    const re=new RegExp('(?:^|[^a-z])'+dl.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(?:[^a-z]|$)','i');
+    const wordMatches=geoNames.filter(g=>re.test(g));
+    if(wordMatches.length===1) return wordMatches[0];
+    if(wordMatches.length>1){
+        // Prefer shortest (most specific) match
+        return wordMatches.reduce((a,b)=>a.length<=b.length?a:b);
+    }
+    // 3. Geo name wholly contained in data name (e.g. data="United States of America", geo="USA" — unlikely but safe)
+    const contained=geoNames.filter(g=>dl.includes(g.toLowerCase()));
+    if(contained.length===1) return contained[0];
+    if(contained.length>1) return contained.reduce((a,b)=>a.length>=b.length?a:b); // longest geo name wins
+    return null;
+}
+
+// Match each data Country string to a GeoJSON feature name, sum counts
+function resolveCountryCounts(){
+    if(!worldGeoJson||!window._rawCountryCounts) return;
+    const raw=window._rawCountryCounts;
+    const geoNames=worldGeoJson.features.map(f=>f.properties.name);
+    Object.entries(raw).forEach(([dataName, count])=>{
+        const dl=dataName.toLowerCase().trim();
+        const match=bestGeoMatch(dataName, geoNames) || 
+                     (DATA_TO_GEO_OVERRIDE[dl] && geoNames.includes(DATA_TO_GEO_OVERRIDE[dl]) ? DATA_TO_GEO_OVERRIDE[dl] : null);
+        if(match){
+            // Store mapping from data name → resolved canonical name (alias-aware)
+            const resolved=resolveGeoName(match);
+            dataToGeoName[dataName.toLowerCase().trim()]=resolved;
+            countryCounts[resolved]=(countryCounts[resolved]||0)+count;
+        }
+    });
+}
+
+// Return true if a parsed particle country name corresponds to a given GeoJSON feature name
+function countryMatchesGeo(parsedName, geoName){
+    if(!parsedName||!geoName) return false;
+    const key=parsedName.toLowerCase().trim();
+    // Compare canonical (resolved) names on both sides
+    const dataCanonical=dataToGeoName[key] || parsedName.trim();
+    const geoCanonical=resolveGeoName(geoName);
+    return dataCanonical===geoCanonical;
+}
+function buildProjection(w,h){
+    if (!worldGeoJson) return null;
+    return d3.geoNaturalEarth1().fitExtent([[30,10],[w-30,h-10]],worldGeoJson);
+}
+
+/* ════════════════════════════════════════════════════
+   DATA
+════════════════════════════════════════════════════ */
+Papa.parse('https://docs.google.com/spreadsheets/d/e/2PACX-1vSKgeCFRWhEydDOm3JMjw-F9MI8bNvgWYkXSA-_3S8Mo9Ehxs3WrB07UbNfrFdfDiOLqHc67BR6kyaG/pub?gid=600477657&single=true&output=csv',{
+    download:true, header:true,
+    complete(results){
+        data=results.data.filter(r=>r.Region && (r["Carmen's "]||'').trim().toLowerCase()==='aa');
+        // Build raw count keyed by data's Country string
+        const rawCounts={};
+        data.forEach(r=>{
+            const c=parseCountryName(r.Country);
+            if(c) rawCounts[c]=(rawCounts[c]||0)+1;
+        });
+        // countryCounts will be keyed by GeoJSON feature name, built once GeoJSON is ready
+        // Store rawCounts for now; resolveCountryCounts() will run after GeoJSON loads
+        window._rawCountryCounts=rawCounts;
+        initViz();
+    },
+    error(){ console.error('Data load failed'); }
+});
+
+/* ════════════════════════════════════════════════════
+   PARTICLE
+════════════════════════════════════════════════════ */
+class Particle {
+    constructor(d,i){
+        this.data=d; this.index=i;
+        this.title=d.Title||'Unknown';
+        this.permalink=d.Permalink||'';
+        this.color=this.getColor(d['Primary Nature Type']);
+        this.x=0; this.y=0; this.targetX=0; this.targetY=0;
+        this.size=7; this.visible=true; this.frozen=false;
+    }
+    getColor(t){
+        if (!t) return NATURE_COLORS['All Nature'];
+        if (t.includes('|')) return NATURE_COLORS['Multiple'];
+        if (NATURE_COLORS[t]) return NATURE_COLORS[t];
+        const l=t.toLowerCase();
+        if(l.includes('all')||l.includes('general')||l.includes('space')||l.includes('urban')||l.includes('climate')) return NATURE_COLORS['All Nature'];
+        if(l.includes('plant')||l.includes('forest')||l.includes('fungi')) return NATURE_COLORS['Plant'];
+        if(l.includes('animal')||l.includes('species')) return NATURE_COLORS['Animal'];
+        if(l.includes('freshwater')||l.includes('marine')||l.includes('arctic')||
+           l.includes('ocean')||l.includes('river')||l.includes('lake')||l.includes('wetland')) return NATURE_COLORS['Marine'];
+        if(l.includes('mountain')||l.includes('grass')||l.includes('desert')) return NATURE_COLORS['Grassland'];
+        if(l.includes('ecosystem')||l.includes('multiple')) return NATURE_COLORS['Multiple'];
+        return NATURE_COLORS['All Nature'];
+    }
+    update(){ if(this.frozen)return; this.x+=(this.targetX-this.x)*0.055; this.y+=(this.targetY-this.y)*0.055; }
+    display(){
+        if(!this.visible) return;
+        const isSel=selectedParticle===this, hasSel=selectedParticle!==null;
+        const isCountrySel=selectedCountryParticles.has(this);
+        const hasCountrySel=selectedCountry!==null;
+        // Always draw white stroke around every dot
+        p5Instance.stroke(255); p5Instance.strokeWeight(0.5);
+        if(hasSel&&!isSel){
+            const c=p5Instance.color(this.color); c.setAlpha(35); p5Instance.fill(c);
+        } else if(isSel){
+            p5Instance.noFill(); p5Instance.stroke(this.color); p5Instance.strokeWeight(1.5);
+            p5Instance.circle(this.x,this.y,this.size+8);
+            p5Instance.stroke(255); p5Instance.strokeWeight(0.5); p5Instance.fill(this.color);
+            p5Instance.circle(this.x,this.y,this.size+2); return;
+        } else if(hasCountrySel&&isCountrySel){
+            p5Instance.stroke(255); p5Instance.strokeWeight(0.5); p5Instance.fill(this.color);
+        } else if(hasCountrySel&&!isCountrySel){
+            const c=p5Instance.color(this.color); c.setAlpha(35); p5Instance.fill(c);
+        } else {
+            p5Instance.fill(this.color);
+        }
+        p5Instance.circle(this.x,this.y,this.size);
+    }
+    setTarget(x,y,visible=true){ this.targetX=x; this.targetY=y; this.visible=visible; this.frozen=false; }
+    snapTo(x,y,visible=true){ this.x=x; this.y=y; this.targetX=x; this.targetY=y; this.visible=visible; this.frozen=false; }
+}
+
+/* ════════════════════════════════════════════════════
+   P5 INIT
+════════════════════════════════════════════════════ */
+function initViz(){
+    new p5(p=>{
+        p5Instance=p;
+        p.setup=function(){
+            p.pixelDensity(window.devicePixelRatio||2);
+            p.createCanvas(window.innerWidth,window.innerHeight).parent('p5-canvas');
+            if(worldGeoJson) mapProjection=buildProjection(p.width,p.height);
+            resolveCountryCounts();
+            data.forEach((d,i)=>particles.push(new Particle(d,i)));
+            cacheMapPositions(); placeParticlesOnMap();
+        };
+        p.draw=function(){
+            p.background('#FFFFFF');
+            if(showMap&&worldGeoJson&&mapProjection) drawMap(p);
+            particles.forEach(pt=>{pt.update();pt.display();});
+            if(frameworkBrackets.length) drawFrameworkBrackets(p);
+            if(selectedParticle) positionPinnedTooltip();
+        };
+        p.windowResized=function(){
+            p.pixelDensity(window.devicePixelRatio||2);
+            p.resizeCanvas(window.innerWidth,window.innerHeight);
+            mapProjection=buildProjection(p.width,p.height);
+            cacheMapPositions(); onSectionEnter(currentSection);
+        };
+        p.mouseMoved=function(){
+            const ttEl=document.getElementById('tooltip');
+            const ctEl=document.getElementById('country-tooltip');
+            if(selectedParticle){ttEl.style.display='none'; ctEl.style.display='none'; hoveredCountry=null; return;}
+            const found=findParticle(p.mouseX,p.mouseY);
+            if(found){
+                document.getElementById('tt-title').textContent=found.title;
+                const nature=found.data['Primary Nature Type']||'';
+                document.getElementById('tt-meta').innerHTML=`${found.data['Primary Year']||'—'} · ${found.data['Status']||'—'}`+(nature?` · <span style="color:${found.color};font-weight:600">${nature}</span>`:'');
+                document.getElementById('tt-nature').textContent='';
+                document.getElementById('tt-link').innerHTML=found.permalink?`<a href="${found.permalink}" target="_blank">more info ↗</a>`:'';
+                ttEl.style.setProperty('--tt-accent', found.color);
+                ttEl.style.display='block';
+                // Position above the dot; after rendering measure height for offset
+                ttEl.style.left=(p.mouseX-ttEl.offsetWidth/2)+'px';
+                ttEl.style.top=(p.mouseY-ttEl.offsetHeight-16)+'px';
+                p.canvas.style.cursor='pointer';
+                ctEl.style.display='none'; hoveredCountry=null;
+            } else {
+                ttEl.style.display='none';
+                // Country hit-test (only when map visible)
+                if(showMap&&worldGeoJson&&mapProjection){
+                    // Unproject mouse through zoom transform to get map-space coords
+                    const mx=(p.mouseX-mapZoom.tx)/mapZoom.k;
+                    const my=(p.mouseY-mapZoom.ty)/mapZoom.k;
+                    const inv=mapProjection.invert&&mapProjection.invert([mx,my]);
+                    let hit=null;
+                    if(inv){
+                        for(const f of worldGeoJson.features){
+                            if(d3.geoContains(f,inv)){ hit=f; break; }
+                        }
+                    }
+                    if(hit){
+                        const resolvedHover=resolveGeoName(hit.properties.name);
+                        const n=countryCounts[resolvedHover]||0;
+                        hoveredCountry=hit.properties.name;
+                        // Show country name display at top
+                        const nd=document.getElementById('country-name-display');
+                        if(!selectedCountry){
+                            nd.textContent=n>0?`${resolvedHover} · ${n} initiative${n!==1?'s':''}`:resolvedHover+' · no initiatives in our dataset';
+                            nd.style.opacity='1';
+                        }
+                        ctEl.style.display='none';
+                        p.canvas.style.cursor=n>0?(mapZoomActive?'grab':'pointer'):(mapZoomActive?'grab':'default');
+                    } else {
+                        hoveredCountry=null; ctEl.style.display='none';
+                        if(!selectedCountry){
+                            document.getElementById('country-name-display').style.opacity='0';
+                        }
+                        p.canvas.style.cursor=mapZoomActive?'grab':'default';
+                    }
+                } else {
+                    hoveredCountry=null; ctEl.style.display='none';
+                    if(!selectedCountry){
+                        document.getElementById('country-name-display').style.opacity='0';
+                    }
+                    p.canvas.style.cursor='default';
+                }
+            }
+        };
+        p.mouseClicked=function(){
+            const found=findParticle(p.mouseX,p.mouseY);
+            if(found){ selectedCountry=null; selectedCountryParticles.clear(); selectedParticle===found?hidePinned():showPinned(found); return; }
+            hidePinned();
+            // Country click (only when map is visible)
+            if(showMap&&worldGeoJson&&mapProjection){
+                const mx=(p.mouseX-mapZoom.tx)/mapZoom.k;
+                const my=(p.mouseY-mapZoom.ty)/mapZoom.k;
+                const inv=mapProjection.invert&&mapProjection.invert([mx,my]);
+                let hit=null;
+                if(inv){ for(const f of worldGeoJson.features){ if(d3.geoContains(f,inv)){hit=f;break;} } }
+                if(hit){
+                    const name=resolveGeoName(hit.properties.name);
+                    const n=countryCounts[name]||0;
+                    if(n>0){
+                        if(selectedCountry===name){
+                            selectedCountry=null; selectedCountryParticles.clear();
+                            document.getElementById('country-name-display').style.opacity='0';
+                        } else {
+                            selectedParticle=null;
+                            selectedCountry=name;
+                            selectedCountryParticles.clear();
+                            particles.forEach(pt=>{
+                                if(countryMatchesGeo(parseCountryName(pt.data.Country),name))
+                                    selectedCountryParticles.add(pt);
+                            });
+                            document.getElementById('pinned-tooltip').style.display='none';
+                            const nd=document.getElementById('country-name-display');
+                            nd.textContent=`${name} · ${n} initiative${n!==1?'s':''}`;
+                            nd.style.opacity='1';
+                        }
+                    } else {
+                        // No initiatives — show label but don't select
+                        selectedCountry=null;
+                        const nd=document.getElementById('country-name-display');
+                        nd.textContent=name+' · no initiatives in our dataset';
+                        nd.style.opacity='1';
+                    }
+                } else {
+                    selectedCountry=null;
+                    document.getElementById('country-name-display').style.opacity='0';
+                }
+            } else {
+                selectedCountry=null;
+            }
+        };
+    });
+    setupObserver();
+    // init dot nav
+    const firstNav = document.querySelector('.section-nav-item[data-nav="s0-hero"]');
+    if(firstNav) firstNav.classList.add('active');
+    document.getElementById('skip-btn').addEventListener('click',()=>window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'}));
+    document.getElementById('pt-close').addEventListener('click',hidePinned);
+    window.addEventListener('scroll',()=>{
+        if(selectedParticle) positionPinnedTooltip();
+        const staticEl=document.getElementById('static-content');
+        if(staticEl&&selectedCountry){
+            const rect=staticEl.getBoundingClientRect();
+            const nd=document.getElementById('country-name-display');
+            nd.style.opacity=(rect.top<=window.innerHeight)?'0':'1';
+        }
+    });
+
+    /* ── MAP ZOOM: slider + mouse drag only ── */
+    const zoomSlider=document.getElementById('zoom-slider');
+    function syncSlider(){ zoomSlider.value=mapZoom.k; }
+
+    zoomSlider.addEventListener('input',()=>{
+        if(!mapZoomActive) return;
+        const cx=window.innerWidth/2, cy=window.innerHeight/2;
+        const k0=mapZoom.k;
+        mapZoom.k=parseFloat(zoomSlider.value);
+        mapZoom.tx=cx-(cx-mapZoom.tx)*(mapZoom.k/k0);
+        mapZoom.ty=cy-(cy-mapZoom.ty)*(mapZoom.k/k0);
+        clampZoom(); applyZoomToParticles();
+    });
+
+    const canvasWrap=document.getElementById('p5-canvas');
+    canvasWrap.addEventListener('mousedown',(e)=>{
+        if(!mapZoomActive||mapZoom.k<=1) return;
+        _drag={down:true,x:e.clientX,y:e.clientY,tx:mapZoom.tx,ty:mapZoom.ty};
+        canvasWrap.style.cursor='grabbing';
+    });
+    window.addEventListener('mousemove',(e)=>{
+        if(!_drag.down) return;
+        mapZoom.tx=_drag.tx+(e.clientX-_drag.x);
+        mapZoom.ty=_drag.ty+(e.clientY-_drag.y);
+        clampZoom(); applyZoomToParticles();
+    });
+    window.addEventListener('mouseup',()=>{
+        if(_drag.down){ _drag.down=false; canvasWrap.style.cursor=mapZoomActive?'grab':'default'; }
+    });
+}  // end initViz
+
+/* ════════════════════════════════════════════════════
+   MAP DRAWING (fills only, no outlines when showCountryFills)
+════════════════════════════════════════════════════ */
+function drawMap(p){
+    const ctx=p.drawingContext;
+    ctx.save();
+    if(mapZoomActive&&(mapZoom.k!==1||mapZoom.tx!==0||mapZoom.ty!==0)){
+        ctx.translate(mapZoom.tx, mapZoom.ty);
+        ctx.scale(mapZoom.k, mapZoom.k);
+    }
+    const pathGen=d3.geoPath().context(ctx);
+    pathGen.projection(mapProjection);
+    worldGeoJson.features.forEach(feat=>{
+        const name=feat.properties.name;
+        ctx.beginPath(); pathGen(feat);
+        const resolvedName=resolveGeoName(name);
+        const effectiveHovered=hoveredCountry?resolveGeoName(hoveredCountry):null;
+        const isSelected=selectedCountry&&resolvedName===selectedCountry;
+        const isHovered=!isSelected&&resolvedName===effectiveHovered;
+        const isHighlighted=highlightCountries.has(name)||highlightCountries.has(resolvedName);
+        if(isSelected){
+            ctx.fillStyle='#3D3D31';               // clicked — solid off-black
+        } else if(isHovered&&isHighlighted){
+            ctx.fillStyle='rgba(61,61,49,0.38)';   // hover on initiative country (darker)
+        } else if(isHovered){
+            ctx.fillStyle='rgba(61,61,49,0.18)';   // hover on no-initiative country (lighter)
+        } else if(isHighlighted){
+            ctx.fillStyle='rgba(61,61,49,0.20)';   // initiative country base
+        } else {
+            ctx.fillStyle='rgba(61,61,49,0.07)';   // no initiatives
+        }
+        ctx.fill();
+    });
+    ctx.restore();
+}
+
+/* ════════════════════════════════════════════════════
+   MAP POSITIONS
+════════════════════════════════════════════════════ */
+function cacheMapPositions(){
+    const w=p5Instance.width;
+    particleMapPos=particles.map(p=>{
+        const lat=parseFloat(p.data.Latitude), lng=parseFloat(p.data.Longitude);
+        if(!isNaN(lat)&&!isNaN(lng)&&mapProjection){
+            const pt=mapProjection([lng,lat]);
+            if(pt) return {x:pt[0],y:pt[1]};
+        }
+        return {x:w-80,y:40};
+    });
+}
+function placeParticlesOnMap(){
+    particles.forEach((p,i)=>{
+        const pos=particleMapPos[i]||{x:p5Instance.width-80,y:40};
+        p.snapTo(pos.x,pos.y,true);
+    });
+}
+
+/* Move particles to match current zoom transform (narrate sections only) */
+function applyZoomToParticles(){
+    if(!mapZoomActive) return;
+    particles.forEach((p,i)=>{
+        const pos=particleMapPos[i]||{x:p5Instance.width-80,y:40};
+        p.snapTo(pos.x*mapZoom.k+mapZoom.tx, pos.y*mapZoom.k+mapZoom.ty, true);
+    });
+}
+
+function resetMapZoom(){
+    mapZoom={k:1,tx:0,ty:0};
+    _drag={down:false,x:0,y:0,tx:0,ty:0};
+    _pinch={active:false,dist:0,k0:1,tx0:0,ty0:0};
+    const s=document.getElementById('zoom-slider'); if(s) s.value=1;
+}
+
+function clampZoom(){
+    const w=p5Instance?p5Instance.width:window.innerWidth;
+    const h=p5Instance?p5Instance.height:window.innerHeight;
+    // Clamp scale
+    mapZoom.k=Math.max(MAP_ZOOM_MIN,Math.min(MAP_ZOOM_MAX,mapZoom.k));
+    // Clamp translate so map can't be panned fully off screen
+    const maxTx=w*(mapZoom.k-1)*0.6;
+    const maxTy=h*(mapZoom.k-1)*0.6;
+    mapZoom.tx=Math.max(-maxTx,Math.min(maxTx,mapZoom.tx));
+    mapZoom.ty=Math.max(-maxTy,Math.min(maxTy,mapZoom.ty));
+}
+
+/* ════════════════════════════════════════════════════
+   UTILS
+════════════════════════════════════════════════════ */
+function findParticle(mx,my,r=8){
+    for(const pt of particles){ if(!pt.visible)continue; if((mx-pt.x)**2+(my-pt.y)**2<r*r)return pt; }
+    return null;
+}
+function positionPinnedTooltip(){
+    if(!selectedParticle) return;
+    const el=document.getElementById('pinned-tooltip');
+    // Hide tooltip if particle is not visible (e.g. pre-2006 in year chart)
+    if(!selectedParticle.visible){ el.style.display='none'; return; }
+    el.style.display='block';
+    const elH=el.offsetHeight||100, elW=el.offsetWidth||220;
+    let left=selectedParticle.x-elW/2;
+    let top=selectedParticle.y-elH-16;
+    if(left<10) left=10;
+    if(left+elW>window.innerWidth-10) left=window.innerWidth-elW-10;
+    if(top<10) top=selectedParticle.y+16; // flip below if no room above
+    el.style.left=left+'px'; el.style.top=top+'px';
+}
+function showPinned(p){
+    selectedParticle=p;
+    document.getElementById('pt-title').textContent=p.title;
+    const ptNatureText=p.data['Primary Nature Type']||'';
+    document.getElementById('pt-meta').innerHTML=`${p.data['Primary Year']||'—'} · ${p.data['Status']||'—'}`+(ptNatureText?` · <span style="color:${p.color};font-weight:600">${ptNatureText}</span>`:'');
+    document.getElementById('pt-nature').textContent='';
+    document.getElementById('pt-link').innerHTML=p.permalink?`<a href="${p.permalink}" target="_blank">more info ↗</a>`:'';
+    const ptEl=document.getElementById('pinned-tooltip');
+    ptEl.style.setProperty('--pt-accent', p.color);
+    ptEl.style.display='block';
+    positionPinnedTooltip();
+}
+function hidePinned(){
+    selectedParticle=null; selectedCountry=null; selectedCountryParticles.clear();
+    document.getElementById('pinned-tooltip').style.display='none';
+    document.getElementById('country-name-display').style.opacity='0';
+}
+
+/* ════════════════════════════════════════════════════
+   NARRATIVE — per-section scrolling boxes
+════════════════════════════════════════════════════ */
+// Inject a narrative box into the given section element (once per section, lazily)
+function typewrite(text, onDone, isHTML){
+    typewriterTimers.forEach(t=>clearTimeout(t)); typewriterTimers=[];
+
+    // Find the current section's scroll-section element
+    const secEl=document.querySelector(`.scroll-section[data-section="${currentSection}"]`);
+    if(!secEl) return;
+
+    // Remove any existing box in this section (re-entering)
+    const existing=secEl.querySelector('.narrative-scroll-box');
+    if(existing) existing.remove();
+
+    // Build inner HTML
+    let innerHtml;
+    if(isHTML){
+        innerHtml=text.replace(/(<span data-countup="[^"]*">[^<]*<\/span>)/g,'<strong>$1</strong>');
+        innerHtml=`<span class="fade-line">${innerHtml}</span>`;
+    } else {
+        const sentences=text.match(/[^.!?]+[.!?]?\s*/g)||[text];
+        innerHtml=sentences.map(s=>{
+            const safe=s.replace(/(\d+%)/g,'<strong>$1</strong>');
+            return `<span class="fade-line">${safe}</span>`;
+        }).join('');
+    }
+
+    // Create and inject box
+    const box=document.createElement('div');
+    box.className='narrative-scroll-box';
+    box.innerHTML=`<div class="narrative-inner"><p>${innerHtml}</p></div>`;
+    secEl.appendChild(box);
+
+    // After render, measure height and nudge vertical centering in the second vh
+    requestAnimationFrame(()=>{
+        const h=box.offsetHeight;
+        box.style.top=`calc(100vh + (100vh - ${h}px) / 2)`;
+    });
+
+    if(isHTML) animateNarrativeNumbers(200);
+
+    // Staggered fade-in of lines
+    const lines=box.querySelectorAll('.fade-line');
+    lines.forEach((line,i)=>{
+        const t=setTimeout(()=>{
+            line.classList.add('revealed');
+            if(i===lines.length-1 && onDone) onDone();
+        }, 120+i*160);
+        typewriterTimers.push(t);
+    });
+}
+function clearNarrative(){
+    typewriterTimers.forEach(t=>clearTimeout(t)); typewriterTimers=[];
+    // clearNarrative is a no-op now — boxes live inside their sections and scroll away naturally
+}
+
+/* ════════════════════════════════════════════════════
+   COUNT-UP ANIMATION FOR NARRATIVE NUMBERS
+════════════════════════════════════════════════════ */
+function animateNarrativeNumbers(delay){
+    setTimeout(()=>{
+        const secEl=document.querySelector(`.scroll-section[data-section="${currentSection}"]`);
+        const scope=secEl||document;
+        const spans=scope.querySelectorAll('[data-countup]');
+        spans.forEach(span=>{
+            const target=parseInt(span.dataset.countup)||0;
+            let f=0; const iv=setInterval(()=>{
+                f++; const e=1-Math.pow(1-f/60,3);
+                span.textContent=Math.round(e*target)+'%';
+                if(f>=60){ span.textContent=target+'%'; clearInterval(iv); }
+            },1200/60);
+        });
+    },delay||0);
+}
+function animateStats(){
+    if(statsAnimated)return; statsAnimated=true;
+    const nI=particles.length;
+    const nC=new Set(data.map(r=>(r.Country||'').trim()).filter(Boolean)).size;
+    let f=0; const iv=setInterval(()=>{
+        f++; const e=1-Math.pow(1-f/60,3);
+        document.getElementById('stat-initiatives').textContent=Math.round(e*nI);
+        document.getElementById('stat-countries').textContent=Math.round(e*nC);
+        if(f>=60){
+            document.getElementById('stat-initiatives').textContent=nI;
+            document.getElementById('stat-countries').textContent=nC;
+            clearInterval(iv);
+        }
+    },1200/60);
+}
+function resetStats(){
+    statsAnimated=false;
+    document.getElementById('stat-initiatives').textContent='0';
+    document.getElementById('stat-countries').textContent='0';
+}
+
+/* ════════════════════════════════════════════════════
+   LABELS
+════════════════════════════════════════════════════ */
+function clearLabels(){
+    document.getElementById('axis-labels-container').innerHTML='';
+    document.getElementById('main-labels-container').innerHTML='';
+    frameworkBrackets=[];
+}
+function addAxisLabel(text,x,opts={}){
+    const el=document.createElement('div');
+    el.className='chart-label axis'+(opts.clickable?' clickable':'');
+    // Wrap into up to 3 lines if label > 9 chars
+    if(text.length>9){
+        const words=text.split(' ');
+        let html='';
+        if(words.length<=2){
+            // 2 words → just split them
+            html=words.join('<br>');
+        } else {
+            // 3+ words → distribute as evenly as possible across up to 3 lines
+            const targetLines=Math.min(3,words.length);
+            const perLine=Math.ceil(words.length/targetLines);
+            const lines=[];
+            for(let i=0;i<words.length;i+=perLine) lines.push(words.slice(i,i+perLine).join(' '));
+            html=lines.join('<br>');
+        }
+        el.innerHTML=html;
+    } else {
+        el.textContent=text;
+    }
+    el.style.left=x+'px';
+    el.style.top='0';
+    if(opts.clickable){
+        el.addEventListener('click',()=>window.open(REGION_URLS[opts.region],'_blank'));
+        const count=particles.filter(p=>p.data.Region===opts.region).length;
+        const ct=document.getElementById('country-tooltip');
+        el.addEventListener('mouseenter',e=>{ct.textContent=`${count} initiatives`;ct.style.display='block';ct.style.left=(e.clientX+10)+'px';ct.style.top=(e.clientY-26)+'px';});
+        el.addEventListener('mousemove',e=>{ct.style.left=(e.clientX+10)+'px';ct.style.top=(e.clientY-26)+'px';});
+        el.addEventListener('mouseleave',()=>ct.style.display='none');
+    }
+    document.getElementById('axis-labels-container').appendChild(el);
+}
+function addMainLabel(text,x){
+    const el=document.createElement('div');
+    el.className='chart-label main'; el.textContent=text; el.style.left=x+'px';
+    document.getElementById('main-labels-container').appendChild(el);
+}
+function show(id){document.getElementById(id).style.opacity='1';}
+function hide(id){document.getElementById(id).style.opacity='0';}
+
+/* ════════════════════════════════════════════════════
+   SECTION LOGIC — called on EVERY enter (up or down)
+════════════════════════════════════════════════════ */
+function onSectionEnter(sec){
+    // Reset all overlays
+    hide('stats-display'); clearNarrative(); clearLabels();
+    // Deactivate zoom (narrate sections re-enable it below)
+    if(mapZoomActive){ mapZoomActive=false; resetMapZoom(); if(p5Instance&&particleMapPos.length) placeParticlesOnMap(); }
+    // selectedCountry persists through all sections until user explicitly clicks out
+    document.getElementById('zoom-hint').classList.remove('visible');
+    document.getElementById('zoom-controls').classList.remove('visible');
+
+    switch(sec){
+        case 's0-hero':
+            showMap=true; showCountryFills=true;
+            if(worldGeoJson) worldGeoJson.features.forEach(f=>{ const r=resolveGeoName(f.properties.name); if(countryCounts[r]>0) highlightCountries.add(f.properties.name); });
+            if(p5Instance&&particleMapPos.length) placeParticlesOnMap();
+            break;
+
+        case 's1-stats':
+            showMap=true; showCountryFills=true;
+            if(worldGeoJson) worldGeoJson.features.forEach(f=>{ const r=resolveGeoName(f.properties.name); if(countryCounts[r]>0) highlightCountries.add(f.properties.name); });
+            if(p5Instance&&particleMapPos.length) placeParticlesOnMap();
+            show('stats-display');
+            resetStats(); animateStats();
+            break;
+
+        case 's2-narrate1':
+            showMap=true; showCountryFills=true;
+            if(worldGeoJson) worldGeoJson.features.forEach(f=>{ const r=resolveGeoName(f.properties.name); if(countryCounts[r]>0) highlightCountries.add(f.properties.name); });
+            mapZoomActive=true;
+            document.getElementById('zoom-hint').classList.add('visible');
+            document.getElementById('zoom-controls').classList.add('visible');
+            if(p5Instance&&particleMapPos.length) applyZoomToParticles();
+            typewrite('Since 2019, the Eco Jurisprudence Monitor has tracked the emergence of ecocentric law. Every dot represents one initiative. Click and explore.',
+                ()=>{document.getElementById('skip-btn').style.display='block';});
+            break;
+
+        case 's4-regions':{
+            showMap=true; showCountryFills=true; hoveredCountry=null;
+            if(worldGeoJson) worldGeoJson.features.forEach(f=>{ const r=resolveGeoName(f.properties.name); if(countryCounts[r]>0) highlightCountries.add(f.properties.name); });
+            layoutAllRegions();
+            const total4=particles.length||1;
+            const americas=particles.filter(p=>p.data.Region==='North America'||p.data.Region==='Latin America').length;
+            const europe=particles.filter(p=>p.data.Region==='Europe').length;
+            const other=total4-americas-europe;
+            const pAm=Math.round(americas/total4*100);
+            const pEu=Math.round(europe/total4*100);
+            const pOt=Math.round(other/total4*100);
+            typewrite(`<span data-countup="${pAm}">0%</span> of initiatives are located in the two Americas, the birth place of the movement. <span data-countup="${pEu}">0%</span> are in Europe, the remaining <span data-countup="${pOt}">0%</span> are either international or in other parts of the world.`, null, true);
+            break;}
+
+        case 's5-year':
+            showMap=false; showCountryFills=false; highlightCountries.clear(); hoveredCountry=null;
+            clearLabels();
+            typewrite('The commonly agreed-upon starting point of the movement is 2006. However, some early initiatives pre-date this moment.');
+            layoutByYear();
+            break;
+
+        case 's6-framework':
+            showMap=false; showCountryFills=false; highlightCountries.clear();
+            clearNarrative();
+            typewrite('The EJM tracks dozens of data points for each initiative. One of them is the legal provisions that we divide into formal and soft law.');
+            layoutByFramework();
+            break;
+
+        case 's7-status':{
+            showMap=false; showCountryFills=false; highlightCountries.clear();
+            layoutByStatus();
+            const total7=particles.length||1;
+            const approved=particles.filter(p=>(p.data.Status||'').trim().toLowerCase().startsWith('app')).length;
+            const draftedOrSubmitted=particles.filter(p=>{ const s=(p.data.Status||'').trim().toLowerCase(); return s.startsWith('dra')||s.startsWith('sub'); }).length;
+            const failed=particles.filter(p=>(p.data.Status||'').trim().toLowerCase().startsWith('fai')).length;
+            const pApp=Math.round(approved/total7*100);
+            const pDS=Math.round(draftedOrSubmitted/total7*100);
+            const pFail=Math.round(failed/total7*100);
+            typewrite(`Ecological jurisprudence is an ongoing global story. <span data-countup="${pApp}">0%</span> of initiatives are approved, <span data-countup="${pDS}">0%</span> are either drafted or submitted, while <span data-countup="${pFail}">0%</span> have been unsuccessful or overturned.`, null, true);
+            break;}
+
+        case 's8-nature':
+            showMap=false; showCountryFills=false; highlightCountries.clear();
+            clearNarrative();
+            typewrite('Ecocentric laws protect Nature in all its forms. This includes Pachamama, planetary systems, rivers, mountains, coral reefs, pollinators, even urban ecosystems and Antarctica. Tracking this movement is what our research is all about. Let us know if we missed something and reach out to collaborate!');
+            layoutByNature();
+            break;
+
+        case 's9-end':
+            showMap=false; showCountryFills=false; highlightCountries.clear();
+            clearLabels();
+            document.getElementById('skip-btn').style.display='none';
+            particles.forEach(p=>{
+                p.frozen=false;
+                const angle=Math.random()*Math.PI*2;
+                const dist=Math.max(window.innerWidth,window.innerHeight)*1.5;
+                // scatter from current target position so mid-animation particles don't snap
+                p.setTarget(p.targetX+Math.cos(angle)*dist, p.targetY+Math.sin(angle)*dist, true);
+            });
+            break;
+    }
+}
+
+/* ════════════════════════════════════════════════════
+   OBSERVER — scroll-position-based, works both directions
+════════════════════════════════════════════════════ */
+function setupObserver(){
+    const sections=[...document.querySelectorAll('.scroll-section')];
+    let rafPending=false;
+
+    function update(){
+        rafPending=false;
+        const mid=window.scrollY+window.innerHeight/2;
+        let best=null, bestDist=Infinity;
+        sections.forEach(s=>{
+            const top=s.offsetTop, bot=top+s.offsetHeight;
+            const center=top+s.offsetHeight/2;
+            if(mid>=top && mid<bot){
+                const dist=Math.abs(center-mid);
+                if(dist<bestDist){ bestDist=dist; best=s; }
+            }
+        });
+        if(best){
+            const sec=best.dataset.section;
+            if(sec!==currentSection){
+                currentSection=sec;
+                onSectionEnter(sec);
+                document.querySelectorAll('.section-nav-item').forEach(el=>{
+                    el.classList.toggle('active', el.dataset.nav===sec);
+                });
+            }
+        }
+    }
+
+    function onScroll(){
+        if(!rafPending){ rafPending=true; requestAnimationFrame(update); }
+    }
+
+    window.addEventListener('scroll', onScroll, {passive:true});
+    setTimeout(update, 100);
+}
+
+/* ════════════════════════════════════════════════════
+   BOTTOM Y
+════════════════════════════════════════════════════ */
+function bY(){ return p5Instance.height*0.75; }
+
+/* ════════════════════════════════════════════════════
+   LAYOUTS
+════════════════════════════════════════════════════ */
+function layoutAllRegions(){
+    if(!p5Instance) return; clearLabels();
+    const w=p5Instance.width, dotSp=8, maxCols=8, barSp=42;
+    const barW=maxCols*dotSp;
+    const totalW=REGION_ORDER.length*barW+(REGION_ORDER.length-1)*barSp;
+    const startX=(w-totalW)/2;
+    const regions={};
+    particles.forEach(p=>{ const r=p.data.Region||'Unknown'; if(!regions[r])regions[r]=[]; regions[r].push(p); });
+    REGION_ORDER.forEach((region,i)=>{
+        const cx=startX+i*(barW+barSp), rp=regions[region]||[];
+        if(!rp.length) return;
+        addAxisLabel(region,cx,{clickable:true,region});
+        sortByYear(rp);
+        rp.forEach((p,j)=>{ p.frozen=false; p.setTarget(cx+(j%maxCols)*dotSp+3,bY()-Math.floor(j/maxCols)*dotSp,true); });
+    });
+}
+
+function layoutByYear(){
+    if(!p5Instance) return; clearLabels();
+    const w=p5Instance.width, bottom=bY(), margin=60, barSp=8;
+    const years={};
+    particles.forEach(p=>{ const y=parseInt(p.data['Primary Year']); if(!isNaN(y)&&y>=2006&&y<=2026){if(!years[y])years[y]=[];years[y].push(p);} });
+    const yearKeys=Array.from({length:21},(_,i)=>2006+i);
+    const totalW=w-margin*2, barW=(totalW-barSp*(yearKeys.length-1))/yearKeys.length;
+    let cx=margin;
+    yearKeys.forEach(year=>{
+        const yp=years[year]||[]; sortByFramework(yp);
+        addAxisLabel(year.toString(),cx);
+        const cols=Math.min(8,Math.max(1,Math.floor(barW/8)));
+        yp.forEach((p,j)=>{ p.frozen=false; p.setTarget(cx+(j%cols)*8+2,bottom-Math.floor(j/cols)*8,true); });
+        cx+=barW+barSp;
+    });
+    particles.forEach(p=>{ const y=parseInt(p.data['Primary Year']); if(isNaN(y)||y<2006||y>2026){p.frozen=false;p.setTarget(-100,-100,false);} });
+}
+
+function layoutByFramework(){
+    if(!p5Instance) return; clearLabels();
+    const w=p5Instance.width, bottom=bY();
+    const dotSp=8, maxCols=7;
+    const colW=maxCols*dotSp; // 56px — dots always 7 wide
+
+    const fLaw={}, sLaw={};
+    particles.forEach(p=>{
+        const prov=p.data['Legal Provision'];
+        if(FORMAL_LAW.includes(prov)){if(!fLaw[prov])fLaw[prov]=[];fLaw[prov].push(p);}
+        else if(SOFT_LAW.includes(prov)){if(!sLaw[prov])sLaw[prov]=[];sLaw[prov].push(p);}
+    });
+    const fKeys=FORMAL_LAW.filter(k=>fLaw[k]?.length);
+    const sKeys=SOFT_LAW.filter(k=>sLaw[k]?.length);
+    const allKeys=[...fKeys,...sKeys];
+    const n=allKeys.length;
+    if(!n) return;
+
+    // Match year chart outer width = w - 120, then reduce inter-label gap by 20%
+    const margin=60;
+    const totalW=w-margin*2;
+    const baseStep=totalW/(n-1||1);
+    const step=baseStep*0.92; // was 0.8 (-20%), now +15% of that = 0.92
+    // Center the whole group
+    const groupW=(n-1)*step+colW;
+    const startX=(w-groupW)/2;
+
+    // Smart 2-line wrap: split on word count
+    // 1 word → 1 line; 2 words → 1 line; 3 words → first 2 / last 1; stays on word boundaries
+    function getLabelLines(text){
+        const words=text.split(' ');
+        if(words.length===1) return [words[0]];
+        if(words.length===2) return text==='Indigenous Law' ? [words[0], words[1]] : [text];
+        // 3+ words: put first 2 on line 1, rest on line 2
+        return [words.slice(0,2).join(' '), words.slice(2).join(' ')];
+    }
+
+    // Add left-aligned label at x, optional color for soft law
+    function addFrameworkLabel(cat, x, color){
+        const el=document.createElement('div');
+        el.className='chart-label axis';
+        const lines=getLabelLines(cat);
+        el.innerHTML=lines.join('<br>');
+        el.style.left=x+'px';
+        el.style.top='0';
+        el.style.textAlign='left';
+        el.style.width='80px';
+        if(color) el.style.color=color;
+        document.getElementById('axis-labels-container').appendChild(el);
+    }
+
+    // Place dots: always colW wide (7 dots), left-aligned with label
+    const fStartX=startX;
+    fKeys.forEach((cat,i)=>{
+        const x=startX+i*step;
+        addFrameworkLabel(cat,x);
+        sortByStatus(fLaw[cat]);
+        fLaw[cat].forEach((p,j)=>{p.frozen=false;p.setTarget(x+(j%maxCols)*dotSp,bottom-Math.floor(j/maxCols)*dotSp,true);});
+    });
+    const fEndX=startX+(fKeys.length-1)*step+colW;
+
+    const sStartX=startX+fKeys.length*step;
+    sKeys.forEach((cat,i)=>{
+        const x=sStartX+i*step;
+        addFrameworkLabel(cat,x,'#999');
+        sortByStatus(sLaw[cat]);
+        sLaw[cat].forEach((p,j)=>{p.frozen=false;p.setTarget(x+(j%maxCols)*dotSp,bottom-Math.floor(j/maxCols)*dotSp,true);});
+    });
+    const sEndX=startX+groupW;
+
+    particles.forEach(p=>{ if(!FORMAL_LAW.includes(p.data['Legal Provision'])&&!SOFT_LAW.includes(p.data['Legal Provision'])){p.frozen=false;p.setTarget(-100,-100,false);} });
+
+    frameworkBrackets=[];
+}
+
+// Drawn each frame in drawFrameworkBrackets(), called from p5 draw
+let frameworkBrackets=[];
+
+function drawFrameworkBrackets(p){
+    if(!frameworkBrackets.length) return;
+    // axis-labels-container sits at top:78vh (up to 3 lines tall ~40px), bracket sits below at ~88vh
+    const bracketY=p.height*0.865;
+    const bracketH=3;
+    const labelColor=p5Instance.color('#999');
+    frameworkBrackets.forEach(b=>{
+        // bracket rectangle
+        p.noStroke();
+        p.fill(labelColor);
+        p.rect(b.x, bracketY, b.w, bracketH, 2);
+        // group label centred below bracket
+        p.fill(labelColor);
+        p.textFont('Geist Mono');
+        p.textSize(10);
+        p.textAlign(p.CENTER, p.TOP);
+        p.text(b.label, b.x+b.w/2, bracketY+bracketH+5);
+        p.textAlign(p.LEFT, p.BASELINE);
+    });
+}
+
+function layoutByStatus(){
+    if(!p5Instance) return; clearLabels();
+    const w=p5Instance.width, bottom=bY();
+    const CANONICAL=['Approved','Drafted','Submitted','Failed'];
+    function norm(s){ const l=(s||'').trim().toLowerCase(); if(l.startsWith('app'))return'Approved'; if(l.startsWith('dra'))return'Drafted'; if(l.startsWith('sub'))return'Submitted'; if(l.startsWith('fai'))return'Failed'; return null; }
+    const st={}; CANONICAL.forEach(c=>st[c]=[]);
+    particles.forEach(p=>{ const n=norm(p.data.Status); if(n)st[n].push(p); });
+    const keys=CANONICAL.filter(c=>st[c].length); if(!keys.length)return;
+    const dotSp=8,maxCols=8,barSp=42,barW=maxCols*dotSp,totalW=keys.length*barW+(keys.length-1)*barSp;
+    let cx=(w-totalW)/2;
+    keys.forEach(s=>{ sortByNature(st[s]); addAxisLabel(s,cx); st[s].forEach((p,j)=>{p.frozen=false;p.setTarget(cx+(j%maxCols)*dotSp+3,bottom-Math.floor(j/maxCols)*dotSp,true);}); cx+=barW+barSp; });
+    particles.forEach(p=>{ if(!norm(p.data.Status)){p.frozen=false;p.setTarget(-100,-100,false);} });
+}
+
+function layoutByNature(){
+    if(!p5Instance) return; clearLabels();
+    const w=p5Instance.width, bottom=bY();
+    const groups={'All Nature':[],'Plant + Forest + Fungi':[],'Animal':[],'Freshwater + Marine + Arctic':[],'Mountain + Grassland + Desert':[]};
+    particles.forEach(p=>groups[getNatureCat(p.data['Primary Nature Type'])].push(p));
+    const keys=NATURE_ORDER.filter(k=>groups[k].length);
+    const dotSp=8,maxCols=8,barSp=42,barW=maxCols*dotSp,totalW=keys.length*barW+(keys.length-1)*barSp;
+    let cx=(w-totalW)/2;
+    keys.forEach(g=>{ addAxisLabel(g,cx); groups[g].forEach((p,j)=>{p.frozen=false;p.setTarget(cx+(j%maxCols)*dotSp+3,bottom-Math.floor(j/maxCols)*dotSp,true);}); cx+=barW+barSp; });
+}
+
+/* ════════════════════════════════════════════════════
+   SORT HELPERS
+════════════════════════════════════════════════════ */
+function sortByYear(arr){arr.sort((a,b)=>(parseInt(a.data['Primary Year'])||9999)-(parseInt(b.data['Primary Year'])||9999));}
+function sortByFramework(arr){arr.sort((a,b)=>{const ia=FRAMEWORK_ORDER.indexOf(a.data['Legal Provision']||''),ib=FRAMEWORK_ORDER.indexOf(b.data['Legal Provision']||'');return(ia<0?999:ia)-(ib<0?999:ib);});}
+function sortByStatus(arr){arr.sort((a,b)=>{const ia=['Approved','Draft','Failed','Submitted'].findIndex(s=>(a.data['Status']||'').toLowerCase().startsWith(s.toLowerCase())),ib=['Approved','Draft','Failed','Submitted'].findIndex(s=>(b.data['Status']||'').toLowerCase().startsWith(s.toLowerCase()));return(ia<0?999:ia)-(ib<0?999:ib);});}
+function sortByNature(arr){arr.sort((a,b)=>NATURE_ORDER.indexOf(getNatureCat(a.data['Primary Nature Type']))-NATURE_ORDER.indexOf(getNatureCat(b.data['Primary Nature Type'])));}
+function getNatureCat(t){
+    if(!t||t.includes('|'))return'All Nature';
+    const l=t.toLowerCase();
+    // All Nature: All Nature, Space, Urban, General, Climate
+    if(l.includes('all')||l.includes('general')||l.includes('space')||l.includes('urban')||l.includes('climate'))return'All Nature';
+    // Plant + Forest + Fungi
+    if(l.includes('plant')||l.includes('forest')||l.includes('fungi'))return'Plant + Forest + Fungi';
+    // Animal
+    if(l.includes('animal')||l.includes('species'))return'Animal';
+    // Freshwater + Marine + Arctic
+    if(l.includes('freshwater')||l.includes('marine')||l.includes('arctic')||l.includes('ocean')||l.includes('river')||l.includes('lake')||l.includes('wetland'))return'Freshwater + Marine + Arctic';
+    // Mountain + Grassland + Desert
+    if(l.includes('mountain')||l.includes('grass')||l.includes('desert'))return'Mountain + Grassland + Desert';
+    return'All Nature';
+}
+</script>
+</body>
+</html>
