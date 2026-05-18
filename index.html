@@ -102,9 +102,9 @@
     #skip-btn {
         position:fixed; bottom:36px; right:36px; z-index:50; display:block;
         box-sizing:border-box; padding:10px 16px; height:40px; width:auto;
-        background:var(--color-off-black); border:none; border-radius:8px;
+        background-color:transparent; border:1px solid var(--color-sand); border-radius:8px;
         font-family:'Geist',sans-serif; font-weight:500; font-size:16px; line-height:20px;
-        color:var(--color-white); text-decoration:none; white-space:nowrap;
+        color:var(--color-dark-sand); text-decoration:none; white-space:nowrap;
         cursor:pointer; box-shadow:none; text-transform:none; pointer-events:auto;
         transition:opacity 0.2s;
     }
@@ -119,15 +119,22 @@
     .chart-label.axis.clickable:hover { text-decoration:underline; }
 
     /* tooltips */
-    #tooltip,#country-tooltip {
+    #tooltip {
+        position:fixed; background:#FBFBEE; color:#3D3D31;
+        padding:10px 14px; border-radius:4px; font-family:'Geist',sans-serif;
+        font-size:9pt; pointer-events:none; z-index:1000; width:260px; max-width:260px;
+        line-height:1.5; display:none; box-shadow:0 4px 16px rgba(0,0,0,.25);
+        border-left:6px solid var(--tt-accent,#8ECBF0);
+    }
+    #country-tooltip {
         position:fixed; background:#3D3D31; color:#fff;
         padding:8px 12px; border-radius:4px; font-family:'Geist',sans-serif;
-        font-size:8.5pt; pointer-events:none; z-index:1000; width:260px; max-width:260px;
+        font-size:8.5pt; pointer-events:none; z-index:1000;
+        max-width:160px; width:auto;
         line-height:1.5; display:none; box-shadow:0 4px 14px rgba(0,0,0,.22);
     }
-    #country-tooltip { max-width:160px; width:auto; }
-    .tt-title { font-weight:700; margin-bottom:3px; }
-    .tt-meta  { font-size:7.5pt; color:#b0b0b0; margin-bottom:4px; }
+    .tt-title { font-weight:400; margin-bottom:3px; color:#3D3D31; }
+    .tt-meta  { font-size:7.5pt; color:#888; margin-bottom:4px; }
     .tt-link a { color:#3D3D31; text-decoration:none; font-size:7.5pt; font-weight:600; }
     .tt-link a:hover { text-decoration:underline; }
     .tt-nature { font-size:7.5pt; font-weight:600; margin-bottom:3px; }
@@ -138,18 +145,20 @@
         line-height:1.5; display:none; box-shadow:0 4px 16px rgba(0,0,0,.25);
         border-left:6px solid var(--pt-accent,#8ECBF0);
     }
-    #pinned-tooltip .tt-title { font-weight:700; margin-bottom:3px; color:#3D3D31; }
+    #pinned-tooltip .tt-title { font-weight:400; margin-bottom:3px; color:#3D3D31; }
     #pinned-tooltip .tt-meta  { font-size:7.5pt; color:#b0b0b0; margin-bottom:5px; }
     #pinned-tooltip .tt-link a { color:#3D3D31; text-decoration:none; font-size:7.5pt; font-weight:600; }
     #pt-close { position:absolute; top:5px; right:7px; cursor:pointer; color:#888; font-size:11pt; background:none; border:none; padding:0; }
-    #pt-close:hover { color:#fff; }
+    #pt-close:hover { color:#3D3D31; }
 
-    /* country name display */
+    /* country name display — popup positioned over country centroid */
     #country-name-display {
-        position:fixed; top:4vh; left:0; width:100%; text-align:center;
-        z-index:30; pointer-events:none; opacity:0; transition:opacity 0.3s ease;
-        font-family:'Geist',sans-serif; font-size:0.95rem; font-weight:400;
-        color:#3D3D31; line-height:1.65;
+        position:fixed; z-index:30; pointer-events:none; opacity:0; transition:opacity 0.3s ease;
+        font-family:'Geist',sans-serif; font-size:0.9rem; font-weight:400;
+        color:#3D3D31; line-height:1.5;
+        background:#FBFBEE; padding:10px 18px; border-radius:6px;
+        box-shadow:0 4px 16px rgba(0,0,0,.18);
+        white-space:nowrap; transform:translate(-50%,-50%);
     }
 
     /* zoom hint */
@@ -167,7 +176,7 @@
 
     /* ── SECTION DOT NAV ── */
     #section-nav {
-        position:fixed; right:24px; top:50%; transform:translateY(-50%);
+        position:fixed; right:36px; top:50%; transform:translateY(-50%);
         z-index:100; display:flex; flex-direction:column; align-items:flex-end;
         gap:10px; pointer-events:none;
     }
@@ -201,9 +210,6 @@
 
 
 <div id="section-nav">
-    <div class="section-nav-item" data-nav="s0-hero">
-        <span class="section-nav-label">Introduction</span><span class="section-nav-dot"></span>
-    </div>
     <div class="section-nav-item" data-nav="s1-stats">
         <span class="section-nav-label">Overview</span><span class="section-nav-dot"></span>
     </div>
@@ -264,7 +270,6 @@
 
 <!-- Scrollytelling spacers -->
 <div id="scroll-container">
-    <div class="scroll-section" data-section="s0-hero"></div>
     <div class="scroll-section" data-section="s1-stats"></div>
     <div class="scroll-section" data-section="s2-narrate1"></div>
     <div class="scroll-section" data-section="s4-regions"></div>
@@ -281,7 +286,7 @@
    STATE
 ════════════════════════════════════════════════════ */
 let data=[], particles=[];
-let currentSection='s0-hero';
+let currentSection='s1-stats';
 let p5Instance, worldGeoJson=null, mapProjection=null;
 let selectedParticle=null;
 let showMap=true;
@@ -289,11 +294,13 @@ let showCountryFills=true;
 let highlightCountries=new Set();
 let typewriterTimers=[];
 let statsAnimated=false;
+let statsScrollTriggered=false;
 let particleMapPos=[];
 let hoveredCountry=null;
 let selectedCountry=null;
 let selectedCountryParticles=new Set();
 let countryCounts={};
+let overviewFade=false; // true during s1-stats: map+dots at 50% opacity
 
 /* ── MAP ZOOM (active in s2-narrate1) ── */
 let mapZoom={ k:1, tx:0, ty:0 };
@@ -475,7 +482,11 @@ function countryMatchesGeo(parsedName, geoName){
 }
 function buildProjection(w,h){
     if (!worldGeoJson) return null;
-    return d3.geoNaturalEarth1().fitExtent([[30,10],[w-30,h-10]],worldGeoJson);
+    const proj=d3.geoNaturalEarth1().fitExtent([[30,10],[w-30,h-10]],worldGeoJson);
+    // Shift left by 10% of viewport width so the map looks visually centered
+    const [tx,ty]=proj.translate();
+    proj.translate([tx-w*0.05, ty]);
+    return proj;
 }
 
 /* ════════════════════════════════════════════════════
@@ -484,7 +495,7 @@ function buildProjection(w,h){
 Papa.parse('https://docs.google.com/spreadsheets/d/e/2PACX-1vSKgeCFRWhEydDOm3JMjw-F9MI8bNvgWYkXSA-_3S8Mo9Ehxs3WrB07UbNfrFdfDiOLqHc67BR6kyaG/pub?gid=600477657&single=true&output=csv',{
     download:true, header:true,
     complete(results){
-        data=results.data.filter(r=>r.Region && (r["Carmen's "]||'').trim().toLowerCase()==='aa');
+        data=results.data.filter(r=>r.Region && ['aa','cc'].includes((r["Carmen's "]||'').trim().toLowerCase()));
         // Build raw count keyed by data's Country string
         const rawCounts={};
         data.forEach(r=>{
@@ -566,11 +577,15 @@ function initViz(){
             resolveCountryCounts();
             data.forEach((d,i)=>particles.push(new Particle(d,i)));
             cacheMapPositions(); placeParticlesOnMap();
+            onSectionEnter('s1-stats');
         };
         p.draw=function(){
             p.background('#FFFFFF');
+            const ctx=p.drawingContext;
+            if(overviewFade) ctx.globalAlpha=0.5;
             if(showMap&&worldGeoJson&&mapProjection) drawMap(p);
             particles.forEach(pt=>{pt.update();pt.display();});
+            if(overviewFade) ctx.globalAlpha=1.0;
             if(frameworkBrackets.length) drawFrameworkBrackets(p);
             if(selectedParticle) positionPinnedTooltip();
         };
@@ -593,9 +608,17 @@ function initViz(){
                 document.getElementById('tt-link').innerHTML=found.permalink?`<a href="${found.permalink}" target="_blank">more info ↗</a>`:'';
                 ttEl.style.setProperty('--tt-accent', found.color);
                 ttEl.style.display='block';
-                // Position above the dot; after rendering measure height for offset
-                ttEl.style.left=(p.mouseX-ttEl.offsetWidth/2)+'px';
-                ttEl.style.top=(p.mouseY-ttEl.offsetHeight-16)+'px';
+                // Position centered above the dot, clamped to viewport
+                requestAnimationFrame(()=>{
+                    const ttW=ttEl.offsetWidth||260, ttH=ttEl.offsetHeight||100;
+                    let ttLeft=found.x-ttW/2;
+                    let ttTop=found.y-ttH-16;
+                    if(ttLeft<8) ttLeft=8;
+                    if(ttLeft+ttW>window.innerWidth-8) ttLeft=window.innerWidth-ttW-8;
+                    if(ttTop<8) ttTop=found.y+16;
+                    ttEl.style.left=ttLeft+'px';
+                    ttEl.style.top=ttTop+'px';
+                });
                 p.canvas.style.cursor='pointer';
                 ctEl.style.display='none'; hoveredCountry=null;
             } else {
@@ -616,33 +639,21 @@ function initViz(){
                         const resolvedHover=resolveGeoName(hit.properties.name);
                         const n=countryCounts[resolvedHover]||0;
                         hoveredCountry=hit.properties.name;
-                        // Show country name display at top
-                        const nd=document.getElementById('country-name-display');
-                        if(!selectedCountry){
-                            nd.textContent=n>0?`${resolvedHover} · ${n} initiative${n!==1?'s':''}`:resolvedHover+' · no initiatives in our dataset';
-                            nd.style.opacity='1';
-                        }
                         ctEl.style.display='none';
                         p.canvas.style.cursor=n>0?(mapZoomActive?'grab':'pointer'):(mapZoomActive?'grab':'default');
                     } else {
                         hoveredCountry=null; ctEl.style.display='none';
-                        if(!selectedCountry){
-                            document.getElementById('country-name-display').style.opacity='0';
-                        }
                         p.canvas.style.cursor=mapZoomActive?'grab':'default';
                     }
                 } else {
                     hoveredCountry=null; ctEl.style.display='none';
-                    if(!selectedCountry){
-                        document.getElementById('country-name-display').style.opacity='0';
-                    }
                     p.canvas.style.cursor='default';
                 }
             }
         };
         p.mouseClicked=function(){
             const found=findParticle(p.mouseX,p.mouseY);
-            if(found){ selectedCountry=null; selectedCountryParticles.clear(); selectedParticle===found?hidePinned():showPinned(found); return; }
+            if(found){ selectedParticle===found?hidePinned():showPinned(found); return; }
             hidePinned();
             // Country click (only when map is visible)
             if(showMap&&worldGeoJson&&mapProjection){
@@ -656,6 +667,7 @@ function initViz(){
                     const n=countryCounts[name]||0;
                     if(n>0){
                         if(selectedCountry===name){
+                            // Second click on same country — deselect
                             selectedCountry=null; selectedCountryParticles.clear();
                             document.getElementById('country-name-display').style.opacity='0';
                         } else {
@@ -669,31 +681,38 @@ function initViz(){
                             document.getElementById('pinned-tooltip').style.display='none';
                             const nd=document.getElementById('country-name-display');
                             nd.textContent=`${name} · ${n} initiative${n!==1?'s':''}`;
+                            nd.style.left=p.mouseX+'px';
+                            nd.style.top=(p.mouseY-48)+'px';
                             nd.style.opacity='1';
                         }
                     } else {
-                        // No initiatives — show label but don't select
-                        selectedCountry=null;
+                        // No initiatives — show label transiently, don't lock selection
                         const nd=document.getElementById('country-name-display');
                         nd.textContent=name+' · no initiatives in our dataset';
+                        nd.style.left=p.mouseX+'px';
+                        nd.style.top=(p.mouseY-48)+'px';
                         nd.style.opacity='1';
+                        setTimeout(()=>{ if(!selectedCountry) nd.style.opacity='0'; }, 2000);
                     }
-                } else {
-                    selectedCountry=null;
-                    document.getElementById('country-name-display').style.opacity='0';
                 }
-            } else {
-                selectedCountry=null;
+                // clicking empty map area does NOT deselect country — only second click on same country does
             }
         };
     });
     setupObserver();
     // init dot nav
-    const firstNav = document.querySelector('.section-nav-item[data-nav="s0-hero"]');
+    const firstNav = document.querySelector('.section-nav-item[data-nav="s1-stats"]');
     if(firstNav) firstNav.classList.add('active');
     document.getElementById('skip-btn').addEventListener('click',()=>window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'}));
     document.getElementById('pt-close').addEventListener('click',hidePinned);
+
+    // Trigger stats counter on first scroll
     window.addEventListener('scroll',()=>{
+        if(!statsScrollTriggered && currentSection==='s1-stats'){
+            statsScrollTriggered=true;
+            show('stats-display');
+            animateStats();
+        }
         if(selectedParticle) positionPinnedTooltip();
         const staticEl=document.getElementById('static-content');
         if(staticEl&&selectedCountry){
@@ -853,9 +872,8 @@ function showPinned(p){
     positionPinnedTooltip();
 }
 function hidePinned(){
-    selectedParticle=null; selectedCountry=null; selectedCountryParticles.clear();
+    selectedParticle=null;
     document.getElementById('pinned-tooltip').style.display='none';
-    document.getElementById('country-name-display').style.opacity='0';
 }
 
 /* ════════════════════════════════════════════════════
@@ -1010,6 +1028,9 @@ function hide(id){document.getElementById(id).style.opacity='0';}
 function onSectionEnter(sec){
     // Reset all overlays
     hide('stats-display'); clearNarrative(); clearLabels();
+    overviewFade=false;
+    // Hide country popup when changing sections (but keep dot highlighting)
+    document.getElementById('country-name-display').style.opacity='0';
     // Deactivate zoom (narrate sections re-enable it below)
     if(mapZoomActive){ mapZoomActive=false; resetMapZoom(); if(p5Instance&&particleMapPos.length) placeParticlesOnMap(); }
     // selectedCountry persists through all sections until user explicitly clicks out
@@ -1017,18 +1038,12 @@ function onSectionEnter(sec){
     document.getElementById('zoom-controls').classList.remove('visible');
 
     switch(sec){
-        case 's0-hero':
-            showMap=true; showCountryFills=true;
-            if(worldGeoJson) worldGeoJson.features.forEach(f=>{ const r=resolveGeoName(f.properties.name); if(countryCounts[r]>0) highlightCountries.add(f.properties.name); });
-            if(p5Instance&&particleMapPos.length) placeParticlesOnMap();
-            break;
-
         case 's1-stats':
-            showMap=true; showCountryFills=true;
+            showMap=true; showCountryFills=true; overviewFade=true;
             if(worldGeoJson) worldGeoJson.features.forEach(f=>{ const r=resolveGeoName(f.properties.name); if(countryCounts[r]>0) highlightCountries.add(f.properties.name); });
             if(p5Instance&&particleMapPos.length) placeParticlesOnMap();
-            show('stats-display');
-            resetStats(); animateStats();
+            resetStats();
+            statsScrollTriggered=false;
             break;
 
         case 's2-narrate1':
