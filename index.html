@@ -52,7 +52,7 @@
         position:absolute; left:4vw;
         /* sits in the bottom half of its 200vh section */
         top:calc(100vh + (100vh - var(--box-h, 160px)) / 2);
-        max-width:307px; z-index:30; pointer-events:auto;
+        max-width:360px; z-index:2100; pointer-events:auto;
     }
     .narrative-inner {
         font-family:'Geist',sans-serif; font-size:18px; font-weight:400;
@@ -162,7 +162,8 @@
         max-width:160px; width:auto;
         line-height:1.5; display:none; box-shadow:0 4px 14px rgba(0,0,0,.22);
     }
-    .tt-title { font-family:'Geist',sans-serif; font-weight:400; margin-bottom:3px; color:#3D3D31; font-size:10pt; }
+    .tt-title { font-family:'Geist',sans-serif; font-weight:700; margin-bottom:3px; color:#3D3D31; font-size:10pt; }
+    .tt-title2 { font-family:'Geist',sans-serif; font-weight:500; margin-bottom:3px; color:#3D3D31; font-size:10pt; }
     .tt-meta  { font-family:'Geist Mono',monospace; font-size:8pt; color:#757559; margin-bottom:4px; }
     .tt-link a { font-family:'Geist',sans-serif; color:#3D3D31; text-decoration:none; font-size:8pt; font-weight:600; }
     .tt-link a:hover { text-decoration:underline; }
@@ -174,7 +175,7 @@
         line-height:1.5; display:none; box-shadow:0 4px 16px rgba(0,0,0,.25);
         border-left:6px solid var(--pt-accent,#8ECBF0);
     }
-    #pinned-tooltip .tt-title { font-family:'Geist',sans-serif; font-weight:400; margin-bottom:3px; color:#3D3D31; font-size:10pt; }
+    #pinned-tooltip .tt-title { font-family:'Geist',sans-serif; font-weight:700; margin-bottom:3px; color:#3D3D31; font-size:10pt; }
     #pinned-tooltip .tt-meta  { font-family:'Geist Mono',monospace; font-size:8pt; color:#757559; margin-bottom:5px; }
     #pinned-tooltip .tt-link a { font-family:'Geist',sans-serif; color:#3D3D31; text-decoration:none; font-size:8pt; font-weight:600; }
     #pt-close { position:absolute; top:5px; right:7px; cursor:pointer; color:#888; font-size:11pt; background:none; border:none; padding:0; }
@@ -182,13 +183,19 @@
 
     /* country name display — popup positioned over country centroid */
     #country-name-display {
-        position:fixed; z-index:30; pointer-events:none; opacity:0; transition:opacity 0.3s ease;
+        position:fixed; z-index:30; pointer-events:auto; opacity:0; transition:opacity 0.3s ease;
         font-family:'Geist Mono',monospace; font-size:10pt; font-weight:400;
         color:#757559; line-height:1.5;
-        background:#FBFBEE; padding:10px 18px; border-radius:6px;
+        background:#FBFBEE; padding:10px 34px 10px 18px; border-radius:6px;
         box-shadow:0 4px 16px rgba(0,0,0,.18);
         white-space:nowrap; width:max-content; transform:translate(-50%,-50%);
     }
+    #cnd-close {
+        position:absolute; top:5px; right:8px; cursor:pointer; color:#aaa;
+        font-size:11pt; background:none; border:none; padding:0; line-height:1;
+        font-family:'Geist',sans-serif;
+    }
+    #cnd-close:hover { color:#3D3D31; }
 
     /* zoom hint */
     #zoom-hint {
@@ -202,6 +209,27 @@
     #zoom-hint.visible { opacity:1; }
 
 
+
+    /* ── LANDMARK POPUPS (year chart highlight) ── */
+    .landmark-popup {
+        position:fixed; z-index:40; pointer-events:none;
+        background:#FBFBEE; color:#3D3D31;
+        padding:6px 10px; border-radius:4px;
+        font-family:'Geist',sans-serif; font-size:8.5pt; font-weight:600;
+        line-height:1.3;
+        max-width: 230px;
+        box-shadow:0 3px 12px rgba(0,0,0,.2);
+        border-left:4px solid var(--lm-accent,#3D3D31);
+        transform:translate(-50%, 0);
+        opacity:0; transition:opacity 0.4s ease;
+    }
+    .landmark-popup.visible { opacity:1; }
+    .landmark-popup::after {
+        content:''; position:absolute; bottom:-6px; left:50%;
+        transform:translateX(-50%);
+        border:3px solid transparent;
+        border-top-color:rgba(0,0,0,0.12);
+    }
 
     /* ── SECTION DOT NAV ── */
     #section-nav {
@@ -254,6 +282,7 @@
     <div class="section-nav-item" data-nav="s5-year">
         <span class="section-nav-label">Year</span><span class="section-nav-dot"></span>
     </div>
+
     <div class="section-nav-item" data-nav="s6-framework">
         <span class="section-nav-label">Framework</span><span class="section-nav-dot"></span>
     </div>
@@ -270,14 +299,17 @@
 <!-- (narrative boxes are injected into each scroll section by JS) -->
 <button id="skip-btn">skip →</button>
 <button id="map-proj-btn">map projection</button>
-<div id="map-proj-popup"><span class="tt-title">We use an Eckert V map projection as we believe that it provides an adequate balance between the drawbacks of converting a multidimensional world into a 2D representation and clearly communicating our data. This map serves illustrative purposes only. The boundaries, denominations, and, more generally, all eco jurisprudence-unrelated information shown on this map do not imply any judgment on the part of the creators concerning the legal status of any territory or the endorsement or acceptance of such boundaries, denominations, or the like.</span></div>
+<div id="map-proj-popup"><span class="tt-title2">We use an Eckert V map projection as we believe that it provides an adequate balance between the drawbacks of converting a multidimensional world into a 2D representation and clearly communicating our data. This map serves illustrative purposes only. The boundaries, denominations, and, more generally, all eco jurisprudence-unrelated information shown on this map do not imply any judgment on the part of the creators concerning the legal status of any territory or the endorsement or acceptance of such boundaries, denominations, or the like.</span></div>
 <div id="zoom-hint">slider to zoom · drag to pan</div>
 <div id="zoom-controls">
     <span class="zoom-slider-label">−</span>
     <input id="zoom-slider" type="range" min="1" max="12" step="0.01" value="1">
     <span class="zoom-slider-label">+</span>
 </div>
-<div id="country-name-display"></div>
+<div id="country-name-display"><button id="cnd-close">×</button><span id="cnd-text"></span></div>
+
+<!-- Landmark highlight popups (year chart s5-year-b) -->
+<div id="lm-popups"></div>
 
 <!-- Tooltips -->
 <div id="tooltip"><div class="tt-title" id="tt-title"></div><div class="tt-meta" id="tt-meta"></div><div class="tt-nature" id="tt-nature"></div><div class="tt-link" id="tt-link"></div></div>
@@ -300,12 +332,13 @@
 <!-- Scrollytelling spacers -->
 <div id="scroll-container">
     <div class="scroll-section" data-section="s1-stats">
-        <div id="stats-display"><span id="stat-initiatives">0</span> Initiatives<span class="sep">·</span><span id="stat-countries">0</span> Countries<span class="sep">·</span>1 Movement</div>
+        <div id="stats-display"><span id="stat-initiatives">0</span> Initiatives<span class="sep"> </span><span id="stat-countries">0</span> Countries<span class="sep"> </span>1 Movement</div>
     </div>
     <div class="scroll-section" data-section="s2-narrate1"></div>
     <div class="scroll-section" data-section="s4-regions"></div>
     <div class="scroll-section" data-section="s8-nature"></div>
     <div class="scroll-section" data-section="s5-year"></div>
+    <div class="scroll-section" data-section="s5-year-b"></div>
     <div class="scroll-section" data-section="s6-framework"></div>
     <div class="scroll-section" data-section="s7-status"></div>
     <div class="scroll-section" data-section="s9-end"></div>
@@ -318,6 +351,20 @@
 ════════════════════════════════════════════════════ */
 let data=[], particles=[];
 let currentSection='s1-stats';
+let landmarkMode=false; // true while s5-year-b is active
+
+/* Landmark initiative titles for the s5-year-b highlight sequence */
+const LANDMARK_TITLES=new Set([
+    'Ecuador Constitution of 2008: rights of nature',
+    'New Zealand Te Awa Tupua (Whanganui River Claims Settlement) Act 2017',
+    'Spain Mar Menor Law of 2022',
+]);
+// Partial-match fallback: check if a title *contains* one of these strings
+function isLandmarkTitle(title){
+    if(LANDMARK_TITLES.has(title)) return true;
+    const t=(title||'').toLowerCase();
+    return t.includes('Ecuador Constitution of 2008: rights of nature')||t.includes('New Zealand Te Awa Tupua (Whanganui River Claims Settlement) Act 2017')||t.includes('Spain Mar Menor Law of 2022');
+}
 let p5Instance, worldGeoJson=null, mapProjection=null;
 let selectedParticle=null;
 let showMap=true;
@@ -586,8 +633,22 @@ class Particle {
         const isSel=selectedParticle===this, hasSel=selectedParticle!==null;
         const isCountrySel=selectedCountryParticles.has(this);
         const hasCountrySel=selectedCountry!==null;
+        const isLandmark=landmarkMode&&isLandmarkTitle(this.title);
         // Always draw white stroke around every dot
         p5Instance.stroke(255); p5Instance.strokeWeight(0.5);
+        if(landmarkMode){
+            if(isLandmark){
+                // Highlight: ring + full color
+                p5Instance.noFill(); p5Instance.stroke(this.color); p5Instance.strokeWeight(1.5);
+                p5Instance.circle(this.x,this.y,this.size+8);
+                p5Instance.stroke(255); p5Instance.strokeWeight(0.5); p5Instance.fill(this.color);
+                p5Instance.circle(this.x,this.y,this.size+2); return;
+            } else {
+                // Grey out
+                const c=p5Instance.color(this.color); c.setAlpha(35); p5Instance.fill(c);
+                p5Instance.circle(this.x,this.y,this.size); return;
+            }
+        }
         if(hasSel&&!isSel){
             const c=p5Instance.color(this.color); c.setAlpha(35); p5Instance.fill(c);
         } else if(isSel){
@@ -632,6 +693,7 @@ function initViz(){
             if(overviewFade) ctx.globalAlpha=1.0;
             if(frameworkBrackets.length) drawFrameworkBrackets(p);
             if(selectedParticle) positionPinnedTooltip();
+            if(landmarkMode) positionLandmarkPopups(false);
         };
         p.windowResized=function(){
             p.pixelDensity(window.devicePixelRatio||2);
@@ -724,7 +786,7 @@ function initViz(){
                             });
                             document.getElementById('pinned-tooltip').style.display='none';
                             const nd=document.getElementById('country-name-display');
-                            nd.innerHTML=`<strong>${name}</strong> ${n} initiative${n!==1?'s':''}`;
+                            document.getElementById('cnd-text').innerHTML=`<strong>${name}</strong> ${n} initiative${n!==1?'s':''}`;
                             nd.style.left=p.mouseX+'px';
                             nd.style.top=(p.mouseY-48)+'px';
                             nd.style.opacity='1';
@@ -732,14 +794,24 @@ function initViz(){
                     } else {
                         // No initiatives — show label transiently, don't lock selection
                         const nd=document.getElementById('country-name-display');
-                        nd.innerHTML='<strong>'+name+'</strong> no initiatives in our dataset';
+                        document.getElementById('cnd-text').innerHTML='<strong>'+name+'</strong> no initiatives in our dataset';
                         nd.style.left=p.mouseX+'px';
                         nd.style.top=(p.mouseY-48)+'px';
                         nd.style.opacity='1';
                         setTimeout(()=>{ if(!selectedCountry) nd.style.opacity='0'; }, 2000);
                     }
                 }
-                // clicking empty map area does NOT deselect country — only second click on same country does
+                // clicking empty map area deselects country
+                if(!hit){
+                    selectedCountry=null; selectedCountryParticles.clear();
+                    document.getElementById('country-name-display').style.opacity='0';
+                }
+            } else {
+                // not on map — deselect country if any
+                if(selectedCountry){
+                    selectedCountry=null; selectedCountryParticles.clear();
+                    document.getElementById('country-name-display').style.opacity='0';
+                }
             }
         };
     });
@@ -749,6 +821,12 @@ function initViz(){
     if(firstNav) firstNav.classList.add('active');
     document.getElementById('skip-btn').addEventListener('click',()=>window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'}));
     document.getElementById('pt-close').addEventListener('click',hidePinned);
+
+    // Country name display close button — hides popup only, selection stays
+    document.getElementById('cnd-close').addEventListener('click', e => {
+        e.stopPropagation();
+        document.getElementById('country-name-display').style.opacity = '0';
+    });
 
     // Map projection popup toggle
     const mapProjBtn=document.getElementById('map-proj-btn');
@@ -1068,12 +1146,56 @@ function show(id){document.getElementById(id).style.opacity='1';}
 function hide(id){document.getElementById(id).style.opacity='0';}
 
 /* ════════════════════════════════════════════════════
+   LANDMARK HIGHLIGHT POPUPS
+════════════════════════════════════════════════════ */
+function showLandmarkPopups(){
+    landmarkMode=true;
+    const container=document.getElementById('lm-popups');
+    container.innerHTML='';
+    // Find the three landmark particles
+    const landmarks=particles.filter(p=>isLandmarkTitle(p.title));
+    landmarks.forEach(lm=>{
+        const el=document.createElement('div');
+        el.className='landmark-popup';
+        el.dataset.particleTitle=lm.title;
+        el.textContent=lm.title;
+        el.style.setProperty('--lm-accent', lm.color);
+        container.appendChild(el);
+    });
+    // Position them (and make visible) once layout has settled
+    requestAnimationFrame(()=>{
+        requestAnimationFrame(()=>positionLandmarkPopups(true));
+    });
+}
+function hideLandmarkPopups(){
+    landmarkMode=false;
+    document.querySelectorAll('.landmark-popup').forEach(el=>{
+        el.classList.remove('visible');
+    });
+    setTimeout(()=>{ document.getElementById('lm-popups').innerHTML=''; },420);
+}
+function positionLandmarkPopups(show){
+    document.querySelectorAll('.landmark-popup').forEach(el=>{
+        const title=el.dataset.particleTitle;
+        const lm=particles.find(p=>isLandmarkTitle(p.title)&&p.title===title)||
+                  particles.find(p=>isLandmarkTitle(p.title)&&(p.title||'').toLowerCase().includes((title||'').toLowerCase()));
+        if(!lm||!lm.visible) return;
+        const gap=18;
+        el.style.left=lm.x+'px';
+        el.style.top=(lm.y-gap-(el.offsetHeight||28))+'px';
+        if(show) el.classList.add('visible');
+    });
+}
+
+/* ════════════════════════════════════════════════════
    SECTION LOGIC — called on EVERY enter (up or down)
 ════════════════════════════════════════════════════ */
 function onSectionEnter(sec){
     // Reset all overlays
     hide('stats-display'); clearNarrative(); clearLabels();
     overviewFade=false;
+    // Clear landmark highlights on every section transition
+    hideLandmarkPopups();
     // Hide country popup when changing sections (but keep dot highlighting)
     document.getElementById('country-name-display').style.opacity='0';
     // Hide map projection button except on context section
@@ -1125,6 +1247,16 @@ function onSectionEnter(sec){
             clearLabels();
             typewrite('The modern Rights of Nature movement is often traced to 2006, though some initiatives predate this moment.');
             layoutByYear();
+            break;
+
+        case 's5-year-b':
+            showMap=false; showCountryFills=false; highlightCountries.clear(); hoveredCountry=null;
+            layoutByYear();
+            typewrite('Several landmark initiatives helped shape its global expansion.', ()=>{
+                // After text fades in, show landmark highlights
+                setTimeout(showLandmarkPopups, 300);
+            });
+            // Also position popups on each draw frame while in this section
             break;
 
         case 's6-framework':
@@ -1236,8 +1368,9 @@ function layoutByYear(){
     let cx=margin;
     yearKeys.forEach(year=>{
         const yp=years[year]||[]; sortByFramework(yp);
-        addAxisLabel(year.toString(),cx,{barW});
         const cols=Math.min(8,Math.max(1,Math.floor(barW/8)));
+        const clusterW=cols*8;
+        addAxisLabel(year.toString(),cx,{barW:clusterW});
         yp.forEach((p,j)=>{ p.frozen=false; p.setTarget(cx+(j%cols)*8+2,bottom-Math.floor(j/cols)*8,true); });
         cx+=barW+barSp;
     });
@@ -1320,7 +1453,7 @@ function layoutByFramework(){
     const sStartX=startX+fKeys.length*step;
     sKeys.forEach((cat,i)=>{
         const x=sStartX+i*step;
-        addFrameworkLabel(cat,x,'#999');
+        addFrameworkLabel(cat,x);
         sortByStatus(sLaw[cat]);
         sLaw[cat].forEach((p,j)=>{p.frozen=false;p.setTarget(x+(j%maxCols)*dotSp,bottom-Math.floor(j/maxCols)*dotSp,true);});
     });
@@ -1329,6 +1462,8 @@ function layoutByFramework(){
     particles.forEach(p=>{ if(!FORMAL_LAW.includes(p.data['Legal Provision'])&&!SOFT_LAW.includes(p.data['Legal Provision'])){p.frozen=false;p.setTarget(-100,-100,false);} });
 
     frameworkBrackets=[];
+    if(fKeys.length) frameworkBrackets.push({x:startX, w:(fKeys.length-1)*step+colW, label:'Formal Law'});
+    if(sKeys.length) frameworkBrackets.push({x:sStartX, w:(sKeys.length-1)*step+colW, label:'Soft Law'});
 }
 
 // Drawn each frame in drawFrameworkBrackets(), called from p5 draw
@@ -1336,23 +1471,28 @@ let frameworkBrackets=[];
 
 function drawFrameworkBrackets(p){
     if(!frameworkBrackets.length) return;
-    // axis-labels-container sits at top:78vh (up to 3 lines tall ~40px), bracket sits below at ~88vh
     const bracketY=p.height*0.865;
-    const bracketH=3;
-    const labelColor=p5Instance.color('#999');
+    const tickH=5;
+    const labelColor=p5Instance.color('#3D3D31');
+    p.stroke(labelColor); p.strokeWeight(1); p.noFill();
     frameworkBrackets.forEach(b=>{
-        // bracket rectangle
-        p.noStroke();
-        p.fill(labelColor);
-        p.rect(b.x, bracketY, b.w, bracketH, 2);
+        // left tick
+        p.line(b.x, bracketY-tickH, b.x, bracketY);
+        // horizontal bar
+        p.line(b.x, bracketY, b.x+b.w, bracketY);
+        // right tick
+        p.line(b.x+b.w, bracketY, b.x+b.w, bracketY-tickH);
         // group label centred below bracket
+        p.noStroke();
         p.fill(labelColor);
         p.textFont('Geist Mono');
         p.textSize(10);
         p.textAlign(p.CENTER, p.TOP);
-        p.text(b.label, b.x+b.w/2, bracketY+bracketH+5);
+        p.text(b.label, b.x+b.w/2, bracketY+5);
         p.textAlign(p.LEFT, p.BASELINE);
+        p.stroke(labelColor); p.noFill();
     });
+    p.noStroke();
 }
 
 function layoutByStatus(){
@@ -1363,7 +1503,7 @@ function layoutByStatus(){
     const st={}; CANONICAL.forEach(c=>st[c]=[]);
     particles.forEach(p=>{ const n=norm(p.data.Status); if(n)st[n].push(p); });
     const keys=CANONICAL.filter(c=>st[c].length); if(!keys.length)return;
-    const dotSp=8,maxCols=8,barSp=42,barW=maxCols*dotSp,totalW=keys.length*barW+(keys.length-1)*barSp;
+    const dotSp=8,maxCols=10,barSp=42,barW=maxCols*dotSp,totalW=keys.length*barW+(keys.length-1)*barSp;
     let cx=(w-totalW)/2;
     keys.forEach(s=>{ sortByNature(st[s]); addAxisLabel(s,cx,{barW}); st[s].forEach((p,j)=>{p.frozen=false;p.setTarget(cx+(j%maxCols)*dotSp+3,bottom-Math.floor(j/maxCols)*dotSp,true);}); cx+=barW+barSp; });
     particles.forEach(p=>{ if(!norm(p.data.Status)){p.frozen=false;p.setTarget(-100,-100,false);} });
