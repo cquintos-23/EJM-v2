@@ -40,6 +40,10 @@
         line-height:42px; letter-spacing:-0.01em;
         color:var(--color-off-black); opacity:0; transition:opacity 0.6s ease;
         position:absolute; white-space:nowrap;
+        left:50%;
+        transform:translateX(-50%);
+        top:calc(100vh + (100vh - 42px) / 2);
+        z-index:30; pointer-events:none;
     }
     #stats-display .sep { font-weight:400; margin:0 0.4rem; }
 
@@ -48,7 +52,7 @@
         position:absolute; left:4vw;
         /* sits in the bottom half of its 200vh section */
         top:calc(100vh + (100vh - var(--box-h, 160px)) / 2);
-        max-width:460px; z-index:30; pointer-events:auto;
+        max-width:307px; z-index:30; pointer-events:auto;
     }
     .narrative-inner {
         font-family:'Geist',sans-serif; font-size:18px; font-weight:400;
@@ -58,6 +62,8 @@
         user-select:none;
     }
     .narrative-inner p { margin:0; }
+    .narrative-inner a { color:var(--color-off-black); text-decoration:underline; }
+    .narrative-inner a:hover { opacity:0.7; }
     /* zoom controls */
     #zoom-controls {
         position:fixed; bottom:68px; left:50%; transform:translateX(-50%);
@@ -110,10 +116,33 @@
     }
     #skip-btn:hover { opacity:0.85; }
 
+    /* map projection button */
+    #map-proj-btn {
+        position:fixed; top:36px; right:36px; z-index:50; display:none;
+        box-sizing:border-box; padding:10px 16px; height:40px; width:auto;
+        background-color:transparent; border:1px solid var(--color-sand); border-radius:8px;
+        font-family:'Geist',sans-serif; font-weight:500; font-size:16px; line-height:20px;
+        color:var(--color-dark-sand); text-decoration:none; white-space:nowrap;
+        cursor:pointer; box-shadow:none; text-transform:none; pointer-events:auto;
+        transition:opacity 0.2s;
+    }
+    #map-proj-btn:hover { opacity:0.85; }
+
+    /* map projection popup */
+    #map-proj-popup {
+        position:fixed; top:84px; right:36px; z-index:2000;
+        background:#FBFBEE; color:#3D3D31;
+        padding:10px 14px; border-radius:4px;
+        font-family:'Geist',sans-serif; font-size:9pt;
+        width:260px; max-width:260px; line-height:1.5;
+        box-shadow:0 4px 16px rgba(0,0,0,.25);
+        display:none; pointer-events:auto;
+    }
+
     /* chart labels */
     #axis-labels-container { position:fixed; top:78vh; left:0; width:100%; height:64px; pointer-events:auto; z-index:15; }
     #main-labels-container  { position:fixed; top:88vh; left:0; width:100%; height:30px; pointer-events:none; z-index:15; }
-    .chart-label { position:absolute; font-family:'Geist Mono',monospace; font-size:7pt; font-weight:500; color:#666; white-space:normal; word-break:break-word; max-width:80px; line-height:1.3; pointer-events:none; top:0; }
+    .chart-label { position:absolute; font-family:'Geist Mono',monospace; font-size:7.5pt; font-weight:500; color:#666; white-space:nowrap; line-height:1.3; pointer-events:none; top:0; }
     .chart-label.main { font-size:10pt; font-weight:600; color:#3D3D31; }
     .chart-label.axis.clickable { pointer-events:auto; cursor:pointer; color:#3D3D31; }
     .chart-label.axis.clickable:hover { text-decoration:underline; }
@@ -122,7 +151,7 @@
     #tooltip {
         position:fixed; background:#FBFBEE; color:#3D3D31;
         padding:10px 14px; border-radius:4px; font-family:'Geist',sans-serif;
-        font-size:9pt; pointer-events:none; z-index:1000; width:260px; max-width:260px;
+        font-size:10pt; pointer-events:none; z-index:1000; width:260px; max-width:260px;
         line-height:1.5; display:none; box-shadow:0 4px 16px rgba(0,0,0,.25);
         border-left:6px solid var(--tt-accent,#8ECBF0);
     }
@@ -133,32 +162,32 @@
         max-width:160px; width:auto;
         line-height:1.5; display:none; box-shadow:0 4px 14px rgba(0,0,0,.22);
     }
-    .tt-title { font-weight:400; margin-bottom:3px; color:#3D3D31; }
-    .tt-meta  { font-size:7.5pt; color:#888; margin-bottom:4px; }
-    .tt-link a { color:#3D3D31; text-decoration:none; font-size:7.5pt; font-weight:600; }
+    .tt-title { font-family:'Geist',sans-serif; font-weight:400; margin-bottom:3px; color:#3D3D31; font-size:10pt; }
+    .tt-meta  { font-family:'Geist Mono',monospace; font-size:8pt; color:#757559; margin-bottom:4px; }
+    .tt-link a { font-family:'Geist',sans-serif; color:#3D3D31; text-decoration:none; font-size:8pt; font-weight:600; }
     .tt-link a:hover { text-decoration:underline; }
-    .tt-nature { font-size:7.5pt; font-weight:600; margin-bottom:3px; }
+    .tt-nature { font-family:'Geist Mono',monospace; font-size:8pt; color:#757559; font-weight:600; margin-bottom:3px; }
     #pinned-tooltip {
         position:fixed; background:#FBFBEE; color:#3D3D31;
         padding:10px 14px; border-radius:4px; font-family:'Geist',sans-serif;
-        font-size:9pt; pointer-events:auto; z-index:2000; width:260px; max-width:260px;
+        font-size:10pt; pointer-events:auto; z-index:2000; width:260px; max-width:260px;
         line-height:1.5; display:none; box-shadow:0 4px 16px rgba(0,0,0,.25);
         border-left:6px solid var(--pt-accent,#8ECBF0);
     }
-    #pinned-tooltip .tt-title { font-weight:400; margin-bottom:3px; color:#3D3D31; }
-    #pinned-tooltip .tt-meta  { font-size:7.5pt; color:#b0b0b0; margin-bottom:5px; }
-    #pinned-tooltip .tt-link a { color:#3D3D31; text-decoration:none; font-size:7.5pt; font-weight:600; }
+    #pinned-tooltip .tt-title { font-family:'Geist',sans-serif; font-weight:400; margin-bottom:3px; color:#3D3D31; font-size:10pt; }
+    #pinned-tooltip .tt-meta  { font-family:'Geist Mono',monospace; font-size:8pt; color:#757559; margin-bottom:5px; }
+    #pinned-tooltip .tt-link a { font-family:'Geist',sans-serif; color:#3D3D31; text-decoration:none; font-size:8pt; font-weight:600; }
     #pt-close { position:absolute; top:5px; right:7px; cursor:pointer; color:#888; font-size:11pt; background:none; border:none; padding:0; }
     #pt-close:hover { color:#3D3D31; }
 
     /* country name display — popup positioned over country centroid */
     #country-name-display {
         position:fixed; z-index:30; pointer-events:none; opacity:0; transition:opacity 0.3s ease;
-        font-family:'Geist',sans-serif; font-size:0.9rem; font-weight:400;
-        color:#3D3D31; line-height:1.5;
+        font-family:'Geist Mono',monospace; font-size:10pt; font-weight:400;
+        color:#757559; line-height:1.5;
         background:#FBFBEE; padding:10px 18px; border-radius:6px;
         box-shadow:0 4px 16px rgba(0,0,0,.18);
-        white-space:nowrap; transform:translate(-50%,-50%);
+        white-space:nowrap; width:max-content; transform:translate(-50%,-50%);
     }
 
     /* zoom hint */
@@ -217,19 +246,19 @@
         <span class="section-nav-label">Context</span><span class="section-nav-dot"></span>
     </div>
     <div class="section-nav-item" data-nav="s4-regions">
-        <span class="section-nav-label">By Region</span><span class="section-nav-dot"></span>
-    </div>
-    <div class="section-nav-item" data-nav="s5-year">
-        <span class="section-nav-label">By Year</span><span class="section-nav-dot"></span>
-    </div>
-    <div class="section-nav-item" data-nav="s6-framework">
-        <span class="section-nav-label">By Framework</span><span class="section-nav-dot"></span>
-    </div>
-    <div class="section-nav-item" data-nav="s7-status">
-        <span class="section-nav-label">By Status</span><span class="section-nav-dot"></span>
+        <span class="section-nav-label">Region</span><span class="section-nav-dot"></span>
     </div>
     <div class="section-nav-item" data-nav="s8-nature">
-        <span class="section-nav-label">Nature Type</span><span class="section-nav-dot"></span>
+        <span class="section-nav-label">Nature</span><span class="section-nav-dot"></span>
+    </div>
+    <div class="section-nav-item" data-nav="s5-year">
+        <span class="section-nav-label">Year</span><span class="section-nav-dot"></span>
+    </div>
+    <div class="section-nav-item" data-nav="s6-framework">
+        <span class="section-nav-label">Framework</span><span class="section-nav-dot"></span>
+    </div>
+    <div class="section-nav-item" data-nav="s7-status">
+        <span class="section-nav-label">Status</span><span class="section-nav-dot"></span>
     </div>
     <div class="section-nav-item" data-nav="s9-end">
         <span class="section-nav-label">Explore</span><span class="section-nav-dot"></span>
@@ -237,11 +266,11 @@
 </div>
 
 <!-- Fixed overlays (pills + narrative) -->
-<div id="fixed-overlays">
-    <div id="stats-display"><span id="stat-initiatives">0</span> Initiatives<span class="sep">·</span><span id="stat-countries">0</span> Countries<span class="sep">·</span>1 Movement</div>
-</div>
+<div id="fixed-overlays"></div>
 <!-- (narrative boxes are injected into each scroll section by JS) -->
 <button id="skip-btn">skip →</button>
+<button id="map-proj-btn">map projection</button>
+<div id="map-proj-popup"><span class="tt-title">We use an Eckert V map projection as we believe that it provides an adequate balance between the drawbacks of converting a multidimensional world into a 2D representation and clearly communicating our data. This map serves illustrative purposes only. The boundaries, denominations, and, more generally, all eco jurisprudence-unrelated information shown on this map do not imply any judgment on the part of the creators concerning the legal status of any territory or the endorsement or acceptance of such boundaries, denominations, or the like.</span></div>
 <div id="zoom-hint">slider to zoom · drag to pan</div>
 <div id="zoom-controls">
     <span class="zoom-slider-label">−</span>
@@ -270,13 +299,15 @@
 
 <!-- Scrollytelling spacers -->
 <div id="scroll-container">
-    <div class="scroll-section" data-section="s1-stats"></div>
+    <div class="scroll-section" data-section="s1-stats">
+        <div id="stats-display"><span id="stat-initiatives">0</span> Initiatives<span class="sep">·</span><span id="stat-countries">0</span> Countries<span class="sep">·</span>1 Movement</div>
+    </div>
     <div class="scroll-section" data-section="s2-narrate1"></div>
     <div class="scroll-section" data-section="s4-regions"></div>
+    <div class="scroll-section" data-section="s8-nature"></div>
     <div class="scroll-section" data-section="s5-year"></div>
     <div class="scroll-section" data-section="s6-framework"></div>
     <div class="scroll-section" data-section="s7-status"></div>
-    <div class="scroll-section" data-section="s8-nature"></div>
     <div class="scroll-section" data-section="s9-end"></div>
 </div>
 
@@ -335,7 +366,7 @@ const FORMAL_LAW=['Constitution','Indigenous Law','Court Case','Policy','Legisla
 const SOFT_LAW=['Civil Society Declaration', 'Private Sector Governance', 'Civil Society Tribunal','Indigenous Declaration','Position Statement'];
 const FRAMEWORK_ORDER=[...FORMAL_LAW,...SOFT_LAW];
 const REGION_ORDER=['North America','Latin America','Europe','Africa','Asia','Oceania','International'];
-const NATURE_ORDER=['All Nature','Plant + Forest + Fungi','Animal','Freshwater + Marine + Arctic','Mountain + Grassland + Desert'];
+const NATURE_ORDER=['Nature','Plant','Animal','Water','Land'];
 const REGION_URLS={
     'North America':'https://ecojurisprudence.org/region/north-america/',
     'Latin America':'https://ecojurisprudence.org/region/latin-america/',
@@ -344,6 +375,19 @@ const REGION_URLS={
     'Asia':'https://ecojurisprudence.org/region/asia/',
     'Oceania':'https://ecojurisprudence.org/region/oceania/',
     'International':'https://ecojurisprudence.org/region/international/',
+};
+const FRAMEWORK_URLS={
+    'Constitution':'https://ecojurisprudence.org/legal-provision/constitution/',
+    'Legislation':'https://ecojurisprudence.org/legal-provision/legislation/',
+    'Court Case':'https://ecojurisprudence.org/legal-provision/court_case/',
+    'Policy':'https://ecojurisprudence.org/legal-provision/policy/',
+    'Declaration':'https://ecojurisprudence.org/legal-provision/declaration/',
+    'Indigenous Law':'https://ecojurisprudence.org/legal-provision/indigenous-law/',
+    'Civil Society Declaration':'https://ecojurisprudence.org/legal-provision/civil_society_declaration/',
+    'Civil Society Tribunal':'https://ecojurisprudence.org/legal-provision/civil_society_tribunal/',
+    'Indigenous Declaration':'https://ecojurisprudence.org/legal-provision/indigenous_declaration/',
+    'Private Sector Governance':'https://ecojurisprudence.org/legal-provision/private_sector_governance/',
+    'Position Statement':'https://ecojurisprudence.org/legal-provision/position_statement/',
 };
 // GeoJSON feature names that differ from how countries appear in the data.
 // Maps GeoJSON name → canonical name used in CSV (after pipe-parsing).
@@ -680,7 +724,7 @@ function initViz(){
                             });
                             document.getElementById('pinned-tooltip').style.display='none';
                             const nd=document.getElementById('country-name-display');
-                            nd.textContent=`${name} · ${n} initiative${n!==1?'s':''}`;
+                            nd.innerHTML=`<strong>${name}</strong> ${n} initiative${n!==1?'s':''}`;
                             nd.style.left=p.mouseX+'px';
                             nd.style.top=(p.mouseY-48)+'px';
                             nd.style.opacity='1';
@@ -688,7 +732,7 @@ function initViz(){
                     } else {
                         // No initiatives — show label transiently, don't lock selection
                         const nd=document.getElementById('country-name-display');
-                        nd.textContent=name+' · no initiatives in our dataset';
+                        nd.innerHTML='<strong>'+name+'</strong> no initiatives in our dataset';
                         nd.style.left=p.mouseX+'px';
                         nd.style.top=(p.mouseY-48)+'px';
                         nd.style.opacity='1';
@@ -705,6 +749,15 @@ function initViz(){
     if(firstNav) firstNav.classList.add('active');
     document.getElementById('skip-btn').addEventListener('click',()=>window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'}));
     document.getElementById('pt-close').addEventListener('click',hidePinned);
+
+    // Map projection popup toggle
+    const mapProjBtn=document.getElementById('map-proj-btn');
+    const mapProjPopup=document.getElementById('map-proj-popup');
+    mapProjBtn.addEventListener('click',e=>{
+        e.stopPropagation();
+        mapProjPopup.style.display=mapProjPopup.style.display==='block'?'none':'block';
+    });
+    document.addEventListener('click',()=>{ mapProjPopup.style.display='none'; });
 
     // Trigger stats counter on first scroll
     window.addEventListener('scroll',()=>{
@@ -964,7 +1017,7 @@ function animateStats(){
             document.getElementById('stat-countries').textContent=nC;
             clearInterval(iv);
         }
-    },1200/60);
+    },3000/60);
 }
 function resetStats(){
     statsAnimated=false;
@@ -983,26 +1036,18 @@ function clearLabels(){
 function addAxisLabel(text,x,opts={}){
     const el=document.createElement('div');
     el.className='chart-label axis'+(opts.clickable?' clickable':'');
-    // Wrap into up to 3 lines if label > 9 chars
-    if(text.length>9){
-        const words=text.split(' ');
-        let html='';
-        if(words.length<=2){
-            // 2 words → just split them
-            html=words.join('<br>');
-        } else {
-            // 3+ words → distribute as evenly as possible across up to 3 lines
-            const targetLines=Math.min(3,words.length);
-            const perLine=Math.ceil(words.length/targetLines);
-            const lines=[];
-            for(let i=0;i<words.length;i+=perLine) lines.push(words.slice(i,i+perLine).join(' '));
-            html=lines.join('<br>');
-        }
-        el.innerHTML=html;
-    } else {
+    // 1 word per line for all labels except "Court Case"
+    if(text==='Court Case'){
         el.textContent=text;
+    } else {
+        const words=text.split(' ');
+        el.innerHTML=words.join('<br>');
     }
-    el.style.left=x+'px';
+    // Center label over its bar using transform so nowrap words never get clipped
+    const barW=opts.barW||64;
+    el.style.left=(x + barW/2)+'px';
+    el.style.transform='translateX(-50%)';
+    el.style.textAlign='center';
     el.style.top='0';
     if(opts.clickable){
         el.addEventListener('click',()=>window.open(REGION_URLS[opts.region],'_blank'));
@@ -1031,6 +1076,9 @@ function onSectionEnter(sec){
     overviewFade=false;
     // Hide country popup when changing sections (but keep dot highlighting)
     document.getElementById('country-name-display').style.opacity='0';
+    // Hide map projection button except on context section
+    document.getElementById('map-proj-btn').style.display='none';
+    document.getElementById('map-proj-popup').style.display='none';
     // Deactivate zoom (narrate sections re-enable it below)
     if(mapZoomActive){ mapZoomActive=false; resetMapZoom(); if(p5Instance&&particleMapPos.length) placeParticlesOnMap(); }
     // selectedCountry persists through all sections until user explicitly clicks out
@@ -1052,6 +1100,7 @@ function onSectionEnter(sec){
             mapZoomActive=true;
             document.getElementById('zoom-hint').classList.add('visible');
             document.getElementById('zoom-controls').classList.add('visible');
+            document.getElementById('map-proj-btn').style.display='block';
             if(p5Instance&&particleMapPos.length) applyZoomToParticles();
             typewrite('Since 2019, the Eco Jurisprudence Monitor has tracked the emergence of ecocentric law. Every dot represents one initiative. Click and explore.',
                 ()=>{document.getElementById('skip-btn').style.display='block';});
@@ -1068,40 +1117,33 @@ function onSectionEnter(sec){
             const pAm=Math.round(americas/total4*100);
             const pEu=Math.round(europe/total4*100);
             const pOt=Math.round(other/total4*100);
-            typewrite(`<span data-countup="${pAm}">0%</span> of initiatives are located in the two Americas, the birth place of the movement. <span data-countup="${pEu}">0%</span> are in Europe, the remaining <span data-countup="${pOt}">0%</span> are either international or in other parts of the world.`, null, true);
+            typewrite(`<span data-countup="${pAm}">0%</span> of initiatives are located in the Americas, <span data-countup="${pEu}">0%</span> in Europe, and <span data-countup="${pOt}">0%</span> in other regions or international.`, null, true);
             break;}
 
         case 's5-year':
             showMap=false; showCountryFills=false; highlightCountries.clear(); hoveredCountry=null;
             clearLabels();
-            typewrite('The commonly agreed-upon starting point of the movement is 2006. However, some early initiatives pre-date this moment.');
+            typewrite('The modern Rights of Nature movement is often traced to 2006, though some initiatives predate this moment.');
             layoutByYear();
             break;
 
         case 's6-framework':
             showMap=false; showCountryFills=false; highlightCountries.clear();
             clearNarrative();
-            typewrite('The EJM tracks dozens of data points for each initiative. One of them is the legal provisions that we divide into formal and soft law.');
+            typewrite('Ecological jurisprudence operates across both formal and soft law, forming a rapidly evolving field that challenges conventional conceptions of law and governance.', null, true);
             layoutByFramework();
             break;
 
         case 's7-status':{
             showMap=false; showCountryFills=false; highlightCountries.clear();
             layoutByStatus();
-            const total7=particles.length||1;
-            const approved=particles.filter(p=>(p.data.Status||'').trim().toLowerCase().startsWith('app')).length;
-            const draftedOrSubmitted=particles.filter(p=>{ const s=(p.data.Status||'').trim().toLowerCase(); return s.startsWith('dra')||s.startsWith('sub'); }).length;
-            const failed=particles.filter(p=>(p.data.Status||'').trim().toLowerCase().startsWith('fai')).length;
-            const pApp=Math.round(approved/total7*100);
-            const pDS=Math.round(draftedOrSubmitted/total7*100);
-            const pFail=Math.round(failed/total7*100);
-            typewrite(`Ecological jurisprudence is an ongoing global story. <span data-countup="${pApp}">0%</span> of initiatives are approved, <span data-countup="${pDS}">0%</span> are either drafted or submitted, while <span data-countup="${pFail}">0%</span> have been unsuccessful or overturned.`, null, true);
+            typewrite(`Ecological jurisprudence is an evolving field. <strong>63%</strong> of initiatives are adopted, <strong>15%</strong> have been unsuccessful or overturned, and <strong>22%</strong> are in progress.<br><br>The EJM is a living resource. Let us know if we <a href="https://ecojurisprudence.org/new-initiative/" target="_blank">missed something</a> and <a href="https://ecojurisprudence.org/contact/" target="_blank">reach out</a> to collaborate.`, null, true);
             break;}
 
         case 's8-nature':
             showMap=false; showCountryFills=false; highlightCountries.clear();
             clearNarrative();
-            typewrite('Ecocentric laws protect Nature in all its forms. This includes Pachamama, planetary systems, rivers, mountains, coral reefs, pollinators, even urban ecosystems and Antarctica. Tracking this movement is what our research is all about. Let us know if we missed something and reach out to collaborate!');
+            typewrite('Ecological jurisprudence protects nature in many forms, from plants and animals to entire ecosystems. Water ecosystems are the fastest-growing area of legal recognition.', null, true);
             layoutByNature();
             break;
 
@@ -1178,7 +1220,7 @@ function layoutAllRegions(){
     REGION_ORDER.forEach((region,i)=>{
         const cx=startX+i*(barW+barSp), rp=regions[region]||[];
         if(!rp.length) return;
-        addAxisLabel(region,cx,{clickable:true,region});
+        addAxisLabel(region,cx,{clickable:true,region,barW});
         sortByYear(rp);
         rp.forEach((p,j)=>{ p.frozen=false; p.setTarget(cx+(j%maxCols)*dotSp+3,bY()-Math.floor(j/maxCols)*dotSp,true); });
     });
@@ -1194,7 +1236,7 @@ function layoutByYear(){
     let cx=margin;
     yearKeys.forEach(year=>{
         const yp=years[year]||[]; sortByFramework(yp);
-        addAxisLabel(year.toString(),cx);
+        addAxisLabel(year.toString(),cx,{barW});
         const cols=Math.min(8,Math.max(1,Math.floor(barW/8)));
         yp.forEach((p,j)=>{ p.frozen=false; p.setTarget(cx+(j%cols)*8+2,bottom-Math.floor(j/cols)*8,true); });
         cx+=barW+barSp;
@@ -1205,8 +1247,8 @@ function layoutByYear(){
 function layoutByFramework(){
     if(!p5Instance) return; clearLabels();
     const w=p5Instance.width, bottom=bY();
-    const dotSp=8, maxCols=7;
-    const colW=maxCols*dotSp; // 56px — dots always 7 wide
+    const dotSp=8, maxCols=6;
+    const colW=maxCols*dotSp; // 48px — dots always 6 wide
 
     const fLaw={}, sLaw={};
     particles.forEach(p=>{
@@ -1224,7 +1266,7 @@ function layoutByFramework(){
     const margin=60;
     const totalW=w-margin*2;
     const baseStep=totalW/(n-1||1);
-    const step=baseStep*0.92; // was 0.8 (-20%), now +15% of that = 0.92
+    const step=baseStep*0.92*1.1*0.95; // -5% gap decrease
     // Center the whole group
     const groupW=(n-1)*step+colW;
     const startX=(w-groupW)/2;
@@ -1239,17 +1281,29 @@ function layoutByFramework(){
         return [words.slice(0,2).join(' '), words.slice(2).join(' ')];
     }
 
-    // Add left-aligned label at x, optional color for soft law
     function addFrameworkLabel(cat, x, color){
         const el=document.createElement('div');
-        el.className='chart-label axis';
-        const lines=getLabelLines(cat);
-        el.innerHTML=lines.join('<br>');
-        el.style.left=x+'px';
+        const url=FRAMEWORK_URLS[cat];
+        el.className='chart-label axis'+(url?' clickable':'');
+        // 1 word per line except "Court Case"
+        if(cat==='Court Case'){
+            el.textContent=cat;
+        } else {
+            const words=cat.split(' ');
+            el.innerHTML=words.join('<br>');
+        }
+        el.style.left=(x + colW/2)+'px';
+        el.style.transform='translateX(-50%)';
         el.style.top='0';
-        el.style.textAlign='left';
-        el.style.width='80px';
+        el.style.textAlign='center';
         if(color) el.style.color=color;
+        if(url){
+            el.addEventListener('click',()=>window.open(url,'_blank'));
+            const ct=document.getElementById('country-tooltip');
+            el.addEventListener('mouseenter',e=>{ct.textContent=cat;ct.style.display='block';ct.style.left=(e.clientX+10)+'px';ct.style.top=(e.clientY-26)+'px';});
+            el.addEventListener('mousemove',e=>{ct.style.left=(e.clientX+10)+'px';ct.style.top=(e.clientY-26)+'px';});
+            el.addEventListener('mouseleave',()=>ct.style.display='none');
+        }
         document.getElementById('axis-labels-container').appendChild(el);
     }
 
@@ -1311,19 +1365,19 @@ function layoutByStatus(){
     const keys=CANONICAL.filter(c=>st[c].length); if(!keys.length)return;
     const dotSp=8,maxCols=8,barSp=42,barW=maxCols*dotSp,totalW=keys.length*barW+(keys.length-1)*barSp;
     let cx=(w-totalW)/2;
-    keys.forEach(s=>{ sortByNature(st[s]); addAxisLabel(s,cx); st[s].forEach((p,j)=>{p.frozen=false;p.setTarget(cx+(j%maxCols)*dotSp+3,bottom-Math.floor(j/maxCols)*dotSp,true);}); cx+=barW+barSp; });
+    keys.forEach(s=>{ sortByNature(st[s]); addAxisLabel(s,cx,{barW}); st[s].forEach((p,j)=>{p.frozen=false;p.setTarget(cx+(j%maxCols)*dotSp+3,bottom-Math.floor(j/maxCols)*dotSp,true);}); cx+=barW+barSp; });
     particles.forEach(p=>{ if(!norm(p.data.Status)){p.frozen=false;p.setTarget(-100,-100,false);} });
 }
 
 function layoutByNature(){
     if(!p5Instance) return; clearLabels();
     const w=p5Instance.width, bottom=bY();
-    const groups={'All Nature':[],'Plant + Forest + Fungi':[],'Animal':[],'Freshwater + Marine + Arctic':[],'Mountain + Grassland + Desert':[]};
+    const groups={'Nature':[],'Plant':[],'Animal':[],'Water':[],'Land':[]};
     particles.forEach(p=>groups[getNatureCat(p.data['Primary Nature Type'])].push(p));
     const keys=NATURE_ORDER.filter(k=>groups[k].length);
     const dotSp=8,maxCols=8,barSp=42,barW=maxCols*dotSp,totalW=keys.length*barW+(keys.length-1)*barSp;
     let cx=(w-totalW)/2;
-    keys.forEach(g=>{ addAxisLabel(g,cx); groups[g].forEach((p,j)=>{p.frozen=false;p.setTarget(cx+(j%maxCols)*dotSp+3,bottom-Math.floor(j/maxCols)*dotSp,true);}); cx+=barW+barSp; });
+    keys.forEach(g=>{ addAxisLabel(g,cx,{barW}); groups[g].forEach((p,j)=>{p.frozen=false;p.setTarget(cx+(j%maxCols)*dotSp+3,bottom-Math.floor(j/maxCols)*dotSp,true);}); cx+=barW+barSp; });
 }
 
 /* ════════════════════════════════════════════════════
@@ -1334,19 +1388,19 @@ function sortByFramework(arr){arr.sort((a,b)=>{const ia=FRAMEWORK_ORDER.indexOf(
 function sortByStatus(arr){arr.sort((a,b)=>{const ia=['Approved','Draft','Failed','Submitted'].findIndex(s=>(a.data['Status']||'').toLowerCase().startsWith(s.toLowerCase())),ib=['Approved','Draft','Failed','Submitted'].findIndex(s=>(b.data['Status']||'').toLowerCase().startsWith(s.toLowerCase()));return(ia<0?999:ia)-(ib<0?999:ib);});}
 function sortByNature(arr){arr.sort((a,b)=>NATURE_ORDER.indexOf(getNatureCat(a.data['Primary Nature Type']))-NATURE_ORDER.indexOf(getNatureCat(b.data['Primary Nature Type'])));}
 function getNatureCat(t){
-    if(!t||t.includes('|'))return'All Nature';
+    if(!t||t.includes('|'))return'Nature';
     const l=t.toLowerCase();
-    // All Nature: All Nature, Space, Urban, General, Climate
-    if(l.includes('all')||l.includes('general')||l.includes('space')||l.includes('urban')||l.includes('climate'))return'All Nature';
+    // Nature: All Nature, Space, Urban, General, Climate
+    if(l.includes('all')||l.includes('general')||l.includes('space')||l.includes('urban')||l.includes('climate'))return'Nature';
     // Plant + Forest + Fungi
-    if(l.includes('plant')||l.includes('forest')||l.includes('fungi'))return'Plant + Forest + Fungi';
+    if(l.includes('plant')||l.includes('forest')||l.includes('fungi'))return'Plant';
     // Animal
     if(l.includes('animal')||l.includes('species'))return'Animal';
     // Freshwater + Marine + Arctic
-    if(l.includes('freshwater')||l.includes('marine')||l.includes('arctic')||l.includes('ocean')||l.includes('river')||l.includes('lake')||l.includes('wetland'))return'Freshwater + Marine + Arctic';
+    if(l.includes('freshwater')||l.includes('marine')||l.includes('arctic')||l.includes('ocean')||l.includes('river')||l.includes('lake')||l.includes('wetland'))return'Water';
     // Mountain + Grassland + Desert
-    if(l.includes('mountain')||l.includes('grass')||l.includes('desert'))return'Mountain + Grassland + Desert';
-    return'All Nature';
+    if(l.includes('mountain')||l.includes('grass')||l.includes('desert'))return'Land';
+    return'Nature';
 }
 </script>
 </body>
