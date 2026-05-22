@@ -23,6 +23,7 @@
     /* ── SCROLLYTELLING VIEWPORT ── */
     #scroll-container { pointer-events:none; }
     .scroll-section { height:200vh; width:100%; pointer-events:none; position:relative; }
+    .scroll-section[data-section="s1-stats"] { height:400vh; }
 
     /* ── FIXED CANVAS ── */
     #p5-canvas { position:fixed; top:0; left:0; width:100%; height:100vh; z-index:1; cursor:default; will-change:transform; touch-action:none; }
@@ -39,13 +40,28 @@
         font-family:'Geist',sans-serif; font-size:34px; font-weight:600;
         line-height:42px; letter-spacing:-0.01em;
         color:var(--color-off-black); opacity:0; transition:opacity 0.6s ease;
-        position:absolute; white-space:nowrap;
-        left:50%;
-        transform:translateX(-50%);
-        top:calc(100vh + (100vh - 42px) / 2);
+        position:fixed; white-space:nowrap;
+        left:50%; top:50%;
+        transform:translate(-50%, -50%);
         z-index:30; pointer-events:none;
     }
     #stats-display .sep { font-weight:400; margin:0 0.4rem; }
+
+    /* ── INTRO TEXT BOX (s1-stats phase 2) ── */
+    #intro-textbox {
+        position:fixed; left:50%; z-index:30; pointer-events:none;
+        transform:translateX(-50%);
+        width:400px; max-width:90vw;
+        opacity:0; transition:opacity 0.4s ease;
+    }
+    #intro-textbox .narrative-inner {
+        font-family:'Geist',sans-serif; font-size:10pt; font-weight:400;
+        color:var(--color-off-black); line-height:1.6;
+        background:rgba(255,255,255,0.92); padding:1.4rem 1.2rem;
+        border-radius:8px; backdrop-filter:blur(4px);
+        text-align:center;
+    }
+    #intro-textbox .narrative-inner p { margin:0; }
 
     /* narrative — scrolling in-flow boxes inside each section */
     .narrative-scroll-box {
@@ -333,6 +349,7 @@
 <div id="scroll-container">
     <div class="scroll-section" data-section="s1-stats">
         <div id="stats-display"><span id="stat-initiatives">0</span> Initiatives<span class="sep"> </span><span id="stat-countries">0</span> Countries<span class="sep"> </span>1 Movement</div>
+        <div id="intro-textbox"><div class="narrative-inner"><p>Ecological jurisprudence is a global movement that challenges human-centric legal frameworks. It centers the interdependence and intrinsic value of nature and encompasses Rights of Nature, Indigenous Models, and Ecological Governance.<br><br>The Eco Jurisprudence Monitor tracks this movement.<br><br>Each dot is one initiative.<br>Click and scroll to explore.</p></div></div>
     </div>
     <div class="scroll-section" data-section="s2-narrate1"></div>
     <div class="scroll-section" data-section="s4-regions"></div>
@@ -341,11 +358,18 @@
     <div class="scroll-section" data-section="s5-year-b"></div>
     <div class="scroll-section" data-section="s6-framework"></div>
     <div class="scroll-section" data-section="s7-status"></div>
+    <div class="scroll-section" data-section="s7-status-b"></div>
     <div class="scroll-section" data-section="s9-end"></div>
 </div>
 
 
 <script>
+/* ════════════════════════════════════════════════════
+   EASING
+════════════════════════════════════════════════════ */
+function easeOut(t){ return 1-Math.pow(1-t,3); }
+function easeIn(t){ return t*t*t; }
+
 /* ════════════════════════════════════════════════════
    STATE
 ════════════════════════════════════════════════════ */
@@ -363,7 +387,7 @@ const LANDMARK_TITLES=new Set([
 function isLandmarkTitle(title){
     if(LANDMARK_TITLES.has(title)) return true;
     const t=(title||'').toLowerCase();
-    return t.includes('Ecuador Constitution of 2008: rights of nature')||t.includes('New Zealand Te Awa Tupua (Whanganui River Claims Settlement) Act 2017')||t.includes('Spain Mar Menor Law of 2022');
+    return t.includes('ecuador constitution of 2008')||t.includes('te awa tupua')||t.includes('spain national mar menor');
 }
 let p5Instance, worldGeoJson=null, mapProjection=null;
 let selectedParticle=null;
@@ -837,12 +861,67 @@ function initViz(){
     });
     document.addEventListener('click',()=>{ mapProjPopup.style.display='none'; });
 
-    // Trigger stats counter on first scroll
+    // Trigger stats counter on first scroll + drive intro textbox
     window.addEventListener('scroll',()=>{
-        if(!statsScrollTriggered && currentSection==='s1-stats'){
-            statsScrollTriggered=true;
-            show('stats-display');
-            animateStats();
+        if(currentSection==='s1-stats'){
+            const sec=document.querySelector('.scroll-section[data-section="s1-stats"]');
+            const secTop=sec ? sec.offsetTop : 0;
+            const scrolled=window.scrollY - secTop;
+            const vh=window.innerHeight;
+
+            // Phase 1 (0–1vh): trigger counter
+            if(!statsScrollTriggered && scrolled>10){
+                statsScrollTriggered=true;
+                show('stats-display');
+                animateStats();
+            }
+
+            // Phase 2 (1vh–2vh): text box scrolls up from below into position
+            // Phase 3 (2vh–3vh): both held fixed in place
+            // Phase 4 (3vh–4vh): both scroll off upward
+            const statsEl=document.getElementById('stats-display');
+            const introEl=document.getElementById('intro-textbox');
+            const introH=introEl.offsetHeight||120;
+            const gap=48; // px gap between counter bottom and textbox top
+
+            if(scrolled < vh){
+                // Phase 1: counter centered, textbox hidden
+                statsEl.style.top='50%';
+                statsEl.style.transform='translate(-50%,-50%)';
+                introEl.style.opacity='0';
+                introEl.style.top=(vh + gap)+'px';
+            } else if(scrolled < 2*vh){
+                // Phase 2: counter locked center; textbox scrolls up from bottom
+                const t=(scrolled - vh)/vh; // 0→1
+                statsEl.style.top='50%';
+                statsEl.style.transform='translate(-50%,-50%)';
+                // textbox starts at: center + 21px (half counter) + gap + extra offscreen (vh*0.6)
+                // ends at: center + 21px + gap
+                const counterHalfH=21;
+                const startY=vh*0.5 + counterHalfH + gap + vh*0.55;
+                const endY  =vh*0.5 + counterHalfH + gap;
+                const curY  =startY + (endY - startY)*easeOut(t);
+                introEl.style.top=curY+'px';
+                introEl.style.opacity=String(Math.min(1, t*2.5));
+            } else if(scrolled < 3*vh){
+                // Phase 3: both stuck
+                const counterHalfH=21;
+                statsEl.style.top='50%';
+                statsEl.style.transform='translate(-50%,-50%)';
+                introEl.style.top=(vh*0.5 + counterHalfH + gap)+'px';
+                introEl.style.opacity='1';
+            } else {
+                // Phase 4: scroll both off upward together
+                const t=(scrolled - 3*vh)/vh; // 0→1
+                const counterHalfH=21;
+                const baseStatsTop=vh*0.5;
+                const baseIntroTop=vh*0.5 + counterHalfH + gap;
+                const drift=vh*0.9*easeIn(t);
+                statsEl.style.top=(baseStatsTop - drift)+'px';
+                statsEl.style.transform='translate(-50%,-50%)';
+                introEl.style.top=(baseIntroTop - drift)+'px';
+                introEl.style.opacity=String(Math.max(0, 1 - t*2));
+            }
         }
         if(selectedParticle) positionPinnedTooltip();
         const staticEl=document.getElementById('static-content');
@@ -1207,6 +1286,14 @@ function onSectionEnter(sec){
     document.getElementById('zoom-hint').classList.remove('visible');
     document.getElementById('zoom-controls').classList.remove('visible');
 
+    // Hide intro textbox whenever leaving s1-stats
+    if(sec!=='s1-stats'){
+        const introEl=document.getElementById('intro-textbox');
+        if(introEl){ introEl.style.opacity='0'; }
+        const statsEl=document.getElementById('stats-display');
+        if(statsEl){ statsEl.style.top='50%'; statsEl.style.transform='translate(-50%,-50%)'; }
+    }
+
     switch(sec){
         case 's1-stats':
             showMap=true; showCountryFills=true; overviewFade=true;
@@ -1262,14 +1349,20 @@ function onSectionEnter(sec){
         case 's6-framework':
             showMap=false; showCountryFills=false; highlightCountries.clear();
             clearNarrative();
-            typewrite('Ecological jurisprudence operates across both formal and soft law, forming a rapidly evolving field that challenges conventional conceptions of law and governance.', null, true);
+            typewrite('We track both formal and soft law, revealing how ecological ideas move through and reshape governance systems worldwide.', null, true);
             layoutByFramework();
             break;
 
         case 's7-status':{
             showMap=false; showCountryFills=false; highlightCountries.clear();
             layoutByStatus();
-            typewrite(`Ecological jurisprudence is an evolving field. <strong>63%</strong> of initiatives are adopted, <strong>15%</strong> have been unsuccessful or overturned, and <strong>22%</strong> are in progress.<br><br>The EJM is a living resource. Let us know if we <a href="https://ecojurisprudence.org/new-initiative/" target="_blank">missed something</a> and <a href="https://ecojurisprudence.org/contact/" target="_blank">reach out</a> to collaborate.`, null, true);
+            typewrite(`Ecological jurisprudence is an evolving field. <strong>63%</strong> of initiatives are adopted, <strong>15%</strong> have been unsuccessful or overturned, and <strong>22%</strong> are in progress.`, null, true);
+            break;}
+
+        case 's7-status-b':{
+            showMap=false; showCountryFills=false; highlightCountries.clear();
+            layoutByStatus();
+            typewrite(`The EJM is a living resource. Let us know if we <a href="https://ecojurisprudence.org/new-initiative/" target="_blank">missed something</a> and <a href="https://ecojurisprudence.org/contact/" target="_blank">reach out</a> to collaborate.`, null, true);
             break;}
 
         case 's8-nature':
