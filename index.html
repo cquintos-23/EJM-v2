@@ -39,7 +39,7 @@
     #stats-display {
         font-family:'Geist',sans-serif; font-size:34px; font-weight:600;
         line-height:42px; letter-spacing:-0.01em;
-        color:var(--color-off-black); opacity:0; transition:opacity 0.6s ease;
+        color:var(--color-off-black); opacity:0; transition:none;
         position:fixed; white-space:nowrap;
         left:50%; top:50%;
         transform:translate(-50%, -50%);
@@ -869,58 +869,46 @@ function initViz(){
             const scrolled=window.scrollY - secTop;
             const vh=window.innerHeight;
 
-            // Phase 1 (0–1vh): trigger counter
+            const statsEl=document.getElementById('stats-display');
+            const introEl=document.getElementById('intro-textbox');
+            const gap=48;
+            const counterHalfH=21;
+
+            // Trigger counter animation once scrolling starts
             if(!statsScrollTriggered && scrolled>10){
                 statsScrollTriggered=true;
-                show('stats-display');
                 animateStats();
             }
 
-            // Phase 2 (1vh–2vh): text box scrolls up from below into position
-            // Phase 3 (2vh–3vh): both held fixed in place
-            // Phase 4 (3vh–4vh): both scroll off upward
-            const statsEl=document.getElementById('stats-display');
-            const introEl=document.getElementById('intro-textbox');
-            const introH=introEl.offsetHeight||120;
-            const gap=48; // px gap between counter bottom and textbox top
-
             if(scrolled < vh){
-                // Phase 1: counter centered, textbox hidden
+                // Phase 0: counter scrolls up from below-center into center
+                const t=scrolled/vh;
+                const startOffset=vh*0.6;
+                const curOffset=startOffset*(1-easeOut(t));
                 statsEl.style.top='50%';
-                statsEl.style.transform='translate(-50%,-50%)';
+                statsEl.style.transform=`translate(-50%, calc(-50% + ${curOffset}px))`;
+                statsEl.style.opacity=String(Math.min(1, t*2));
                 introEl.style.opacity='0';
-                introEl.style.top=(vh + gap)+'px';
+                introEl.style.top=(vh+gap)+'px';
             } else if(scrolled < 2*vh){
-                // Phase 2: counter locked center; textbox scrolls up from bottom
-                const t=(scrolled - vh)/vh; // 0→1
+                // Phase 1: counter locked at center; textbox scrolls up from below
+                const t=(scrolled-vh)/vh;
                 statsEl.style.top='50%';
                 statsEl.style.transform='translate(-50%,-50%)';
-                // textbox starts at: center + 21px (half counter) + gap + extra offscreen (vh*0.6)
-                // ends at: center + 21px + gap
-                const counterHalfH=21;
-                const startY=vh*0.5 + counterHalfH + gap + vh*0.55;
-                const endY  =vh*0.5 + counterHalfH + gap;
-                const curY  =startY + (endY - startY)*easeOut(t);
-                introEl.style.top=curY+'px';
+                statsEl.style.opacity='1';
+                const startY=vh*0.5+counterHalfH+gap+vh*0.55;
+                const endY  =vh*0.5+counterHalfH+gap;
+                introEl.style.top=(startY+(endY-startY)*easeOut(t))+'px';
                 introEl.style.opacity=String(Math.min(1, t*2.5));
-            } else if(scrolled < 3*vh){
-                // Phase 3: both stuck
-                const counterHalfH=21;
-                statsEl.style.top='50%';
-                statsEl.style.transform='translate(-50%,-50%)';
-                introEl.style.top=(vh*0.5 + counterHalfH + gap)+'px';
-                introEl.style.opacity='1';
             } else {
-                // Phase 4: scroll both off upward together
-                const t=(scrolled - 3*vh)/vh; // 0→1
-                const counterHalfH=21;
-                const baseStatsTop=vh*0.5;
-                const baseIntroTop=vh*0.5 + counterHalfH + gap;
-                const drift=vh*0.9*easeIn(t);
-                statsEl.style.top=(baseStatsTop - drift)+'px';
+                // Phase 2: scroll both off upward together, no fade
+                const t=(scrolled-2*vh)/vh;
+                const drift=vh*t;
+                statsEl.style.top=(vh*0.5-drift)+'px';
                 statsEl.style.transform='translate(-50%,-50%)';
-                introEl.style.top=(baseIntroTop - drift)+'px';
-                introEl.style.opacity=String(Math.max(0, 1 - t*2));
+                statsEl.style.opacity='1';
+                introEl.style.top=(vh*0.5+counterHalfH+gap-drift)+'px';
+                introEl.style.opacity='1';
             }
         }
         if(selectedParticle) positionPinnedTooltip();
