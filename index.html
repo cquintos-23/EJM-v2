@@ -403,6 +403,8 @@ let selectedCountry=null;
 let selectedCountryParticles=new Set();
 let countryCounts={};
 let overviewFade=false; // true during s1-stats: map+dots at 50% opacity
+let mapAlpha=1;          // 0–1, drives soft fade-out of the map
+let _mapAlphaTween=null; // requestAnimationFrame handle for the tween
 
 /* ── MAP ZOOM (active in s2-narrate1) ── */
 let mapZoom={ k:1, tx:0, ty:0 };
@@ -711,8 +713,11 @@ function initViz(){
         p.draw=function(){
             p.background('#FFFFFF');
             const ctx=p.drawingContext;
+            if((showMap||mapAlpha>0)&&worldGeoJson&&mapProjection){
+                const baseAlpha=overviewFade?0.5:1;
+                drawMap(p, baseAlpha*mapAlpha);
+            }
             if(overviewFade) ctx.globalAlpha=0.5;
-            if(showMap&&worldGeoJson&&mapProjection) drawMap(p);
             particles.forEach(pt=>{pt.update();pt.display();});
             if(overviewFade) ctx.globalAlpha=1.0;
             if(frameworkBrackets.length) drawFrameworkBrackets(p);
@@ -954,7 +959,8 @@ function initViz(){
 /* ════════════════════════════════════════════════════
    MAP DRAWING (fills only, no outlines when showCountryFills)
 ════════════════════════════════════════════════════ */
-function drawMap(p){
+function drawMap(p, alpha){
+    const a=(alpha===undefined?1:Math.max(0,Math.min(1,alpha)));
     const ctx=p.drawingContext;
     ctx.save();
     if(mapZoomActive&&(mapZoom.k!==1||mapZoom.tx!==0||mapZoom.ty!==0)){
@@ -972,15 +978,15 @@ function drawMap(p){
         const isHovered=!isSelected&&resolvedName===effectiveHovered;
         const isHighlighted=highlightCountries.has(name)||highlightCountries.has(resolvedName);
         if(isSelected){
-            ctx.fillStyle='#3D3D31';               // clicked — solid off-black
+            ctx.fillStyle=`rgba(61,61,49,${a})`;
         } else if(isHovered&&isHighlighted){
-            ctx.fillStyle='rgba(61,61,49,0.38)';   // hover on initiative country (darker)
+            ctx.fillStyle=`rgba(61,61,49,${0.38*a})`;
         } else if(isHovered){
-            ctx.fillStyle='rgba(61,61,49,0.18)';   // hover on no-initiative country (lighter)
+            ctx.fillStyle=`rgba(61,61,49,${0.18*a})`;
         } else if(isHighlighted){
-            ctx.fillStyle='rgba(61,61,49,0.20)';   // initiative country base
+            ctx.fillStyle=`rgba(61,61,49,${0.20*a})`;
         } else {
-            ctx.fillStyle='rgba(61,61,49,0.07)';   // no initiatives
+            ctx.fillStyle=`rgba(61,61,49,${0.07*a})`;
         }
         ctx.fill();
     });
@@ -1255,6 +1261,28 @@ function positionLandmarkPopups(show){
 }
 
 /* ════════════════════════════════════════════════════
+   MAP ALPHA TWEEN
+════════════════════════════════════════════════════ */
+function fadeOutMap(duration){
+    if(_mapAlphaTween) cancelAnimationFrame(_mapAlphaTween);
+    duration=duration||600;
+    const start=performance.now();
+    const from=mapAlpha;
+    function step(now){
+        const t=Math.min((now-start)/duration,1);
+        const ease=1-Math.pow(1-t,3); // easeOutCubic
+        mapAlpha=from*(1-ease);
+        if(t<1){ _mapAlphaTween=requestAnimationFrame(step); }
+        else { mapAlpha=0; showMap=false; _mapAlphaTween=null; }
+    }
+    _mapAlphaTween=requestAnimationFrame(step);
+}
+function fadeInMap(){
+    if(_mapAlphaTween) cancelAnimationFrame(_mapAlphaTween);
+    showMap=true; mapAlpha=1; _mapAlphaTween=null;
+}
+
+/* ════════════════════════════════════════════════════
    SECTION LOGIC — called on EVERY enter (up or down)
 ════════════════════════════════════════════════════ */
 function onSectionEnter(sec){
@@ -1284,7 +1312,7 @@ function onSectionEnter(sec){
 
     switch(sec){
         case 's1-stats':
-            showMap=true; showCountryFills=true; overviewFade=true;
+            fadeInMap(); showCountryFills=true; overviewFade=true;
             if(worldGeoJson) worldGeoJson.features.forEach(f=>{ const r=resolveGeoName(f.properties.name); if(countryCounts[r]>0) highlightCountries.add(f.properties.name); });
             if(p5Instance&&particleMapPos.length) placeParticlesOnMap();
             resetStats();
@@ -1292,7 +1320,7 @@ function onSectionEnter(sec){
             break;
 
         case 's2-narrate1':
-            showMap=true; showCountryFills=true;
+            fadeInMap(); showCountryFills=true;
             if(worldGeoJson) worldGeoJson.features.forEach(f=>{ const r=resolveGeoName(f.properties.name); if(countryCounts[r]>0) highlightCountries.add(f.properties.name); });
             mapZoomActive=true;
             document.getElementById('zoom-hint').classList.add('visible');
@@ -1304,7 +1332,7 @@ function onSectionEnter(sec){
             break;
 
         case 's4-regions':{
-            showMap=true; showCountryFills=true; hoveredCountry=null;
+            fadeInMap(); showCountryFills=true; hoveredCountry=null;
             if(worldGeoJson) worldGeoJson.features.forEach(f=>{ const r=resolveGeoName(f.properties.name); if(countryCounts[r]>0) highlightCountries.add(f.properties.name); });
             layoutAllRegions();
             const total4=particles.length||1;
@@ -1318,14 +1346,14 @@ function onSectionEnter(sec){
             break;}
 
         case 's5-year':
-            showMap=false; showCountryFills=false; highlightCountries.clear(); hoveredCountry=null;
+            fadeOutMap(); showCountryFills=false; highlightCountries.clear(); hoveredCountry=null;
             clearLabels();
             typewrite('The modern Rights of Nature movement is often traced to 2006, though some initiatives predate this moment.');
             layoutByYear();
             break;
 
         case 's5-year-b':
-            showMap=false; showCountryFills=false; highlightCountries.clear(); hoveredCountry=null;
+            fadeOutMap(); showCountryFills=false; highlightCountries.clear(); hoveredCountry=null;
             layoutByYear();
             typewrite('Several landmark initiatives helped shape its global expansion.', ()=>{
                 // After text fades in, show landmark highlights
@@ -1335,33 +1363,33 @@ function onSectionEnter(sec){
             break;
 
         case 's6-framework':
-            showMap=false; showCountryFills=false; highlightCountries.clear();
+            fadeOutMap(); showCountryFills=false; highlightCountries.clear();
             clearNarrative();
             typewrite('We track both formal and soft law, revealing how ecological ideas move through and reshape governance systems worldwide.', null, true);
             layoutByFramework();
             break;
 
         case 's7-status':{
-            showMap=false; showCountryFills=false; highlightCountries.clear();
+            fadeOutMap(); showCountryFills=false; highlightCountries.clear();
             layoutByStatus();
             typewrite(`Ecological jurisprudence is an evolving field. <strong>63%</strong> of initiatives are adopted, <strong>15%</strong> have been unsuccessful or overturned, and <strong>22%</strong> are in progress.`, null, true);
             break;}
 
         case 's7-status-b':{
-            showMap=false; showCountryFills=false; highlightCountries.clear();
+            fadeOutMap(); showCountryFills=false; highlightCountries.clear();
             layoutByStatus();
             typewrite(`The EJM is a living resource. Let us know if we <a href="https://ecojurisprudence.org/new-initiative/" target="_blank">missed something</a> and <a href="https://ecojurisprudence.org/contact/" target="_blank">reach out</a> to collaborate.`, null, true);
             break;}
 
         case 's8-nature':
-            showMap=false; showCountryFills=false; highlightCountries.clear();
+            fadeOutMap(); showCountryFills=false; highlightCountries.clear();
             clearNarrative();
             typewrite('Ecological jurisprudence protects nature in many forms, from plants and animals to entire ecosystems. Water ecosystems are the fastest-growing area of legal recognition.', null, true);
             layoutByNature();
             break;
 
         case 's9-end':
-            showMap=false; showCountryFills=false; highlightCountries.clear();
+            fadeOutMap(); showCountryFills=false; highlightCountries.clear();
             clearLabels();
             document.getElementById('skip-btn').style.display='none';
             particles.forEach(p=>{
