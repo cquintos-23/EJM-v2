@@ -167,8 +167,8 @@
     }
 
     /* chart labels */
-    #axis-labels-container { position:fixed; top:78vh; left:0; width:100%; height:100px; pointer-events:auto; z-index:50; }
-    #main-labels-container  { position:fixed; top:88vh; left:0; width:100%; height:30px; pointer-events:none; z-index:15; }
+    #axis-labels-container { position:fixed; top:73vh; left:0; width:100%; height:100px; pointer-events:auto; z-index:50; }
+    #main-labels-container  { position:fixed; top:83vh; left:0; width:100%; height:30px; pointer-events:none; z-index:15; }
     .chart-label { position:absolute; font-family:'Geist Mono',monospace; font-size:7.5pt; font-weight:500; color:#666; white-space:nowrap; line-height:1.3; pointer-events:none; top:0; }
     .chart-label.main { font-size:10pt; font-weight:600; color:#3D3D31; }
     .chart-label.axis { pointer-events:auto; cursor:default; padding:4px 6px; margin:-4px -6px; }
@@ -247,24 +247,22 @@
 
     /* ── LANDMARK POPUPS (year chart highlight) ── */
     .landmark-popup {
-        position:fixed; z-index:40; pointer-events:none;
+        position:fixed; z-index:2000; pointer-events:none;
         background:#FBFBEE; color:#3D3D31;
-        padding:6px 10px; border-radius:4px;
-        font-family:'Geist',sans-serif; font-size:8.5pt; font-weight:600;
-        line-height:1.3;
-        max-width: 230px;
-        box-shadow:0 3px 12px rgba(0,0,0,.2);
-        border-left:4px solid var(--lm-accent,#3D3D31);
+        padding:10px 14px; border-radius:4px;
+        font-family:'Geist',sans-serif; font-size:10pt; font-weight:400;
+        line-height:1.5;
+        width:260px; max-width:260px;
+        box-shadow:0 4px 16px rgba(0,0,0,.25);
+        border-left:6px solid var(--lm-accent,#8ECBF0);
         transform:translate(-50%, 0);
         opacity:0; transition:opacity 0.4s ease;
     }
+    .landmark-popup .lm-title { font-family:'Geist',sans-serif; font-weight:700; margin-bottom:3px; color:#3D3D31; font-size:10pt; }
+    .landmark-popup .lm-meta  { font-family:'Geist Mono',monospace; font-size:8pt; color:#757559; margin-bottom:4px; }
+    .landmark-popup .lm-link a { font-family:'Geist',sans-serif; color:#3D3D31; text-decoration:none; font-size:8pt; font-weight:600; }
+    .landmark-popup .lm-link a:hover { text-decoration:underline; }
     .landmark-popup.visible { opacity:1; }
-    .landmark-popup::after {
-        content:''; position:absolute; bottom:-6px; left:50%;
-        transform:translateX(-50%);
-        border:3px solid transparent;
-        border-top-color:rgba(0,0,0,0.12);
-    }
 
     /* ── SECTION DOT NAV ── */
     #section-nav {
@@ -323,6 +321,14 @@
     }
     #info-btn:hover::after { opacity:1; }
 
+    /* data source label — appears alongside globe/info icons */
+    #data-source-label {
+        position:fixed; top:36px; right:84px; z-index:50; display:none;
+        align-items:center; height:36px;
+        font-family:'Geist',sans-serif; font-size:11px; color:var(--color-off-black);
+        opacity:0.55; user-select:none; white-space:nowrap; pointer-events:none;
+    }
+
     </style>
 </head>
 <body>
@@ -360,6 +366,7 @@
 <button id="map-proj-btn"><img src="Globe.svg" alt="map projection"></button>
 <div id="map-proj-popup"><span class="tt-title2">This map serves illustrative purposes only. The boundaries, denominations, and, more generally, all eco jurisprudence-unrelated information shown on this map do not imply any judgment on the part of the creators concerning the legal status of any territory or the endorsement or acceptance of such boundaries, denominations, or the like.</span></div>
 <a id="info-btn" href="https://ecojurisprudence.org/codebook/" target="_blank"><img src="Info.svg" alt="codebook"></a>
+<div id="data-source-label">Data Source: Eco Jurisprudence Monitor (2026)</div>
 <div id="zoom-hint">slider to zoom · drag to pan</div>
 <div id="zoom-controls">
     <span class="zoom-slider-label">−</span>
@@ -420,6 +427,7 @@ function easeIn(t){ return t*t*t; }
 let data=[], particles=[];
 let currentSection='s1-stats';
 let landmarkMode=false; // true while s5-year-b is active
+let _pendingLayout=null; // {fn, triggered} — deferred chart layout waiting for narrative scroll threshold
 
 /* Landmark initiative titles for the s5-year-b highlight sequence */
 const LANDMARK_TITLES=new Set([
@@ -779,7 +787,7 @@ function initViz(){
             const ctEl=document.getElementById('country-tooltip');
             if(selectedParticle){ttEl.style.display='none'; ctEl.style.display='none'; hoveredCountry=null; return;}
             const found=findParticle(p.mouseX,p.mouseY);
-            if(found){
+            if(found && !landmarkMode){
                 document.getElementById('tt-title').textContent=found.title;
                 const nature=found.data['Primary Nature Type']||'';
                 document.getElementById('tt-meta').innerHTML=`${found.data['Primary Year']||'—'} · ${found.data['Status']||'—'}`+(nature?` · <span style="color:${found.color};font-weight:600">${nature}</span>`:'');
@@ -832,7 +840,8 @@ function initViz(){
         };
         p.mouseClicked=function(){
             const found=findParticle(p.mouseX,p.mouseY);
-            if(found){ selectedParticle===found?hidePinned():showPinned(found); return; }
+            if(found && !landmarkMode){ selectedParticle===found?hidePinned():showPinned(found); return; }
+            if(found && landmarkMode){ return; }
             hidePinned();
             // Country click (only when map is visible)
             if(showMap&&worldGeoJson&&mapProjection){
@@ -899,6 +908,13 @@ function initViz(){
         // Scroll to the midpoint of the section so the observer picks it up cleanly
         const mid=el.offsetTop + el.offsetHeight * 0.55;
         window.scrollTo({top: mid, behavior:'instant'});
+        // For jumps, fire any pending layout immediately (no scroll threshold needed)
+        setTimeout(()=>{
+            if(_pendingLayout && !_pendingLayout.triggered){
+                _pendingLayout.triggered=true;
+                _pendingLayout.fn();
+            }
+        }, 150);
     }
     document.querySelectorAll('.section-nav-item[data-nav]').forEach(item=>{
         item.addEventListener('click',()=>jumpToSection(item.dataset.nav));
@@ -940,8 +956,17 @@ function initViz(){
                 animateStats();
             }
 
-            // overviewFade (dim map+dots) only while counter/intro are on screen
-            overviewFade = (scrolled > 10 && scrolled < 2*vh);
+            // overviewFade (dim map+dots) while counter/intro are on screen — from the very start until they've scrolled fully off (end of phase 2)
+            overviewFade = (scrolled < 3*vh);
+
+            // Close any open popups while counter/intro are visible
+            if(scrolled < 2*vh){
+                if(selectedParticle){ hidePinned(); }
+                if(selectedCountry){
+                    selectedCountry=null; selectedCountryParticles.clear();
+                    document.getElementById('country-name-display').style.opacity='0';
+                }
+            }
 
             if(scrolled < vh){
                 // Phase 0: counter scrolls up from below-center into center
@@ -958,7 +983,7 @@ function initViz(){
                     mapZoomActive=false; resetMapZoom();
                     document.getElementById('zoom-hint').classList.remove('visible');
                     document.getElementById('zoom-controls').classList.remove('visible');
-                    document.getElementById('map-proj-btn').style.display='none';
+                    document.getElementById('map-proj-btn').style.display='none'; document.getElementById('data-source-label').style.display='none';
                     if(p5Instance&&particleMapPos.length) placeParticlesOnMap();
                 }
             } else if(scrolled < 2*vh){
@@ -976,7 +1001,7 @@ function initViz(){
                     mapZoomActive=false; resetMapZoom();
                     document.getElementById('zoom-hint').classList.remove('visible');
                     document.getElementById('zoom-controls').classList.remove('visible');
-                    document.getElementById('map-proj-btn').style.display='none';
+                    document.getElementById('map-proj-btn').style.display='none'; document.getElementById('data-source-label').style.display='none';
                     if(p5Instance&&particleMapPos.length) placeParticlesOnMap();
                 }
             } else {
@@ -993,7 +1018,7 @@ function initViz(){
                     mapZoomActive=true;
                     document.getElementById('zoom-hint').classList.add('visible');
                     document.getElementById('zoom-controls').classList.add('visible');
-                    document.getElementById('map-proj-btn').style.display='flex';
+                    document.getElementById('map-proj-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
                     applyZoomToParticles();
                 }
             }
@@ -1004,6 +1029,21 @@ function initViz(){
             const rect=staticEl.getBoundingClientRect();
             const nd=document.getElementById('country-name-display');
             nd.style.opacity=(rect.top<=window.innerHeight)?'0':'1';
+        }
+        // Deferred chart layout: trigger when narrative text is 1/3 up the viewport
+        if(_pendingLayout && !_pendingLayout.triggered){
+            const secEl=document.querySelector(`.scroll-section[data-section="${currentSection}"]`);
+            if(secEl){
+                const box=secEl.querySelector('.narrative-scroll-box');
+                if(box){
+                    const boxRect=box.getBoundingClientRect();
+                    // 1/3 up = box top at or above 2/3 of viewport height
+                    if(boxRect.top <= window.innerHeight * (2/3)){
+                        _pendingLayout.triggered=true;
+                        _pendingLayout.fn();
+                    }
+                }
+            }
         }
     });
 
@@ -1146,6 +1186,9 @@ function positionPinnedTooltip(){
     el.style.left=left+'px'; el.style.top=top+'px';
 }
 function showPinned(p){
+    // Close country name display and deselect country when opening initiative popup
+    selectedCountry=null; selectedCountryParticles.clear();
+    document.getElementById('country-name-display').style.opacity='0';
     selectedParticle=p;
     document.getElementById('pt-title').textContent=p.title;
     const ptNatureText=p.data['Primary Nature Type']||'';
@@ -1271,20 +1314,16 @@ function clearLabels(){
 function addAxisLabel(text,x,opts={}){
     const el=document.createElement('div');
     el.className='chart-label axis'+(opts.clickable?' clickable':'');
-    // 1 word per line for all labels except "Court Case"
     if(text==='Court Case'){
         el.textContent=text;
     } else {
         const words=text.split(' ');
         el.innerHTML=words.join('<br>');
     }
-    // Center label over the slot width
-    const barW=opts.barW||64;
-    el.style.left=(x + barW/2)+'px';
+    el.style.left=x+'px';
     el.style.transform='translateX(-50%)';
     el.style.textAlign='center';
     el.style.top='0';
-    // Count tooltip on hover (all labels)
     const count=opts.count!=null?opts.count:0;
     const ct=document.getElementById('label-tooltip');
     el.addEventListener('mouseenter',e=>{ct.textContent=`${count} initiative${count!==1?'s':''}`;ct.style.display='block';ct.style.left=(e.clientX+10)+'px';ct.style.top=(e.clientY-36)+'px';});
@@ -1306,8 +1345,16 @@ function hide(id){document.getElementById(id).style.opacity='0';}
 /* ════════════════════════════════════════════════════
    LANDMARK HIGHLIGHT POPUPS
 ════════════════════════════════════════════════════ */
+let _savedParticleDuringLandmark=null; // particle suspended during landmark callout
+
 function showLandmarkPopups(){
     landmarkMode=true;
+    // Temporarily suppress the selected particle highlight during landmark callout
+    _savedParticleDuringLandmark=selectedParticle;
+    if(selectedParticle){
+        selectedParticle=null;
+        document.getElementById('pinned-tooltip').style.display='none';
+    }
     const container=document.getElementById('lm-popups');
     container.innerHTML='';
     // Find the three landmark particles
@@ -1316,8 +1363,11 @@ function showLandmarkPopups(){
         const el=document.createElement('div');
         el.className='landmark-popup';
         el.dataset.particleTitle=lm.title;
-        el.textContent=lm.title;
         el.style.setProperty('--lm-accent', lm.color);
+        const ptNatureText=lm.data['Primary Nature Type']||'';
+        const metaHtml=`${lm.data['Primary Year']||'—'} · ${lm.data['Status']||'—'}`+(ptNatureText?` · <span style="color:${lm.color};font-weight:600">${ptNatureText}</span>`:'');
+        const linkHtml=lm.permalink?`<a href="${lm.permalink}" target="_blank">more info ↗</a>`:'';
+        el.innerHTML=`<div class="lm-title">${lm.title}</div><div class="lm-meta">${metaHtml}</div>${linkHtml?`<div class="lm-link">${linkHtml}</div>`:''}`;
         container.appendChild(el);
     });
     // Position them (and make visible) once layout has settled
@@ -1330,7 +1380,14 @@ function hideLandmarkPopups(){
     document.querySelectorAll('.landmark-popup').forEach(el=>{
         el.classList.remove('visible');
     });
-    setTimeout(()=>{ document.getElementById('lm-popups').innerHTML=''; },420);
+    // Restore the previously selected particle after landmark animation ends
+    setTimeout(()=>{
+        document.getElementById('lm-popups').innerHTML='';
+        if(_savedParticleDuringLandmark){
+            showPinned(_savedParticleDuringLandmark);
+            _savedParticleDuringLandmark=null;
+        }
+    },420);
 }
 function positionLandmarkPopups(show){
     document.querySelectorAll('.landmark-popup').forEach(el=>{
@@ -1338,9 +1395,18 @@ function positionLandmarkPopups(show){
         const lm=particles.find(p=>isLandmarkTitle(p.title)&&p.title===title)||
                   particles.find(p=>isLandmarkTitle(p.title)&&(p.title||'').toLowerCase().includes((title||'').toLowerCase()));
         if(!lm||!lm.visible) return;
-        const gap=18;
-        el.style.left=lm.x+'px';
-        el.style.top=(lm.y-gap-(el.offsetHeight||28))+'px';
+        const elH=el.offsetHeight||100;
+        // Position 7px above the dot (similar to normal tooltip: elH + 7 gap)
+        let top=lm.y - elH - 20;
+        let left=lm.x;
+        // Clamp horizontally
+        const elW=el.offsetWidth||260;
+        if(left - elW/2 < 8) left = 8 + elW/2;
+        if(left + elW/2 > window.innerWidth - 8) left = window.innerWidth - 8 - elW/2;
+        // If would go off top, flip below
+        if(top < 8) top = lm.y + 10;
+        el.style.left=left+'px';
+        el.style.top=top+'px';
         if(show) el.classList.add('visible');
     });
 }
@@ -1372,16 +1438,17 @@ function fadeInMap(){
 ════════════════════════════════════════════════════ */
 function onSectionEnter(sec){
     // Reset all overlays
-    hide('stats-display'); clearNarrative(); clearLabels();
+    hide('stats-display'); clearNarrative();
     overviewFade=false;
+    _pendingLayout=null;
     // Clear landmark highlights on every section transition
     hideLandmarkPopups();
     // Hide country popup when changing sections (but keep dot highlighting)
     document.getElementById('country-name-display').style.opacity='0';
     // Hide map projection button except on context section
-    document.getElementById('map-proj-btn').style.display='none';
+    document.getElementById('map-proj-btn').style.display='none'; document.getElementById('data-source-label').style.display='none';
     document.getElementById('map-proj-popup').style.display='none';
-    document.getElementById('info-btn').style.display='none';
+    document.getElementById('info-btn').style.display='none'; document.getElementById('data-source-label').style.display='none';
     // Deactivate zoom (narrate sections re-enable it below)
     if(mapZoomActive){ mapZoomActive=false; resetMapZoom(); if(p5Instance&&particleMapPos.length) placeParticlesOnMap(); }
     // selectedCountry persists through all sections until user explicitly clicks out
@@ -1399,6 +1466,10 @@ function onSectionEnter(sec){
     switch(sec){
         case 's1-stats':
             fadeInMap(); showCountryFills=true; overviewFade=false;
+            clearLabels();
+            hidePinned();
+            selectedCountry=null; selectedCountryParticles.clear();
+            document.getElementById('country-name-display').style.opacity='0';
             if(worldGeoJson) worldGeoJson.features.forEach(f=>{ const r=resolveGeoName(f.properties.name); if(countryCounts[r]>0) highlightCountries.add(f.properties.name); });
             if(p5Instance&&particleMapPos.length) placeParticlesOnMap();
             resetStats();
@@ -1411,8 +1482,7 @@ function onSectionEnter(sec){
         case 's4-regions':{
             fadeInMap(); showCountryFills=true; hoveredCountry=null;
             if(worldGeoJson) worldGeoJson.features.forEach(f=>{ const r=resolveGeoName(f.properties.name); if(countryCounts[r]>0) highlightCountries.add(f.properties.name); });
-            document.getElementById('info-btn').style.display='flex';
-            layoutAllRegions();
+            document.getElementById('info-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
             const total4=particles.length||1;
             const americas=particles.filter(p=>p.data.Region==='North America'||p.data.Region==='Latin America').length;
             const europe=particles.filter(p=>p.data.Region==='Europe').length;
@@ -1421,55 +1491,54 @@ function onSectionEnter(sec){
             const pEu=Math.round(europe/total4*100);
             const pOt=Math.round(other/total4*100);
             typewrite(`<span data-countup="${pAm}">0%</span> of initiatives are located in the Americas, <span data-countup="${pEu}">0%</span> in Europe, and <span data-countup="${pOt}">0%</span> in other regions or international.`, null, true);
+            _pendingLayout={fn:layoutAllRegions, triggered:false};
             break;}
 
         case 's5-year':
             fadeOutMap(); showCountryFills=false; highlightCountries.clear(); hoveredCountry=null;
-            clearLabels();
-            document.getElementById('info-btn').style.display='flex';
+            document.getElementById('info-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
             typewrite('The modern Rights of Nature movement is often traced to 2006, though some initiatives predate this moment.');
-            layoutByYear();
+            _pendingLayout={fn:layoutByYear, triggered:false};
             break;
 
         case 's5-year-b':
             fadeOutMap(); showCountryFills=false; highlightCountries.clear(); hoveredCountry=null;
-            document.getElementById('info-btn').style.display='flex';
-            layoutByYear();
+            document.getElementById('info-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
             typewrite('Several landmark initiatives helped shape its global expansion.', ()=>{
                 // After text fades in, show landmark highlights
                 setTimeout(showLandmarkPopups, 300);
             });
-            // Also position popups on each draw frame while in this section
+            _pendingLayout={fn:layoutByYear, triggered:false};
             break;
 
         case 's6-framework':
             fadeOutMap(); showCountryFills=false; highlightCountries.clear();
-            document.getElementById('info-btn').style.display='flex';
+            document.getElementById('info-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
             clearNarrative();
             typewrite('We track both formal and soft law, revealing how ecological ideas move through and reshape governance systems worldwide.', null, true);
-            layoutByFramework();
+            _pendingLayout={fn:layoutByFramework, triggered:false};
             break;
 
         case 's7-status':{
             fadeOutMap(); showCountryFills=false; highlightCountries.clear();
-            document.getElementById('info-btn').style.display='flex';
-            layoutByStatus();
+            document.getElementById('info-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
             typewrite(`Ecological jurisprudence is an evolving field. <strong>63%</strong> of initiatives are adopted, <strong>15%</strong> have been unsuccessful or overturned, and <strong>22%</strong> are in progress.`, null, true);
+            _pendingLayout={fn:layoutByStatus, triggered:false};
             break;}
 
         case 's7-status-b':{
             fadeOutMap(); showCountryFills=false; highlightCountries.clear();
-            document.getElementById('info-btn').style.display='flex';
-            layoutByStatus();
+            document.getElementById('info-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
             typewrite(`The EJM is a living resource. Let us know if we <a href="https://ecojurisprudence.org/new-initiative/" target="_blank">missed something</a> and <a href="https://ecojurisprudence.org/contact/" target="_blank">reach out</a> to collaborate.`, null, true);
+            _pendingLayout={fn:layoutByStatus, triggered:false};
             break;}
 
         case 's8-nature':
             fadeOutMap(); showCountryFills=false; highlightCountries.clear();
-            document.getElementById('info-btn').style.display='flex';
+            document.getElementById('info-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
             clearNarrative();
             typewrite('Ecological jurisprudence protects nature in many forms, from plants and animals to entire ecosystems. Water ecosystems are the fastest-growing area of legal recognition.', null, true);
-            layoutByNature();
+            _pendingLayout={fn:layoutByNature, triggered:false};
             break;
 
         case 's9-end':
@@ -1531,7 +1600,7 @@ function setupObserver(){
 /* ════════════════════════════════════════════════════
    BOTTOM Y
 ════════════════════════════════════════════════════ */
-function bY(){ return p5Instance.height*0.75; }
+function bY(){ return p5Instance.height*0.70; }
 
 /* ════════════════════════════════════════════════════
    LAYOUTS
@@ -1547,9 +1616,12 @@ function layoutAllRegions(){
     REGION_ORDER.forEach((region,i)=>{
         const cx=startX+i*(barW+barSp), rp=regions[region]||[];
         if(!rp.length) return;
-        addAxisLabel(region,cx,{clickable:true,region,count:rp.length,barW:barW});
+        const labelCx=cx+barW/2;
+        addAxisLabel(region,labelCx,{clickable:true,region,count:rp.length});
         sortByNature(rp);
-        rp.forEach((p,j)=>{ p.frozen=false; p.setTarget(cx+(j%maxCols)*dotSp+3,bY()-Math.floor(j/maxCols)*dotSp,true); });
+        const colsUsed=Math.min(rp.length,maxCols);
+        const dotStartX=labelCx-(colsUsed-1)*dotSp/2;
+        rp.forEach((p,j)=>{ p.frozen=false; p.setTarget(dotStartX+(j%maxCols)*dotSp,bY()-Math.floor(j/maxCols)*dotSp,true); });
     });
 }
 
@@ -1564,8 +1636,11 @@ function layoutByYear(){
     yearKeys.forEach(year=>{
         const yp=years[year]||[]; sortByNature(yp);
         const cols=Math.min(8,Math.max(1,Math.floor(barW/8)));
-        if(yp.length>0) addAxisLabel(year.toString(),cx,{count:yp.length,barW:barW});
-        yp.forEach((p,j)=>{ p.frozen=false; p.setTarget(cx+(j%cols)*8+2,bottom-Math.floor(j/cols)*8,true); });
+        const labelCx=cx+barW/2;
+        if(yp.length>0) addAxisLabel(year.toString(),labelCx,{count:yp.length});
+        const colsUsed=Math.min(yp.length,cols);
+        const dotStartX=labelCx-(colsUsed-1)*8/2;
+        yp.forEach((p,j)=>{ p.frozen=false; p.setTarget(dotStartX+(j%cols)*8,bottom-Math.floor(j/cols)*8,true); });
         cx+=barW+barSp;
     });
     particles.forEach(p=>{ const y=parseInt(p.data['Primary Year']); if(isNaN(y)||y<2006||y>2026){p.frozen=false;p.setTarget(-100,-100,false);} });
@@ -1608,18 +1683,18 @@ function layoutByFramework(){
         return [words.slice(0,2).join(' '), words.slice(2).join(' ')];
     }
 
-    function addFrameworkLabel(cat, x, count, color){
+    function addFrameworkLabel(cat, x, count, color, groupParticles){
         const el=document.createElement('div');
         const url=FRAMEWORK_URLS[cat];
         el.className='chart-label axis'+(url?' clickable':'');
-        // 1 word per line except "Court Case"
         if(cat==='Court Case'){
             el.textContent=cat;
         } else {
             const words=cat.split(' ');
             el.innerHTML=words.join('<br>');
         }
-        el.style.left=(x + (maxCols-1)*dotSp/2)+'px';
+        // x is already the label center
+        el.style.left=x+'px';
         el.style.transform='translateX(-50%)';
         el.style.top='0';
         el.style.textAlign='center';
@@ -1629,28 +1704,31 @@ function layoutByFramework(){
         el.addEventListener('mouseenter',e=>{ct.textContent=`${count} initiative${count!==1?'s':''}`;ct.style.display='block';ct.style.left=(e.clientX+10)+'px';ct.style.top=(e.clientY-36)+'px';});
         el.addEventListener('mousemove',e=>{ct.style.left=(e.clientX+10)+'px';ct.style.top=(e.clientY-36)+'px';});
         el.addEventListener('mouseleave',()=>ct.style.display='none');
-        if(url){
-            el.addEventListener('click',()=>window.open(url,'_blank'));
-        }
+        if(url){ el.addEventListener('click',()=>window.open(url,'_blank')); }
         document.getElementById('axis-labels-container').appendChild(el);
     }
 
-    // Place dots: always colW wide (7 dots), left-aligned with label
     const fStartX=startX;
     fKeys.forEach((cat,i)=>{
         const x=startX+i*step;
-        addFrameworkLabel(cat,x,fLaw[cat].length);
+        const labelCx=x+colW/2;
+        addFrameworkLabel(cat,labelCx,fLaw[cat].length,null,fLaw[cat]);
         sortByNature(fLaw[cat]);
-        fLaw[cat].forEach((p,j)=>{p.frozen=false;p.setTarget(x+(j%maxCols)*dotSp,bottom-Math.floor(j/maxCols)*dotSp,true);});
+        const colsUsed=Math.min(fLaw[cat].length,maxCols);
+        const dotStartX=labelCx-(colsUsed-1)*dotSp/2;
+        fLaw[cat].forEach((p,j)=>{p.frozen=false;p.setTarget(dotStartX+(j%maxCols)*dotSp,bottom-Math.floor(j/maxCols)*dotSp,true);});
     });
     const fEndX=startX+(fKeys.length-1)*step+colW;
 
     const sStartX=startX+fKeys.length*step;
     sKeys.forEach((cat,i)=>{
         const x=sStartX+i*step;
-        addFrameworkLabel(cat,x,sLaw[cat].length);
+        const labelCx=x+colW/2;
+        addFrameworkLabel(cat,labelCx,sLaw[cat].length,null,sLaw[cat]);
         sortByNature(sLaw[cat]);
-        sLaw[cat].forEach((p,j)=>{p.frozen=false;p.setTarget(x+(j%maxCols)*dotSp,bottom-Math.floor(j/maxCols)*dotSp,true);});
+        const colsUsed=Math.min(sLaw[cat].length,maxCols);
+        const dotStartX=labelCx-(colsUsed-1)*dotSp/2;
+        sLaw[cat].forEach((p,j)=>{p.frozen=false;p.setTarget(dotStartX+(j%maxCols)*dotSp,bottom-Math.floor(j/maxCols)*dotSp,true);});
     });
     const sEndX=startX+groupW;
 
@@ -1667,7 +1745,7 @@ let frameworkBrackets=[];
 
 function drawFrameworkBrackets(p){
     if(!frameworkBrackets.length) return;
-    const bracketY=p.height*0.865;
+    const bracketY=p.height*0.815;
     const tickH=5;
     const labelColor=p5Instance.color('#3D3D31');
     p.stroke(labelColor); p.strokeWeight(1); p.noFill();
@@ -1696,7 +1774,7 @@ function initFrameworkBracketLabels(){
     if(!container){
         container=document.createElement('div');
         container.id='framework-bracket-labels';
-        container.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:16;';
+        container.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:51;';
         document.body.appendChild(container);
     }
     container.innerHTML='';
@@ -1721,7 +1799,15 @@ function layoutByStatus(){
     const keys=CANONICAL.filter(c=>st[c].length); if(!keys.length)return;
     const dotSp=8,maxCols=10,barSp=42,barW=maxCols*dotSp,totalW=keys.length*barW+(keys.length-1)*barSp;
     let cx=(w-totalW)/2;
-    keys.forEach(s=>{ sortByNature(st[s]); addAxisLabel(s,cx,{count:st[s].length,barW:barW}); st[s].forEach((p,j)=>{p.frozen=false;p.setTarget(cx+(j%maxCols)*dotSp+3,bottom-Math.floor(j/maxCols)*dotSp,true);}); cx+=barW+barSp; });
+    keys.forEach(s=>{
+        sortByNature(st[s]);
+        const labelCx=cx+barW/2;
+        addAxisLabel(s,labelCx,{count:st[s].length});
+        const colsUsed=Math.min(st[s].length,maxCols);
+        const dotStartX=labelCx-(colsUsed-1)*dotSp/2;
+        st[s].forEach((p,j)=>{p.frozen=false;p.setTarget(dotStartX+(j%maxCols)*dotSp,bottom-Math.floor(j/maxCols)*dotSp,true);});
+        cx+=barW+barSp;
+    });
     particles.forEach(p=>{ if(!norm(p.data.Status)){p.frozen=false;p.setTarget(-100,-100,false);} });
 }
 
@@ -1733,7 +1819,14 @@ function layoutByNature(){
     const keys=NATURE_ORDER.filter(k=>groups[k].length);
     const dotSp=8,maxCols=8,barSp=42,barW=maxCols*dotSp,totalW=keys.length*barW+(keys.length-1)*barSp;
     let cx=(w-totalW)/2;
-    keys.forEach(g=>{ addAxisLabel(g,cx,{count:groups[g].length,barW:barW}); groups[g].forEach((p,j)=>{p.frozen=false;p.setTarget(cx+(j%maxCols)*dotSp+3,bottom-Math.floor(j/maxCols)*dotSp,true);}); cx+=barW+barSp; });
+    keys.forEach(g=>{
+        const labelCx=cx+barW/2;
+        addAxisLabel(g,labelCx,{count:groups[g].length});
+        const colsUsed=Math.min(groups[g].length,maxCols);
+        const dotStartX=labelCx-(colsUsed-1)*dotSp/2;
+        groups[g].forEach((p,j)=>{p.frozen=false;p.setTarget(dotStartX+(j%maxCols)*dotSp,bY()-Math.floor(j/maxCols)*dotSp,true);});
+        cx+=barW+barSp;
+    });
 }
 
 /* ════════════════════════════════════════════════════
