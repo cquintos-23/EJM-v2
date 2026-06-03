@@ -51,12 +51,12 @@
     #intro-textbox {
         position:fixed; left:50%; z-index:30; pointer-events:none;
         transform:translateX(-50%);
-        width:400px; max-width:90vw;
+        width:520px; max-width:90vw;
         opacity:0; transition:opacity 0.4s ease;
     }
     #intro-textbox .narrative-inner {
-        font-family:'Geist',sans-serif; font-size:10pt; font-weight:400;
-        color:var(--color-off-black); line-height:1.6;
+        font-family:'Geist',sans-serif; font-size:18px; font-weight:400;
+        color:var(--color-off-black); line-height:1.5;
         background:rgba(255,255,255,0.92); padding:1.4rem 1.2rem;
         border-radius:8px; backdrop-filter:blur(4px);
         text-align:center;
@@ -100,13 +100,13 @@
     #zoom-slider::-webkit-slider-thumb {
         -webkit-appearance:none; appearance:none;
         width:14px; height:14px; border-radius:50%;
-        background:var(--color-off-black); cursor:pointer;
-        border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,0.25);
+        background:#888; cursor:pointer;
+        border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,0.18);
     }
     #zoom-slider::-moz-range-thumb {
         width:14px; height:14px; border-radius:50%;
-        background:var(--color-off-black); cursor:pointer;
-        border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,0.25);
+        background:#888; cursor:pointer;
+        border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,0.18);
     }
     /* vertical line-by-line fade-in for narrative text */
     #narrative-p .fade-line {
@@ -132,21 +132,32 @@
     }
     #skip-btn:hover { opacity:0.85; }
 
-    /* map projection button */
+    /* map projection icon button */
     #map-proj-btn {
         position:fixed; top:36px; right:36px; z-index:50; display:none;
-        box-sizing:border-box; padding:10px 16px; height:40px; width:auto;
-        background-color:transparent; border:1px solid var(--color-sand); border-radius:8px;
-        font-family:'Geist',sans-serif; font-weight:500; font-size:16px; line-height:20px;
-        color:var(--color-dark-sand); text-decoration:none; white-space:nowrap;
-        cursor:pointer; box-shadow:none; text-transform:none; pointer-events:auto;
+        width:36px; height:36px; padding:0;
+        background-color:transparent; border:none;
+        cursor:pointer; pointer-events:auto;
         transition:opacity 0.2s;
+        align-items:center; justify-content:center;
     }
-    #map-proj-btn:hover { opacity:0.85; }
+    #map-proj-btn:hover { opacity:0.65; }
+    #map-proj-btn img { width:28px; height:28px; display:block; }
+    /* tooltip on hover */
+    #map-proj-btn::after {
+        content:'map projection';
+        position:absolute; top:calc(100% + 6px); right:0;
+        font-family:'Geist',sans-serif; font-size:10px; white-space:nowrap;
+        background:rgba(61,61,49,0.85); color:#fff;
+        padding:3px 7px; border-radius:4px;
+        opacity:0; pointer-events:none;
+        transition:opacity 0.15s ease;
+    }
+    #map-proj-btn:hover::after { opacity:1; }
 
     /* map projection popup */
     #map-proj-popup {
-        position:fixed; top:84px; right:36px; z-index:2000;
+        position:fixed; top:82px; right:36px; z-index:2000;
         background:#FBFBEE; color:#3D3D31;
         padding:10px 14px; border-radius:4px;
         font-family:'Geist',sans-serif; font-size:9pt;
@@ -156,11 +167,12 @@
     }
 
     /* chart labels */
-    #axis-labels-container { position:fixed; top:78vh; left:0; width:100%; height:64px; pointer-events:auto; z-index:15; }
+    #axis-labels-container { position:fixed; top:78vh; left:0; width:100%; height:100px; pointer-events:auto; z-index:50; }
     #main-labels-container  { position:fixed; top:88vh; left:0; width:100%; height:30px; pointer-events:none; z-index:15; }
     .chart-label { position:absolute; font-family:'Geist Mono',monospace; font-size:7.5pt; font-weight:500; color:#666; white-space:nowrap; line-height:1.3; pointer-events:none; top:0; }
     .chart-label.main { font-size:10pt; font-weight:600; color:#3D3D31; }
-    .chart-label.axis.clickable { pointer-events:auto; cursor:pointer; color:#3D3D31; }
+    .chart-label.axis { pointer-events:auto; cursor:default; padding:4px 6px; margin:-4px -6px; }
+    .chart-label.axis.clickable { cursor:pointer; color:#3D3D31; }
     .chart-label.axis.clickable:hover { text-decoration:underline; }
 
     /* tooltips */
@@ -176,6 +188,13 @@
         padding:8px 12px; border-radius:4px; font-family:'Geist',sans-serif;
         font-size:8.5pt; pointer-events:none; z-index:1000;
         max-width:160px; width:auto;
+        line-height:1.5; display:none; box-shadow:0 4px 14px rgba(0,0,0,.22);
+    }
+    #label-tooltip {
+        position:fixed; background:#3D3D31; color:#fff;
+        padding:8px 12px; border-radius:4px; font-family:'Geist',sans-serif;
+        font-size:8.5pt; pointer-events:none; z-index:2000;
+        max-width:200px; width:auto;
         line-height:1.5; display:none; box-shadow:0 4px 14px rgba(0,0,0,.22);
     }
     .tt-title { font-family:'Geist',sans-serif; font-weight:700; margin-bottom:3px; color:#3D3D31; font-size:10pt; }
@@ -218,7 +237,7 @@
         position:fixed; bottom:28px; left:50%; transform:translateX(-50%);
         z-index:50; font-family:'Geist',sans-serif; font-size:0.75rem;
         color:#3D3D31; background:rgba(255,255,255,0.88); backdrop-filter:blur(4px);
-        padding:0.35rem 0.9rem; border-radius:999px; border:1px solid rgba(61,61,49,0.2);
+        padding:0.35rem 0.9rem; border-radius:8px; border:1px solid rgba(61,61,49,0.2);
         pointer-events:none; opacity:0; transition:opacity 0.5s ease;
         white-space:nowrap;
     }
@@ -251,10 +270,11 @@
     #section-nav {
         position:fixed; right:36px; top:50%; transform:translateY(-50%);
         z-index:100; display:flex; flex-direction:column; align-items:flex-end;
-        gap:10px; pointer-events:none;
+        gap:10px; pointer-events:auto;
     }
     .section-nav-item {
         display:flex; align-items:center; gap:8px;
+        cursor:pointer;
     }
     .section-nav-label {
         font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.06em;
@@ -273,9 +293,35 @@
         background:var(--color-off-black);
         transform:scale(1.5);
     }
-    .section-nav-item.active .section-nav-label {
+    .section-nav-item.active .section-nav-label,
+    .section-nav-item:hover .section-nav-label {
         opacity:1; transform:translateX(0);
     }
+    .section-nav-item:hover .section-nav-dot {
+        background:var(--color-dark-sand);
+    }
+
+    /* info/codebook icon button */
+    #info-btn {
+        position:fixed; top:36px; right:36px; z-index:50; display:none;
+        width:36px; height:36px; padding:0;
+        background-color:transparent; border:none;
+        cursor:pointer; pointer-events:auto;
+        transition:opacity 0.2s;
+        align-items:center; justify-content:center;
+    }
+    #info-btn:hover { opacity:0.65; }
+    #info-btn img { width:28px; height:28px; display:block; }
+    #info-btn::after {
+        content:'codebook';
+        position:absolute; top:calc(100% + 6px); right:0;
+        font-family:'Geist',sans-serif; font-size:10px; white-space:nowrap;
+        background:rgba(61,61,49,0.85); color:#fff;
+        padding:3px 7px; border-radius:4px;
+        opacity:0; pointer-events:none;
+        transition:opacity 0.15s ease;
+    }
+    #info-btn:hover::after { opacity:1; }
 
     </style>
 </head>
@@ -285,9 +331,6 @@
 <div id="section-nav">
     <div class="section-nav-item" data-nav="s1-stats">
         <span class="section-nav-label">Overview</span><span class="section-nav-dot"></span>
-    </div>
-    <div class="section-nav-item" data-nav="s2-narrate1">
-        <span class="section-nav-label">Context</span><span class="section-nav-dot"></span>
     </div>
     <div class="section-nav-item" data-nav="s4-regions">
         <span class="section-nav-label">Region</span><span class="section-nav-dot"></span>
@@ -314,8 +357,9 @@
 <div id="fixed-overlays"></div>
 <!-- (narrative boxes are injected into each scroll section by JS) -->
 <button id="skip-btn">skip →</button>
-<button id="map-proj-btn">map projection</button>
-<div id="map-proj-popup"><span class="tt-title2">We use an Eckert V map projection as we believe that it provides an adequate balance between the drawbacks of converting a multidimensional world into a 2D representation and clearly communicating our data. This map serves illustrative purposes only. The boundaries, denominations, and, more generally, all eco jurisprudence-unrelated information shown on this map do not imply any judgment on the part of the creators concerning the legal status of any territory or the endorsement or acceptance of such boundaries, denominations, or the like.</span></div>
+<button id="map-proj-btn"><img src="Globe.svg" alt="map projection"></button>
+<div id="map-proj-popup"><span class="tt-title2">This map serves illustrative purposes only. The boundaries, denominations, and, more generally, all eco jurisprudence-unrelated information shown on this map do not imply any judgment on the part of the creators concerning the legal status of any territory or the endorsement or acceptance of such boundaries, denominations, or the like.</span></div>
+<a id="info-btn" href="https://ecojurisprudence.org/codebook/" target="_blank"><img src="Info.svg" alt="codebook"></a>
 <div id="zoom-hint">slider to zoom · drag to pan</div>
 <div id="zoom-controls">
     <span class="zoom-slider-label">−</span>
@@ -330,6 +374,7 @@
 <!-- Tooltips -->
 <div id="tooltip"><div class="tt-title" id="tt-title"></div><div class="tt-meta" id="tt-meta"></div><div class="tt-nature" id="tt-nature"></div><div class="tt-link" id="tt-link"></div></div>
 <div id="country-tooltip"></div>
+<div id="label-tooltip"></div>
 <div id="pinned-tooltip">
     <button id="pt-close">×</button>
     <div class="tt-title" id="pt-title"></div>
@@ -351,7 +396,6 @@
         <div id="stats-display"><span id="stat-initiatives">0</span> Initiatives<span class="sep"> </span><span id="stat-countries">0</span> Countries<span class="sep"> </span>1 Movement</div>
         <div id="intro-textbox"><div class="narrative-inner"><p>Ecological jurisprudence is a global movement that challenges human-centric legal frameworks. It centers the interdependence and intrinsic value of nature and encompasses Rights of Nature, Indigenous Models, and Ecological Governance.<br><br>The Eco Jurisprudence Monitor tracks this movement.<br><br>Each dot is one initiative.<br>Click and scroll to explore.</p></div></div>
     </div>
-    <div class="scroll-section" data-section="s2-narrate1"></div>
     <div class="scroll-section" data-section="s4-regions"></div>
     <div class="scroll-section" data-section="s8-nature"></div>
     <div class="scroll-section" data-section="s5-year"></div>
@@ -387,7 +431,7 @@ const LANDMARK_TITLES=new Set([
 function isLandmarkTitle(title){
     if(LANDMARK_TITLES.has(title)) return true;
     const t=(title||'').toLowerCase();
-    return t.includes('ecuador constitution of 2008')||t.includes('te awa tupua')||t.includes('spain national mar menor');
+    return t.includes('ecuador constitution of 2008')||t.includes('new zealand whanganui river')||t.includes('spain national mar menor');
 }
 let p5Instance, worldGeoJson=null, mapProjection=null;
 let selectedParticle=null;
@@ -848,7 +892,18 @@ function initViz(){
     // init dot nav
     const firstNav = document.querySelector('.section-nav-item[data-nav="s1-stats"]');
     if(firstNav) firstNav.classList.add('active');
-    document.getElementById('skip-btn').addEventListener('click',()=>window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'}));
+    // dot nav click: instant jump (no scrollytelling transitions)
+    function jumpToSection(sec){
+        const el=document.querySelector(`.scroll-section[data-section="${sec}"]`);
+        if(!el) return;
+        // Scroll to the midpoint of the section so the observer picks it up cleanly
+        const mid=el.offsetTop + el.offsetHeight * 0.55;
+        window.scrollTo({top: mid, behavior:'instant'});
+    }
+    document.querySelectorAll('.section-nav-item[data-nav]').forEach(item=>{
+        item.addEventListener('click',()=>jumpToSection(item.dataset.nav));
+    });
+    document.getElementById('skip-btn').addEventListener('click',()=>jumpToSection('s9-end'));
     document.getElementById('pt-close').addEventListener('click',hidePinned);
 
     // Country name display close button — hides popup only, selection stays
@@ -876,7 +931,7 @@ function initViz(){
 
             const statsEl=document.getElementById('stats-display');
             const introEl=document.getElementById('intro-textbox');
-            const gap=48;
+            const gap=16;
             const counterHalfH=21;
 
             // Trigger counter animation once scrolling starts
@@ -884,6 +939,9 @@ function initViz(){
                 statsScrollTriggered=true;
                 animateStats();
             }
+
+            // overviewFade (dim map+dots) only while counter/intro are on screen
+            overviewFade = (scrolled > 10 && scrolled < 2*vh);
 
             if(scrolled < vh){
                 // Phase 0: counter scrolls up from below-center into center
@@ -895,16 +953,32 @@ function initViz(){
                 statsEl.style.opacity=String(Math.min(1, t*2));
                 introEl.style.opacity='0';
                 introEl.style.top=(vh+gap)+'px';
+                // reverse scroll: hide zoom controls
+                if(mapZoomActive){
+                    mapZoomActive=false; resetMapZoom();
+                    document.getElementById('zoom-hint').classList.remove('visible');
+                    document.getElementById('zoom-controls').classList.remove('visible');
+                    document.getElementById('map-proj-btn').style.display='none';
+                    if(p5Instance&&particleMapPos.length) placeParticlesOnMap();
+                }
             } else if(scrolled < 2*vh){
                 // Phase 1: counter locked at center; textbox scrolls up from below
                 const t=(scrolled-vh)/vh;
                 statsEl.style.top='50%';
                 statsEl.style.transform='translate(-50%,-50%)';
                 statsEl.style.opacity='1';
-                const startY=vh*0.5+counterHalfH+gap+vh*0.55;
+                const startY=vh*0.5+counterHalfH+gap+vh*0.3;
                 const endY  =vh*0.5+counterHalfH+gap;
                 introEl.style.top=(startY+(endY-startY)*easeOut(t))+'px';
                 introEl.style.opacity=String(Math.min(1, t*2.5));
+                // reverse scroll: hide zoom controls
+                if(mapZoomActive){
+                    mapZoomActive=false; resetMapZoom();
+                    document.getElementById('zoom-hint').classList.remove('visible');
+                    document.getElementById('zoom-controls').classList.remove('visible');
+                    document.getElementById('map-proj-btn').style.display='none';
+                    if(p5Instance&&particleMapPos.length) placeParticlesOnMap();
+                }
             } else {
                 // Phase 2: scroll both off upward together, no fade
                 const t=(scrolled-2*vh)/vh;
@@ -914,6 +988,14 @@ function initViz(){
                 statsEl.style.opacity='1';
                 introEl.style.top=(vh*0.5+counterHalfH+gap-drift)+'px';
                 introEl.style.opacity='1';
+                // Phase 2: activate zoom/globe once counter+intro start scrolling off
+                if(!mapZoomActive){
+                    mapZoomActive=true;
+                    document.getElementById('zoom-hint').classList.add('visible');
+                    document.getElementById('zoom-controls').classList.add('visible');
+                    document.getElementById('map-proj-btn').style.display='flex';
+                    applyZoomToParticles();
+                }
             }
         }
         if(selectedParticle) positionPinnedTooltip();
@@ -1168,7 +1250,7 @@ function animateStats(){
             document.getElementById('stat-countries').textContent=nC;
             clearInterval(iv);
         }
-    },3000/60);
+    },2000/60);
 }
 function resetStats(){
     statsAnimated=false;
@@ -1183,6 +1265,8 @@ function clearLabels(){
     document.getElementById('axis-labels-container').innerHTML='';
     document.getElementById('main-labels-container').innerHTML='';
     frameworkBrackets=[];
+    const blc=document.getElementById('framework-bracket-labels');
+    if(blc) blc.innerHTML='';
 }
 function addAxisLabel(text,x,opts={}){
     const el=document.createElement('div');
@@ -1194,19 +1278,20 @@ function addAxisLabel(text,x,opts={}){
         const words=text.split(' ');
         el.innerHTML=words.join('<br>');
     }
-    // Center label over its bar using transform so nowrap words never get clipped
+    // Center label over the slot width
     const barW=opts.barW||64;
     el.style.left=(x + barW/2)+'px';
     el.style.transform='translateX(-50%)';
     el.style.textAlign='center';
     el.style.top='0';
+    // Count tooltip on hover (all labels)
+    const count=opts.count!=null?opts.count:0;
+    const ct=document.getElementById('label-tooltip');
+    el.addEventListener('mouseenter',e=>{ct.textContent=`${count} initiative${count!==1?'s':''}`;ct.style.display='block';ct.style.left=(e.clientX+10)+'px';ct.style.top=(e.clientY-36)+'px';});
+    el.addEventListener('mousemove',e=>{ct.style.left=(e.clientX+10)+'px';ct.style.top=(e.clientY-36)+'px';});
+    el.addEventListener('mouseleave',()=>ct.style.display='none');
     if(opts.clickable){
         el.addEventListener('click',()=>window.open(REGION_URLS[opts.region],'_blank'));
-        const count=particles.filter(p=>p.data.Region===opts.region).length;
-        const ct=document.getElementById('country-tooltip');
-        el.addEventListener('mouseenter',e=>{ct.textContent=`${count} initiatives`;ct.style.display='block';ct.style.left=(e.clientX+10)+'px';ct.style.top=(e.clientY-26)+'px';});
-        el.addEventListener('mousemove',e=>{ct.style.left=(e.clientX+10)+'px';ct.style.top=(e.clientY-26)+'px';});
-        el.addEventListener('mouseleave',()=>ct.style.display='none');
     }
     document.getElementById('axis-labels-container').appendChild(el);
 }
@@ -1296,6 +1381,7 @@ function onSectionEnter(sec){
     // Hide map projection button except on context section
     document.getElementById('map-proj-btn').style.display='none';
     document.getElementById('map-proj-popup').style.display='none';
+    document.getElementById('info-btn').style.display='none';
     // Deactivate zoom (narrate sections re-enable it below)
     if(mapZoomActive){ mapZoomActive=false; resetMapZoom(); if(p5Instance&&particleMapPos.length) placeParticlesOnMap(); }
     // selectedCountry persists through all sections until user explicitly clicks out
@@ -1312,7 +1398,7 @@ function onSectionEnter(sec){
 
     switch(sec){
         case 's1-stats':
-            fadeInMap(); showCountryFills=true; overviewFade=true;
+            fadeInMap(); showCountryFills=true; overviewFade=false;
             if(worldGeoJson) worldGeoJson.features.forEach(f=>{ const r=resolveGeoName(f.properties.name); if(countryCounts[r]>0) highlightCountries.add(f.properties.name); });
             if(p5Instance&&particleMapPos.length) placeParticlesOnMap();
             resetStats();
@@ -1320,20 +1406,12 @@ function onSectionEnter(sec){
             break;
 
         case 's2-narrate1':
-            fadeInMap(); showCountryFills=true;
-            if(worldGeoJson) worldGeoJson.features.forEach(f=>{ const r=resolveGeoName(f.properties.name); if(countryCounts[r]>0) highlightCountries.add(f.properties.name); });
-            mapZoomActive=true;
-            document.getElementById('zoom-hint').classList.add('visible');
-            document.getElementById('zoom-controls').classList.add('visible');
-            document.getElementById('map-proj-btn').style.display='block';
-            if(p5Instance&&particleMapPos.length) applyZoomToParticles();
-            typewrite('Since 2019, the Eco Jurisprudence Monitor has tracked the emergence of ecocentric law. Every dot represents one initiative. Click and explore.',
-                ()=>{document.getElementById('skip-btn').style.display='block';});
+            // spacer section — no action, regions handles everything
             break;
-
         case 's4-regions':{
             fadeInMap(); showCountryFills=true; hoveredCountry=null;
             if(worldGeoJson) worldGeoJson.features.forEach(f=>{ const r=resolveGeoName(f.properties.name); if(countryCounts[r]>0) highlightCountries.add(f.properties.name); });
+            document.getElementById('info-btn').style.display='flex';
             layoutAllRegions();
             const total4=particles.length||1;
             const americas=particles.filter(p=>p.data.Region==='North America'||p.data.Region==='Latin America').length;
@@ -1348,12 +1426,14 @@ function onSectionEnter(sec){
         case 's5-year':
             fadeOutMap(); showCountryFills=false; highlightCountries.clear(); hoveredCountry=null;
             clearLabels();
+            document.getElementById('info-btn').style.display='flex';
             typewrite('The modern Rights of Nature movement is often traced to 2006, though some initiatives predate this moment.');
             layoutByYear();
             break;
 
         case 's5-year-b':
             fadeOutMap(); showCountryFills=false; highlightCountries.clear(); hoveredCountry=null;
+            document.getElementById('info-btn').style.display='flex';
             layoutByYear();
             typewrite('Several landmark initiatives helped shape its global expansion.', ()=>{
                 // After text fades in, show landmark highlights
@@ -1364,6 +1444,7 @@ function onSectionEnter(sec){
 
         case 's6-framework':
             fadeOutMap(); showCountryFills=false; highlightCountries.clear();
+            document.getElementById('info-btn').style.display='flex';
             clearNarrative();
             typewrite('We track both formal and soft law, revealing how ecological ideas move through and reshape governance systems worldwide.', null, true);
             layoutByFramework();
@@ -1371,18 +1452,21 @@ function onSectionEnter(sec){
 
         case 's7-status':{
             fadeOutMap(); showCountryFills=false; highlightCountries.clear();
+            document.getElementById('info-btn').style.display='flex';
             layoutByStatus();
             typewrite(`Ecological jurisprudence is an evolving field. <strong>63%</strong> of initiatives are adopted, <strong>15%</strong> have been unsuccessful or overturned, and <strong>22%</strong> are in progress.`, null, true);
             break;}
 
         case 's7-status-b':{
             fadeOutMap(); showCountryFills=false; highlightCountries.clear();
+            document.getElementById('info-btn').style.display='flex';
             layoutByStatus();
             typewrite(`The EJM is a living resource. Let us know if we <a href="https://ecojurisprudence.org/new-initiative/" target="_blank">missed something</a> and <a href="https://ecojurisprudence.org/contact/" target="_blank">reach out</a> to collaborate.`, null, true);
             break;}
 
         case 's8-nature':
             fadeOutMap(); showCountryFills=false; highlightCountries.clear();
+            document.getElementById('info-btn').style.display='flex';
             clearNarrative();
             typewrite('Ecological jurisprudence protects nature in many forms, from plants and animals to entire ecosystems. Water ecosystems are the fastest-growing area of legal recognition.', null, true);
             layoutByNature();
@@ -1391,7 +1475,6 @@ function onSectionEnter(sec){
         case 's9-end':
             fadeOutMap(); showCountryFills=false; highlightCountries.clear();
             clearLabels();
-            document.getElementById('skip-btn').style.display='none';
             particles.forEach(p=>{
                 p.frozen=false;
                 const angle=Math.random()*Math.PI*2;
@@ -1427,8 +1510,11 @@ function setupObserver(){
             if(sec!==currentSection){
                 currentSection=sec;
                 onSectionEnter(sec);
+                // Map sections without their own nav dot to the correct parent dot
+                const NAV_ALIAS={'s2-narrate1':'s4-regions','s5-year-b':'s5-year','s7-status-b':'s7-status'};
+                const navSec=NAV_ALIAS[sec]||sec;
                 document.querySelectorAll('.section-nav-item').forEach(el=>{
-                    el.classList.toggle('active', el.dataset.nav===sec);
+                    el.classList.toggle('active', el.dataset.nav===navSec);
                 });
             }
         }
@@ -1461,8 +1547,8 @@ function layoutAllRegions(){
     REGION_ORDER.forEach((region,i)=>{
         const cx=startX+i*(barW+barSp), rp=regions[region]||[];
         if(!rp.length) return;
-        addAxisLabel(region,cx,{clickable:true,region,barW});
-        sortByYear(rp);
+        addAxisLabel(region,cx,{clickable:true,region,count:rp.length,barW:barW});
+        sortByNature(rp);
         rp.forEach((p,j)=>{ p.frozen=false; p.setTarget(cx+(j%maxCols)*dotSp+3,bY()-Math.floor(j/maxCols)*dotSp,true); });
     });
 }
@@ -1476,10 +1562,9 @@ function layoutByYear(){
     const totalW=w-margin*2, barW=(totalW-barSp*(yearKeys.length-1))/yearKeys.length;
     let cx=margin;
     yearKeys.forEach(year=>{
-        const yp=years[year]||[]; sortByFramework(yp);
+        const yp=years[year]||[]; sortByNature(yp);
         const cols=Math.min(8,Math.max(1,Math.floor(barW/8)));
-        const clusterW=cols*8;
-        addAxisLabel(year.toString(),cx,{barW:clusterW});
+        if(yp.length>0) addAxisLabel(year.toString(),cx,{count:yp.length,barW:barW});
         yp.forEach((p,j)=>{ p.frozen=false; p.setTarget(cx+(j%cols)*8+2,bottom-Math.floor(j/cols)*8,true); });
         cx+=barW+barSp;
     });
@@ -1489,8 +1574,8 @@ function layoutByYear(){
 function layoutByFramework(){
     if(!p5Instance) return; clearLabels();
     const w=p5Instance.width, bottom=bY();
-    const dotSp=8, maxCols=6;
-    const colW=maxCols*dotSp; // 48px — dots always 6 wide
+    const dotSp=8, maxCols=8;
+    const colW=maxCols*dotSp; // 64px — dots always 8 wide
 
     const fLaw={}, sLaw={};
     particles.forEach(p=>{
@@ -1523,7 +1608,7 @@ function layoutByFramework(){
         return [words.slice(0,2).join(' '), words.slice(2).join(' ')];
     }
 
-    function addFrameworkLabel(cat, x, color){
+    function addFrameworkLabel(cat, x, count, color){
         const el=document.createElement('div');
         const url=FRAMEWORK_URLS[cat];
         el.className='chart-label axis'+(url?' clickable':'');
@@ -1534,17 +1619,18 @@ function layoutByFramework(){
             const words=cat.split(' ');
             el.innerHTML=words.join('<br>');
         }
-        el.style.left=(x + colW/2)+'px';
+        el.style.left=(x + (maxCols-1)*dotSp/2)+'px';
         el.style.transform='translateX(-50%)';
         el.style.top='0';
         el.style.textAlign='center';
+        el.style.pointerEvents='auto';
         if(color) el.style.color=color;
+        const ct=document.getElementById('label-tooltip');
+        el.addEventListener('mouseenter',e=>{ct.textContent=`${count} initiative${count!==1?'s':''}`;ct.style.display='block';ct.style.left=(e.clientX+10)+'px';ct.style.top=(e.clientY-36)+'px';});
+        el.addEventListener('mousemove',e=>{ct.style.left=(e.clientX+10)+'px';ct.style.top=(e.clientY-36)+'px';});
+        el.addEventListener('mouseleave',()=>ct.style.display='none');
         if(url){
             el.addEventListener('click',()=>window.open(url,'_blank'));
-            const ct=document.getElementById('country-tooltip');
-            el.addEventListener('mouseenter',e=>{ct.textContent=cat;ct.style.display='block';ct.style.left=(e.clientX+10)+'px';ct.style.top=(e.clientY-26)+'px';});
-            el.addEventListener('mousemove',e=>{ct.style.left=(e.clientX+10)+'px';ct.style.top=(e.clientY-26)+'px';});
-            el.addEventListener('mouseleave',()=>ct.style.display='none');
         }
         document.getElementById('axis-labels-container').appendChild(el);
     }
@@ -1553,8 +1639,8 @@ function layoutByFramework(){
     const fStartX=startX;
     fKeys.forEach((cat,i)=>{
         const x=startX+i*step;
-        addFrameworkLabel(cat,x);
-        sortByStatus(fLaw[cat]);
+        addFrameworkLabel(cat,x,fLaw[cat].length);
+        sortByNature(fLaw[cat]);
         fLaw[cat].forEach((p,j)=>{p.frozen=false;p.setTarget(x+(j%maxCols)*dotSp,bottom-Math.floor(j/maxCols)*dotSp,true);});
     });
     const fEndX=startX+(fKeys.length-1)*step+colW;
@@ -1562,8 +1648,8 @@ function layoutByFramework(){
     const sStartX=startX+fKeys.length*step;
     sKeys.forEach((cat,i)=>{
         const x=sStartX+i*step;
-        addFrameworkLabel(cat,x);
-        sortByStatus(sLaw[cat]);
+        addFrameworkLabel(cat,x,sLaw[cat].length);
+        sortByNature(sLaw[cat]);
         sLaw[cat].forEach((p,j)=>{p.frozen=false;p.setTarget(x+(j%maxCols)*dotSp,bottom-Math.floor(j/maxCols)*dotSp,true);});
     });
     const sEndX=startX+groupW;
@@ -1573,6 +1659,7 @@ function layoutByFramework(){
     frameworkBrackets=[];
     if(fKeys.length) frameworkBrackets.push({x:startX, w:(fKeys.length-1)*step+colW, label:'Formal Law'});
     if(sKeys.length) frameworkBrackets.push({x:sStartX, w:(sKeys.length-1)*step+colW, label:'Soft Law'});
+    initFrameworkBracketLabels();
 }
 
 // Drawn each frame in drawFrameworkBrackets(), called from p5 draw
@@ -1591,17 +1678,37 @@ function drawFrameworkBrackets(p){
         p.line(b.x, bracketY, b.x+b.w, bracketY);
         // right tick
         p.line(b.x+b.w, bracketY, b.x+b.w, bracketY-tickH);
-        // group label centred below bracket
-        p.noStroke();
-        p.fill(labelColor);
-        p.textFont('Geist Mono');
-        p.textSize(10);
-        p.textAlign(p.CENTER, p.TOP);
-        p.text(b.label, b.x+b.w/2, bracketY+5);
-        p.textAlign(p.LEFT, p.BASELINE);
-        p.stroke(labelColor); p.noFill();
     });
     p.noStroke();
+    // DOM labels (positioned each frame)
+    const container=document.getElementById('framework-bracket-labels');
+    if(container){
+        const els=container.querySelectorAll('.bracket-label');
+        frameworkBrackets.forEach((b,i)=>{
+            const el=els[i];
+            if(el){ el.style.left=(b.x+b.w/2)+'px'; el.style.top=(bracketY+5)+'px'; }
+        });
+    }
+}
+
+function initFrameworkBracketLabels(){
+    let container=document.getElementById('framework-bracket-labels');
+    if(!container){
+        container=document.createElement('div');
+        container.id='framework-bracket-labels';
+        container.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:16;';
+        document.body.appendChild(container);
+    }
+    container.innerHTML='';
+    frameworkBrackets.forEach(b=>{
+        const el=document.createElement('a');
+        el.className='bracket-label';
+        el.href='https://ecojurisprudence.org/codebook/';
+        el.target='_blank';
+        el.textContent=b.label;
+        el.style.cssText="position:absolute;transform:translateX(-50%);font-family:'Geist Mono',monospace;font-size:10px;font-weight:500;color:#3D3D31;text-decoration:underline;pointer-events:auto;cursor:pointer;white-space:nowrap;";
+        container.appendChild(el);
+    });
 }
 
 function layoutByStatus(){
@@ -1614,7 +1721,7 @@ function layoutByStatus(){
     const keys=CANONICAL.filter(c=>st[c].length); if(!keys.length)return;
     const dotSp=8,maxCols=10,barSp=42,barW=maxCols*dotSp,totalW=keys.length*barW+(keys.length-1)*barSp;
     let cx=(w-totalW)/2;
-    keys.forEach(s=>{ sortByNature(st[s]); addAxisLabel(s,cx,{barW}); st[s].forEach((p,j)=>{p.frozen=false;p.setTarget(cx+(j%maxCols)*dotSp+3,bottom-Math.floor(j/maxCols)*dotSp,true);}); cx+=barW+barSp; });
+    keys.forEach(s=>{ sortByNature(st[s]); addAxisLabel(s,cx,{count:st[s].length,barW:barW}); st[s].forEach((p,j)=>{p.frozen=false;p.setTarget(cx+(j%maxCols)*dotSp+3,bottom-Math.floor(j/maxCols)*dotSp,true);}); cx+=barW+barSp; });
     particles.forEach(p=>{ if(!norm(p.data.Status)){p.frozen=false;p.setTarget(-100,-100,false);} });
 }
 
@@ -1626,7 +1733,7 @@ function layoutByNature(){
     const keys=NATURE_ORDER.filter(k=>groups[k].length);
     const dotSp=8,maxCols=8,barSp=42,barW=maxCols*dotSp,totalW=keys.length*barW+(keys.length-1)*barSp;
     let cx=(w-totalW)/2;
-    keys.forEach(g=>{ addAxisLabel(g,cx,{barW}); groups[g].forEach((p,j)=>{p.frozen=false;p.setTarget(cx+(j%maxCols)*dotSp+3,bottom-Math.floor(j/maxCols)*dotSp,true);}); cx+=barW+barSp; });
+    keys.forEach(g=>{ addAxisLabel(g,cx,{count:groups[g].length,barW:barW}); groups[g].forEach((p,j)=>{p.frozen=false;p.setTarget(cx+(j%maxCols)*dotSp+3,bottom-Math.floor(j/maxCols)*dotSp,true);}); cx+=barW+barSp; });
 }
 
 /* ════════════════════════════════════════════════════
