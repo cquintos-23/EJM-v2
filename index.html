@@ -123,14 +123,35 @@
     /* skip */
     #skip-btn {
         position:fixed; bottom:36px; right:36px; z-index:50; display:block;
-        box-sizing:border-box; padding:10px 16px; height:40px; width:auto;
+        box-sizing:border-box; padding:8px 12px; height:36px; width:auto;
         background-color:transparent; border:1px solid var(--color-sand); border-radius:8px;
-        font-family:'Geist',sans-serif; font-weight:500; font-size:16px; line-height:20px;
+        font-family:'Geist',sans-serif; font-weight:500; font-size:14px; line-height:20px;
         color:var(--color-dark-sand); text-decoration:none; white-space:nowrap;
         cursor:pointer; box-shadow:none; text-transform:none; pointer-events:auto;
         transition:opacity 0.2s;
     }
     #skip-btn:hover { opacity:0.85; }
+
+    /* print/download button */
+    #print-btn {
+        position:fixed; bottom:36px; right:calc(36px + 44px + 16px); z-index:50;
+        display:flex; align-items:center; justify-content:center;
+        box-sizing:border-box; padding:0; width:36px; height:36px;
+        background-color:transparent; border:none;
+        cursor:pointer; pointer-events:auto; transition:opacity 0.2s;
+    }
+    #print-btn:hover { opacity:0.65; }
+    #print-btn img { width:28px; height:28px; display:block; }
+    #print-btn::after {
+        content:'download PNG';
+        position:absolute; bottom:calc(100% + 6px); right:0;
+        font-family:'Geist',sans-serif; font-size:10px; white-space:nowrap;
+        background:rgba(61,61,49,0.85); color:#fff;
+        padding:3px 7px; border-radius:4px;
+        opacity:0; pointer-events:none;
+        transition:opacity 0.15s ease;
+    }
+    #print-btn:hover::after { opacity:1; }
 
     /* map projection icon button */
     #map-proj-btn {
@@ -264,6 +285,80 @@
     .landmark-popup .lm-link a:hover { text-decoration:underline; }
     .landmark-popup.visible { opacity:1; }
 
+    /* ── ORIENTATION POPUP ── */
+    #orientation-popup {
+        display: none;
+        position: fixed; inset: 0; z-index: 9999;
+        background: rgba(255,255,255,0.97);
+        flex-direction: column; align-items: center; justify-content: center;
+        gap: 20px; text-align: center; padding: 32px;
+        font-family: 'Geist', sans-serif;
+    }
+    #orientation-popup .orient-icon {
+        font-size: 48px; animation: rotate-hint 1.8s ease-in-out infinite alternate;
+    }
+    @keyframes rotate-hint {
+        from { transform: rotate(0deg); }
+        to   { transform: rotate(90deg); }
+    }
+    #orientation-popup .orient-title {
+        font-size: 20px; font-weight: 600; color: var(--color-off-black); line-height: 1.3;
+    }
+    #orientation-popup .orient-sub {
+        font-size: 13px; color: var(--color-dark-sand); line-height: 1.5;
+    }
+    /* Show only on mobile portrait */
+    @media (max-width: 768px) and (orientation: portrait) {
+        #orientation-popup { display: flex; }
+    }
+
+    /* ── MOBILE RESPONSIVE ── */
+    @media (max-width: 768px) {
+        #stats-display {
+            font-size: 20px !important;
+            line-height: 28px !important;
+            white-space: normal !important;
+            text-align: center;
+            width: 90vw;
+        }
+        #intro-textbox { width: 88vw !important; }
+        #intro-textbox .narrative-inner { font-size: 14px !important; padding: 1rem !important; }
+        .narrative-inner { font-size: 14px !important; padding: 1rem !important; }
+        .narrative-scroll-box { left: 3vw !important; max-width: 80vw !important; }
+
+        #skip-btn { bottom: 20px; right: 16px; font-size: 13px; padding: 8px 12px; height: 36px; }
+        #print-btn { bottom: 20px; right: calc(16px + 44px + 8px); width: 32px; height: 32px; }
+
+        #section-nav { right: 12px; gap: 8px; }
+        .section-nav-label { display: none; }
+        .section-nav-dot { width: 5px; height: 5px; }
+
+        #zoom-controls { bottom: 56px; }
+        #zoom-slider { width: 90px; }
+
+        #map-proj-btn { top: 16px; right: 16px; }
+        #info-btn { top: 16px; right: 16px; }
+        #data-source-label { top: 16px; right: 68px; font-size: 9px; }
+
+        .chart-label { font-size: 6pt !important; }
+        .chart-label.main { font-size: 8pt !important; }
+        .chart-label.axis { padding: 2px 3px !important; margin: -2px -3px !important; }
+
+        #tooltip { font-size: 9pt; width: 200px; max-width: 85vw; }
+        #pinned-tooltip { font-size: 9pt; width: 200px; max-width: 85vw; }
+        .tt-title { font-size: 9pt !important; }
+        .tt-meta { font-size: 7pt !important; }
+        .tt-link a { font-size: 7pt !important; }
+
+        #country-name-display { font-size: 8.5pt; padding: 8px 28px 8px 14px; }
+
+        .landmark-popup { width: 200px; max-width: 80vw; font-size: 9pt; }
+        .landmark-popup .lm-title { font-size: 9pt !important; }
+        .landmark-popup .lm-meta { font-size: 7pt !important; }
+
+        #zoom-hint { font-size: 0.65rem; padding: 0.3rem 0.7rem; }
+    }
+
     /* ── SECTION DOT NAV ── */
     #section-nav {
         position:fixed; right:36px; top:50%; transform:translateY(-50%);
@@ -334,6 +429,13 @@
 <body>
 
 
+<!-- Orientation popup (mobile portrait only) -->
+<div id="orientation-popup">
+    <div class="orient-icon">📱</div>
+    <div class="orient-title">Turn your device horizontally</div>
+    <div class="orient-sub">This visualization is designed for landscape view.</div>
+</div>
+
 <div id="section-nav">
     <div class="section-nav-item" data-nav="s1-stats">
         <span class="section-nav-label">Overview</span><span class="section-nav-dot"></span>
@@ -362,7 +464,8 @@
 <!-- Fixed overlays (pills + narrative) -->
 <div id="fixed-overlays"></div>
 <!-- (narrative boxes are injected into each scroll section by JS) -->
-<button id="skip-btn">skip →</button>
+<button id="print-btn"><img src="Print.svg" alt="download PNG"></button>
+<button id="skip-btn">skip</button>
 <button id="map-proj-btn"><img src="Globe.svg" alt="map projection"></button>
 <div id="map-proj-popup"><span class="tt-title2">This map serves illustrative purposes only. The boundaries, denominations, and, more generally, all eco jurisprudence-unrelated information shown on this map do not imply any judgment on the part of the creators concerning the legal status of any territory or the endorsement or acceptance of such boundaries, denominations, or the like.</span></div>
 <a id="info-btn" href="https://ecojurisprudence.org/codebook/" target="_blank"><img src="Info.svg" alt="codebook"></a>
@@ -922,6 +1025,180 @@ function initViz(){
     document.getElementById('skip-btn').addEventListener('click',()=>jumpToSection('s9-end'));
     document.getElementById('pt-close').addEventListener('click',hidePinned);
 
+    // ── PRINT / DOWNLOAD PNG ──
+    document.getElementById('print-btn').addEventListener('click', downloadCurrentView);
+
+    function downloadCurrentView(){
+        // Determine mode
+        const isMap = (currentSection==='s1-stats');
+        if(isMap){
+            downloadMapView();
+        } else {
+            downloadChartView();
+        }
+    }
+
+    // ─ Map: render a clean default map snapshot ─
+    function downloadMapView(){
+        if(!p5Instance||!worldGeoJson||!mapProjection) return;
+        const W=p5Instance.width, H=p5Instance.height;
+        const dpr=window.devicePixelRatio||2;
+        const out=document.createElement('canvas');
+        out.width=W*dpr; out.height=H*dpr;
+        const ctx=out.getContext('2d');
+        ctx.scale(dpr,dpr);
+
+        // White background
+        ctx.fillStyle='#FFFFFF'; ctx.fillRect(0,0,W,H);
+
+        // Draw map fills at full alpha (default view: no zoom)
+        const pathGen=d3.geoPath().context(ctx);
+        pathGen.projection(mapProjection);
+        worldGeoJson.features.forEach(feat=>{
+            const name=feat.properties.name;
+            const resolved=resolveGeoName(name);
+            const isHighlighted=countryCounts[resolved]>0;
+            ctx.beginPath(); pathGen(feat);
+            ctx.fillStyle=isHighlighted?'rgba(61,61,49,0.20)':'rgba(61,61,49,0.07)';
+            ctx.fill();
+        });
+
+        // Draw all particles at their map positions (default, no zoom)
+        particles.forEach((pt,i)=>{
+            const pos=particleMapPos[i];
+            if(!pos) return;
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, pt.size/2, 0, Math.PI*2);
+            ctx.fillStyle=pt.color;
+            ctx.strokeStyle='#fff'; ctx.lineWidth=0.5;
+            ctx.fill(); ctx.stroke();
+        });
+
+        // Data source label
+        drawDataSourceTag(ctx, W, H);
+
+        triggerDownload(out, 'ejm-map.png');
+    }
+
+    // ─ Chart: capture current p5 canvas + re-draw axis labels + data source tag ─
+    function downloadChartView(){
+        if(!p5Instance) return;
+        const p5Canvas=p5Instance.canvas;
+        const W=p5Canvas.width, H=p5Canvas.height; // already scaled by dpr
+        const dpr=window.devicePixelRatio||2;
+        const logW=W/dpr, logH=H/dpr;
+
+        const out=document.createElement('canvas');
+        out.width=W; out.height=H;
+        const ctx=out.getContext('2d');
+
+        // White background — no map layer
+        ctx.fillStyle='#FFFFFF';
+        ctx.fillRect(0,0,W,H);
+
+        // Draw particles at their current target positions (chart layout), no map
+        ctx.save();
+        ctx.scale(dpr,dpr);
+        particles.forEach(pt=>{
+            if(!pt.visible) return;
+            ctx.beginPath();
+            ctx.arc(pt.targetX, pt.targetY, pt.size/2, 0, Math.PI*2);
+            ctx.fillStyle=pt.color;
+            ctx.strokeStyle='#fff'; ctx.lineWidth=0.5;
+            ctx.fill(); ctx.stroke();
+        });
+        ctx.restore();
+
+        // Re-draw axis labels from DOM into canvas
+        ctx.save();
+        ctx.scale(dpr,dpr);
+        const axisContainer=document.getElementById('axis-labels-container');
+        const containerTop=parseFloat(axisContainer.style.top||'73vh')/100*logH
+                           || logH*0.73;
+        axisContainer.querySelectorAll('.chart-label').forEach(el=>{
+            const rect=el.getBoundingClientRect();
+            const text=el.innerText||el.textContent||'';
+            const isMain=el.classList.contains('main');
+            ctx.font=isMain?'600 10pt Geist Mono,monospace':'500 7.5pt Geist Mono,monospace';
+            ctx.fillStyle=isMain?'#3D3D31':'#666666';
+            ctx.textAlign='center';
+            // rect is already in viewport (CSS fixed), so use rect.left + rect.width/2, rect.top
+            const lines=text.split('\n').filter(Boolean);
+            lines.forEach((line,li)=>{
+                ctx.fillText(line.trim(), rect.left+rect.width/2, rect.top+12+li*13);
+            });
+        });
+
+        // Also capture main-labels-container
+        document.getElementById('main-labels-container').querySelectorAll('.chart-label').forEach(el=>{
+            const rect=el.getBoundingClientRect();
+            const text=el.innerText||el.textContent||'';
+            ctx.font='600 10pt Geist Mono,monospace';
+            ctx.fillStyle='#3D3D31';
+            ctx.textAlign='center';
+            ctx.fillText(text.trim(), rect.left+rect.width/2, rect.top+12);
+        });
+
+        // Framework bracket labels
+        const bracketContainer=document.getElementById('framework-bracket-labels');
+        if(bracketContainer){
+            bracketContainer.querySelectorAll('.bracket-label').forEach(el=>{
+                const rect=el.getBoundingClientRect();
+                const text=el.innerText||el.textContent||'';
+                ctx.font='500 10px Geist Mono,monospace';
+                ctx.fillStyle='#3D3D31';
+                ctx.textAlign='center';
+                ctx.fillText(text.trim(), rect.left+rect.width/2, rect.top+10);
+            });
+        }
+        ctx.restore();
+
+        // Data source label
+        drawDataSourceTag(ctx, logW, logH, dpr);
+
+        triggerDownload(out, 'ejm-'+currentSection+'.png');
+    }
+
+    function drawDataSourceTag(ctx, W, H, dpr){
+        const scale=dpr||1;
+        ctx.save();
+        if(scale!==1) ctx.scale(scale,scale);
+        const pad=20, tagH=26;
+        const text='Data Source: Eco Jurisprudence Monitor (2026)';
+        ctx.font="400 10px 'Geist',sans-serif";
+        const tw=ctx.measureText(text).width;
+        // Semi-transparent background pill
+        ctx.fillStyle='rgba(255,255,255,0.82)';
+        roundRect(ctx, pad-6, H-pad-tagH+2, tw+16, tagH, 4);
+        ctx.fill();
+        // Text
+        ctx.fillStyle='rgba(61,61,49,0.55)';
+        ctx.textAlign='left';
+        ctx.fillText(text, pad+2, H-pad-4);
+        ctx.restore();
+    }
+
+    function roundRect(ctx,x,y,w,h,r){
+        ctx.beginPath();
+        ctx.moveTo(x+r,y);
+        ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+        ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+        ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+        ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
+        ctx.closePath();
+    }
+
+    function triggerDownload(canvas, filename){
+        canvas.toBlob(blob=>{
+            const url=URL.createObjectURL(blob);
+            const a=document.createElement('a');
+            a.href=url; a.download=filename;
+            document.body.appendChild(a); a.click();
+            document.body.removeChild(a);
+            setTimeout(()=>URL.revokeObjectURL(url),1000);
+        },'image/png');
+    }
+
     // Country name display close button — hides popup only, selection stays
     document.getElementById('cnd-close').addEventListener('click', e => {
         e.stopPropagation();
@@ -1076,6 +1353,44 @@ function initViz(){
     window.addEventListener('mouseup',()=>{
         if(_drag.down){ _drag.down=false; canvasWrap.style.cursor=mapZoomActive?'grab':'default'; }
     });
+
+    /* ── TOUCH: drag and pinch-zoom ── */
+    canvasWrap.addEventListener('touchstart',(e)=>{
+        if(!mapZoomActive) return;
+        if(e.touches.length===1){
+            _drag={down:true,x:e.touches[0].clientX,y:e.touches[0].clientY,tx:mapZoom.tx,ty:mapZoom.ty};
+        } else if(e.touches.length===2){
+            const dx=e.touches[1].clientX-e.touches[0].clientX;
+            const dy=e.touches[1].clientY-e.touches[0].clientY;
+            _pinch={active:true,dist:Math.hypot(dx,dy),k0:mapZoom.k,tx0:mapZoom.tx,ty0:mapZoom.ty};
+            _drag.down=false;
+        }
+        e.preventDefault();
+    },{passive:false});
+    window.addEventListener('touchmove',(e)=>{
+        if(!mapZoomActive) return;
+        if(_pinch.active&&e.touches.length===2){
+            const dx=e.touches[1].clientX-e.touches[0].clientX;
+            const dy=e.touches[1].clientY-e.touches[0].clientY;
+            const newDist=Math.hypot(dx,dy);
+            const scale=newDist/_pinch.dist;
+            const cx=(e.touches[0].clientX+e.touches[1].clientX)/2;
+            const cy=(e.touches[0].clientY+e.touches[1].clientY)/2;
+            const k0=_pinch.k0;
+            mapZoom.k=Math.max(MAP_ZOOM_MIN,Math.min(MAP_ZOOM_MAX,k0*scale));
+            mapZoom.tx=cx-(cx-_pinch.tx0)*(mapZoom.k/k0);
+            mapZoom.ty=cy-(cy-_pinch.ty0)*(mapZoom.k/k0);
+            clampZoom(); syncSlider(); applyZoomToParticles();
+        } else if(_drag.down&&e.touches.length===1){
+            mapZoom.tx=_drag.tx+(e.touches[0].clientX-_drag.x);
+            mapZoom.ty=_drag.ty+(e.touches[0].clientY-_drag.y);
+            clampZoom(); applyZoomToParticles();
+        }
+        e.preventDefault();
+    },{passive:false});
+    window.addEventListener('touchend',()=>{
+        _drag.down=false; _pinch.active=false;
+    });
 }  // end initViz
 
 /* ════════════════════════════════════════════════════
@@ -1167,7 +1482,8 @@ function clampZoom(){
 /* ════════════════════════════════════════════════════
    UTILS
 ════════════════════════════════════════════════════ */
-function findParticle(mx,my,r=8){
+function findParticle(mx,my,r){
+    if(r===undefined) r=('ontouchstart' in window)?14:8;
     for(const pt of particles){ if(!pt.visible)continue; if((mx-pt.x)**2+(my-pt.y)**2<r*r)return pt; }
     return null;
 }
@@ -1455,6 +1771,13 @@ function onSectionEnter(sec){
     document.getElementById('zoom-hint').classList.remove('visible');
     document.getElementById('zoom-controls').classList.remove('visible');
 
+    // Hide skip + print on the explode/end section, show on all others
+    const isEnd = (sec==='s9-end');
+    document.getElementById('skip-btn').style.opacity = isEnd ? '0' : '';
+    document.getElementById('skip-btn').style.pointerEvents = isEnd ? 'none' : '';
+    document.getElementById('print-btn').style.opacity = isEnd ? '0' : '';
+    document.getElementById('print-btn').style.pointerEvents = isEnd ? 'none' : '';
+
     // Hide intro textbox whenever leaving s1-stats
     if(sec!=='s1-stats'){
         const introEl=document.getElementById('intro-textbox');
@@ -1605,10 +1928,21 @@ function bY(){ return p5Instance.height*0.70; }
 /* ════════════════════════════════════════════════════
    LAYOUTS
 ════════════════════════════════════════════════════ */
+/* ── Responsive helpers ── */
+function respDotSp(){ return p5Instance.width < 700 ? 6 : 8; }
+function respMaxCols(base){ return p5Instance.width < 700 ? Math.max(4, base-2) : base; }
+function respBarSp(base){ return p5Instance.width < 700 ? Math.max(16, base*0.55) : base; }
+
 function layoutAllRegions(){
     if(!p5Instance) return; clearLabels();
-    const w=p5Instance.width, dotSp=8, maxCols=8, barSp=42;
+    const w=p5Instance.width;
+    const dotSp=respDotSp(), maxCols=respMaxCols(8);
     const barW=maxCols*dotSp;
+    // Fit groups to available width with a side margin
+    const sideMargin=w<700?16:40;
+    const availW=w-sideMargin*2;
+    const rawBarSp=(availW-REGION_ORDER.length*barW)/(REGION_ORDER.length-1);
+    const barSp=Math.max(w<700?8:20, Math.min(42, rawBarSp));
     const totalW=REGION_ORDER.length*barW+(REGION_ORDER.length-1)*barSp;
     const startX=(w-totalW)/2;
     const regions={};
@@ -1627,21 +1961,28 @@ function layoutAllRegions(){
 
 function layoutByYear(){
     if(!p5Instance) return; clearLabels();
-    const w=p5Instance.width, bottom=bY(), margin=60, barSp=8;
+    const w=p5Instance.width, bottom=bY();
+    const isMobile=w<700;
+    const margin=isMobile?20:60;
+    const dotSp=isMobile?5:8;
+    const maxCols=isMobile?5:8;
+    const barSpBase=isMobile?4:8;
     const years={};
     particles.forEach(p=>{ const y=parseInt(p.data['Primary Year']); if(!isNaN(y)&&y>=2006&&y<=2026){if(!years[y])years[y]=[];years[y].push(p);} });
     const yearKeys=Array.from({length:21},(_,i)=>2006+i);
-    const totalW=w-margin*2, barW=(totalW-barSp*(yearKeys.length-1))/yearKeys.length;
+    const totalW=w-margin*2, barW=(totalW-barSpBase*(yearKeys.length-1))/yearKeys.length;
     let cx=margin;
-    yearKeys.forEach(year=>{
+    // On mobile, only label every other year to avoid crowding
+    yearKeys.forEach((year,idx)=>{
         const yp=years[year]||[]; sortByNature(yp);
-        const cols=Math.min(8,Math.max(1,Math.floor(barW/8)));
+        const cols=Math.min(maxCols,Math.max(1,Math.floor(barW/dotSp)));
         const labelCx=cx+barW/2;
-        if(yp.length>0) addAxisLabel(year.toString(),labelCx,{count:yp.length});
+        const showLabel=!isMobile||(idx%2===0);
+        if(yp.length>0&&showLabel) addAxisLabel(year.toString(),labelCx,{count:yp.length});
         const colsUsed=Math.min(yp.length,cols);
-        const dotStartX=labelCx-(colsUsed-1)*8/2;
-        yp.forEach((p,j)=>{ p.frozen=false; p.setTarget(dotStartX+(j%cols)*8,bottom-Math.floor(j/cols)*8,true); });
-        cx+=barW+barSp;
+        const dotStartX=labelCx-(colsUsed-1)*dotSp/2;
+        yp.forEach((p,j)=>{ p.frozen=false; p.setTarget(dotStartX+(j%cols)*dotSp,bottom-Math.floor(j/cols)*dotSp,true); });
+        cx+=barW+barSpBase;
     });
     particles.forEach(p=>{ const y=parseInt(p.data['Primary Year']); if(isNaN(y)||y<2006||y>2026){p.frozen=false;p.setTarget(-100,-100,false);} });
 }
@@ -1649,8 +1990,9 @@ function layoutByYear(){
 function layoutByFramework(){
     if(!p5Instance) return; clearLabels();
     const w=p5Instance.width, bottom=bY();
-    const dotSp=8, maxCols=8;
-    const colW=maxCols*dotSp; // 64px — dots always 8 wide
+    const isMobile=w<700;
+    const dotSp=isMobile?5:8, maxCols=isMobile?6:8;
+    const colW=maxCols*dotSp;
 
     const fLaw={}, sLaw={};
     particles.forEach(p=>{
@@ -1665,10 +2007,10 @@ function layoutByFramework(){
     if(!n) return;
 
     // Match year chart outer width = w - 120, then reduce inter-label gap by 20%
-    const margin=60;
+    const margin=isMobile?16:60;
     const totalW=w-margin*2;
     const baseStep=totalW/(n-1||1);
-    const step=baseStep*0.92*1.1*0.95; // -5% gap decrease
+    const step=isMobile ? baseStep*0.85 : baseStep*0.92*1.1*0.95;
     // Center the whole group
     const groupW=(n-1)*step+colW;
     const startX=(w-groupW)/2;
@@ -1792,12 +2134,19 @@ function initFrameworkBracketLabels(){
 function layoutByStatus(){
     if(!p5Instance) return; clearLabels();
     const w=p5Instance.width, bottom=bY();
+    const isMobile=w<700;
     const CANONICAL=['Approved','Drafted','Submitted','Failed'];
     function norm(s){ const l=(s||'').trim().toLowerCase(); if(l.startsWith('app'))return'Approved'; if(l.startsWith('dra'))return'Drafted'; if(l.startsWith('sub'))return'Submitted'; if(l.startsWith('fai'))return'Failed'; return null; }
     const st={}; CANONICAL.forEach(c=>st[c]=[]);
     particles.forEach(p=>{ const n=norm(p.data.Status); if(n)st[n].push(p); });
     const keys=CANONICAL.filter(c=>st[c].length); if(!keys.length)return;
-    const dotSp=8,maxCols=10,barSp=42,barW=maxCols*dotSp,totalW=keys.length*barW+(keys.length-1)*barSp;
+    const dotSp=isMobile?6:8, maxCols=isMobile?8:10;
+    const barW=maxCols*dotSp;
+    const sideMargin=isMobile?16:40;
+    const availW=w-sideMargin*2;
+    const rawBarSp=(availW-keys.length*barW)/(keys.length-1||1);
+    const barSp=Math.max(isMobile?16:24, Math.min(60, rawBarSp));
+    const totalW=keys.length*barW+(keys.length-1)*barSp;
     let cx=(w-totalW)/2;
     keys.forEach(s=>{
         sortByNature(st[s]);
@@ -1814,10 +2163,17 @@ function layoutByStatus(){
 function layoutByNature(){
     if(!p5Instance) return; clearLabels();
     const w=p5Instance.width, bottom=bY();
+    const isMobile=w<700;
     const groups={'Nature':[],'Plant':[],'Animal':[],'Water':[],'Land':[]};
     particles.forEach(p=>groups[getNatureCat(p.data['Primary Nature Type'])].push(p));
     const keys=NATURE_ORDER.filter(k=>groups[k].length);
-    const dotSp=8,maxCols=8,barSp=42,barW=maxCols*dotSp,totalW=keys.length*barW+(keys.length-1)*barSp;
+    const dotSp=isMobile?6:8, maxCols=isMobile?6:8;
+    const barW=maxCols*dotSp;
+    const sideMargin=isMobile?16:40;
+    const availW=w-sideMargin*2;
+    const rawBarSp=(availW-keys.length*barW)/(keys.length-1||1);
+    const barSp=Math.max(isMobile?20:28, Math.min(60, rawBarSp));
+    const totalW=keys.length*barW+(keys.length-1)*barSp;
     let cx=(w-totalW)/2;
     keys.forEach(g=>{
         const labelCx=cx+barW/2;
@@ -1851,6 +2207,18 @@ function getNatureCat(t){
     if(l.includes('mountain')||l.includes('grass')||l.includes('desert'))return'Land';
     return'Nature';
 }
+/* ── Orientation popup ── */
+(function(){
+    function checkOrientation(){
+        const popup=document.getElementById('orientation-popup');
+        if(!popup) return;
+        const isMobileWidth=window.innerWidth<=768;
+        const isPortrait=window.innerHeight>window.innerWidth;
+        popup.style.display=(isMobileWidth&&isPortrait)?'flex':'none';
+    }
+    window.addEventListener('resize', checkOrientation);
+    window.addEventListener('orientationchange', checkOrientation);
+    checkOrientation();
+})();
 </script>
-</body>
 </html>
