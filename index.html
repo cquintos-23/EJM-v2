@@ -138,7 +138,8 @@
         display:flex; align-items:center; justify-content:center;
         box-sizing:border-box; padding:0; width:36px; height:36px;
         background-color:transparent; border:none;
-        cursor:pointer; pointer-events:auto; transition:opacity 0.2s;
+        cursor:pointer; pointer-events:auto; transition:opacity 0.3s;
+        opacity:0; pointer-events:none;
     }
     #print-btn:hover { opacity:0.65; }
     #print-btn img { width:28px; height:28px; display:block; }
@@ -1261,6 +1262,7 @@ function initViz(){
                     document.getElementById('zoom-hint').classList.remove('visible');
                     document.getElementById('zoom-controls').classList.remove('visible');
                     document.getElementById('map-proj-btn').style.display='none'; document.getElementById('data-source-label').style.display='none';
+                    const pb=document.getElementById('print-btn'); pb.style.opacity='0'; pb.style.pointerEvents='none';
                     if(p5Instance&&particleMapPos.length) placeParticlesOnMap();
                 }
             } else if(scrolled < 2*vh){
@@ -1279,6 +1281,7 @@ function initViz(){
                     document.getElementById('zoom-hint').classList.remove('visible');
                     document.getElementById('zoom-controls').classList.remove('visible');
                     document.getElementById('map-proj-btn').style.display='none'; document.getElementById('data-source-label').style.display='none';
+                    const pb=document.getElementById('print-btn'); pb.style.opacity='0'; pb.style.pointerEvents='none';
                     if(p5Instance&&particleMapPos.length) placeParticlesOnMap();
                 }
             } else {
@@ -1296,6 +1299,7 @@ function initViz(){
                     document.getElementById('zoom-hint').classList.add('visible');
                     document.getElementById('zoom-controls').classList.add('visible');
                     document.getElementById('map-proj-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
+                    const pb=document.getElementById('print-btn'); pb.style.opacity='1'; pb.style.pointerEvents='auto';
                     applyZoomToParticles();
                 }
             }
@@ -1706,23 +1710,53 @@ function hideLandmarkPopups(){
     },420);
 }
 function positionLandmarkPopups(show){
+    // Gather all popups with their target particles
+    const entries=[];
     document.querySelectorAll('.landmark-popup').forEach(el=>{
         const title=el.dataset.particleTitle;
         const lm=particles.find(p=>isLandmarkTitle(p.title)&&p.title===title)||
                   particles.find(p=>isLandmarkTitle(p.title)&&(p.title||'').toLowerCase().includes((title||'').toLowerCase()));
         if(!lm||!lm.visible) return;
         const elH=el.offsetHeight||100;
-        // Position 7px above the dot (similar to normal tooltip: elH + 7 gap)
+        const elW=el.offsetWidth||260;
+        entries.push({el, lm, elH, elW});
+    });
+    if(!entries.length) return;
+
+    // Initial positions: centered above each dot
+    const positions=entries.map(({lm, elH, elW})=>{
         let top=lm.y - elH - 20;
         let left=lm.x;
         // Clamp horizontally
-        const elW=el.offsetWidth||260;
         if(left - elW/2 < 8) left = 8 + elW/2;
         if(left + elW/2 > window.innerWidth - 8) left = window.innerWidth - 8 - elW/2;
         // If would go off top, flip below
         if(top < 8) top = lm.y + 10;
-        el.style.left=left+'px';
-        el.style.top=top+'px';
+        return {top, left};
+    });
+
+    // Resolve vertical overlaps: sort by top, push down overlapping ones
+    const gap=8; // px between popups
+    const indexed=entries.map((e,i)=>({i, top:positions[i].top, bottom:positions[i].top+e.elH, left:positions[i].left, elW:e.elW}));
+    // Sort by initial top position
+    indexed.sort((a,b)=>a.top-b.top);
+    for(let i=1;i<indexed.length;i++){
+        const prev=indexed[i-1];
+        const cur=indexed[i];
+        // Check horizontal overlap
+        const hOverlap=Math.abs(cur.left - prev.left) < (cur.elW/2 + prev.elW/2 - 8);
+        if(hOverlap && cur.top < prev.bottom + gap){
+            const shift=(prev.bottom + gap) - cur.top;
+            cur.top+=shift;
+            cur.bottom+=shift;
+            // Also update in positions array
+            positions[cur.i].top=cur.top;
+        }
+    }
+
+    entries.forEach(({el, elH, elW},i)=>{
+        el.style.left=positions[i].left+'px';
+        el.style.top=positions[i].top+'px';
         if(show) el.classList.add('visible');
     });
 }
@@ -1747,6 +1781,33 @@ function fadeOutMap(duration){
 function fadeInMap(){
     if(_mapAlphaTween) cancelAnimationFrame(_mapAlphaTween);
     showMap=true; mapAlpha=1; _mapAlphaTween=null;
+}
+
+/* ── Gentle zoom-out animation (used when leaving map section while zoomed) ── */
+let _zoomOutRaf=null;
+function gentleZoomOut(onComplete, duration){
+    if(_zoomOutRaf) cancelAnimationFrame(_zoomOutRaf);
+    duration=duration||600;
+    const start=performance.now();
+    const k0=mapZoom.k, tx0=mapZoom.tx, ty0=mapZoom.ty;
+    if(k0<=1.01){ if(onComplete) onComplete(); return; }
+    function step(now){
+        const t=Math.min((now-start)/duration,1);
+        const ease=1-Math.pow(1-t,3);
+        mapZoom.k=k0+(1-k0)*ease;
+        mapZoom.tx=tx0*(1-ease);
+        mapZoom.ty=ty0*(1-ease);
+        applyZoomToParticles();
+        if(t<1){ _zoomOutRaf=requestAnimationFrame(step); }
+        else {
+            mapZoom={k:1,tx:0,ty:0};
+            _zoomOutRaf=null;
+            const s=document.getElementById('zoom-slider'); if(s) s.value=1;
+            applyZoomToParticles();
+            if(onComplete) onComplete();
+        }
+    }
+    _zoomOutRaf=requestAnimationFrame(step);
 }
 
 /* ════════════════════════════════════════════════════
@@ -1775,8 +1836,14 @@ function onSectionEnter(sec){
     const isEnd = (sec==='s9-end');
     document.getElementById('skip-btn').style.opacity = isEnd ? '0' : '';
     document.getElementById('skip-btn').style.pointerEvents = isEnd ? 'none' : '';
-    document.getElementById('print-btn').style.opacity = isEnd ? '0' : '';
-    document.getElementById('print-btn').style.pointerEvents = isEnd ? 'none' : '';
+    // print-btn: only visible when zoom slider is active (s1-stats phase 2) OR on chart sections
+    const isMapSection = (sec==='s1-stats');
+    const pb=document.getElementById('print-btn');
+    if(isEnd || isMapSection){
+        pb.style.opacity='0'; pb.style.pointerEvents='none';
+    } else {
+        pb.style.opacity='1'; pb.style.pointerEvents='auto';
+    }
 
     // Hide intro textbox whenever leaving s1-stats
     if(sec!=='s1-stats'){
@@ -1900,6 +1967,10 @@ function setupObserver(){
         if(best){
             const sec=best.dataset.section;
             if(sec!==currentSection){
+                // If leaving the map section while zoomed in, do a gentle zoom-out first
+                if(currentSection==='s1-stats' && mapZoomActive && mapZoom.k>1.01){
+                    gentleZoomOut(null, 500);
+                }
                 currentSection=sec;
                 onSectionEnter(sec);
                 // Map sections without their own nav dot to the correct parent dot
