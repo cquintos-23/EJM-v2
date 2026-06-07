@@ -1864,6 +1864,8 @@ function onSectionEnter(sec){
             if(p5Instance&&particleMapPos.length) placeParticlesOnMap();
             resetStats();
             statsScrollTriggered=false;
+            // Signal to parent (WordPress) that the story has reset to start
+            if(window.parent !== window) window.parent.postMessage('ejm:reset', '*');
             break;
 
         case 's2-narrate1':
@@ -1941,6 +1943,8 @@ function onSectionEnter(sec){
                 // scatter from current target position so mid-animation particles don't snap
                 p.setTarget(p.targetX+Math.cos(angle)*dist, p.targetY+Math.sin(angle)*dist, true);
             });
+            // Signal to parent (WordPress) that the story is complete
+            if(window.parent !== window) window.parent.postMessage('ejm:done', '*');
             break;
     }
 }
@@ -2291,5 +2295,12 @@ function getNatureCat(t){
     window.addEventListener('orientationchange', checkOrientation);
     checkOrientation();
 })();
+
+/* ── Receive forwarded scroll events from WordPress parent page ── */
+window.addEventListener('message', e => {
+    if (e.data && e.data.type === 'wheel') {
+        window.scrollBy({ top: e.data.deltaY, behavior: 'auto' });
+    }
+});
 </script>
 </html>
