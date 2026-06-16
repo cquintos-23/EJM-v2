@@ -455,7 +455,7 @@
     .init-panel:hover .init-panel-bg { filter:brightness(1); }
     .init-panel-bg::after {
         content:''; position:absolute; inset:0;
-        background:linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 55%);
+        background:linear-gradient(to top, rgba(255, 255, 255, 0.55) 0%, transparent 85%);
         opacity:0; transition:opacity 0.3s;
     }
     .init-panel:hover .init-panel-bg::after { opacity:1; }
@@ -471,6 +471,16 @@
     .init-card-meta  { font-family:'Geist Mono',monospace; font-size:7pt; color:rgba(255,255,255,0.75); line-height:1.6; }
     .init-card-link  { display:inline-block; margin-top:8px; font-family:'Geist',sans-serif; font-size:7.5pt; font-weight:600; color:#8ECBF0; text-decoration:none; }
     .init-card-link:hover { text-decoration:underline; }
+
+    /* ── HERO MAP GRADIENT ── */
+    #hero-map-gradient {
+        position:fixed; top:0; left:0; width:100%; height:100vh;
+        z-index:2; pointer-events:none;
+        background: linear-gradient(to bottom, #fff 0%, rgba(255,255,255,0) 60%);
+        opacity:0;
+        transition: opacity 0.5s ease;
+    }
+    body.is-hero #hero-map-gradient { opacity:1; }
 
     /* ── HERO SECTION ── */
     #hero-text {
@@ -496,7 +506,7 @@
 
     </style>
 </head>
-<body>
+<body class="is-hero">
 
 
 <!-- Orientation popup (mobile portrait only) -->
@@ -575,6 +585,7 @@
 
 <!-- Canvas -->
 <div id="p5-canvas"></div>
+<div id="hero-map-gradient"></div>
 
 <!-- Scrollytelling spacers -->
 <div id="scroll-container">
@@ -1973,9 +1984,11 @@ function onSectionEnter(sec){
     if(isHero){
         heroEl.style.opacity='1'; heroEl.style.transform='translateY(0)';
         if(hintEl) hintEl.style.opacity='0.4';
+        document.body.classList.add('is-hero');
     } else {
         heroEl.style.opacity='0'; heroEl.style.transform='translateY(-90vh)';
         if(hintEl) hintEl.style.opacity='0';
+        document.body.classList.remove('is-hero');
     }
     // print-btn: only visible when zoom slider is active (s1-stats phase 2) OR on chart sections
     const isMapSection = (sec==='s1-stats');
