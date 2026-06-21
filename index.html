@@ -33,10 +33,10 @@
     /* ── SCROLLYTELLING VIEWPORT ── */
     #scroll-container { pointer-events:none; }
     .scroll-section { height:200vh; width:100%; pointer-events:none; position:relative; }
-    .scroll-section[data-section="s1-stats"] { height:400vh; }
+    .scroll-section[data-section="s1-stats"] { height:250vh; }
 
     /* ── FIXED CANVAS ── */
-    #p5-canvas { position:fixed; top:0; left:0; width:100%; height:100vh; z-index:1; cursor:default; will-change:transform; touch-action:none; }
+    #p5-canvas { position:fixed; top:0; left:0; width:100%; height:100vh; z-index:1; cursor:default; will-change:transform; touch-action:none; transform:translateY(30vh); transition:none; }
     #p5-canvas canvas { touch-action:none; }
 
     /* ── FIXED OVERLAYS ── */
@@ -61,7 +61,7 @@
     #intro-textbox {
         position:fixed; left:50%; z-index:30; pointer-events:none;
         transform:translateX(-50%);
-        width:520px; max-width:90vw;
+        width:820px; max-width:90vw;
         opacity:0; transition:opacity 0.4s ease;
     }
     #intro-textbox .narrative-inner {
@@ -73,10 +73,10 @@
 
     /* narrative — scrolling in-flow boxes inside each section */
     .narrative-scroll-box {
-        position:absolute; left:4vw;
+        position:absolute; left:36px;
         /* sits in the bottom half of its 200vh section */
         top:calc(100vh + (100vh - var(--box-h, 160px)) / 2);
-        max-width:360px; z-index:2100; pointer-events:auto;
+        max-width:330px; z-index:2100; pointer-events:auto;
     }
     .narrative-inner {
         font-family:'Geist',sans-serif; font-size:var(--sz-narrative); font-weight:400;
@@ -156,10 +156,11 @@
         display:flex; align-items:center; justify-content:center;
         box-sizing:border-box; padding:0; width:36px; height:36px;
         background-color:transparent; border:none;
-        cursor:pointer; pointer-events:auto; transition:opacity 0.2s;
-        opacity:0; pointer-events:none;
+        cursor:pointer; pointer-events:none; transition:opacity 0.2s;
+        opacity:0;
     }
-    #print-btn:hover { opacity:0.65; }
+    #print-btn.btn-visible { opacity:1; pointer-events:auto; }
+    #print-btn.btn-visible:hover { opacity:0.65; }
     #print-btn img { width:28px; height:28px; display:block; }
     #print-btn::after {
         content:'download PNG';
@@ -194,6 +195,7 @@
         transition:opacity 0.15s ease;
     }
     #map-proj-btn:hover::after { opacity:1; }
+    #map-proj-btn.popup-open::after { opacity:0 !important; }
 
     /* map projection popup */
     #map-proj-popup {
@@ -336,6 +338,8 @@
         #intro-textbox { width: 88vw !important; }
         #intro-textbox .narrative-inner { font-size: 14px !important; padding: 1rem !important; }
         .narrative-inner { font-size: 14px !important; padding: 1rem !important; }
+        #explore-heading { font-size: 20px !important; line-height: 28px !important; }
+        #explore-subtext { font-size: 14px !important; }
         .narrative-scroll-box { left: 3vw !important; max-width: 80vw !important; }
 
         #skip-btn { bottom: 20px; right: 16px; padding: 8px 12px; height: 36px; }
@@ -437,6 +441,22 @@
         transition:opacity 0.6s ease;
     }
     #static-content.visible { opacity:1; pointer-events:auto; }
+    #explore-inner {
+        display:flex; flex-direction:column; align-items:center;
+        gap:28px; width:100%;
+    }
+    #explore-explainer {
+        text-align:center; max-width:680px;
+    }
+    #explore-heading {
+        font-family:'Geist',sans-serif; font-size:34px; font-weight:600;
+        line-height:42px; letter-spacing:-0.01em;
+        color:var(--color-off-black); margin:0 0 14px 0;
+    }
+    #explore-subtext {
+        font-family:'Geist',sans-serif; font-size:var(--sz-narrative); font-weight:400;
+        line-height:1.55; color:var(--color-off-black); margin:0;
+    }
     #initiative-carousel {
         display:flex; gap:6px; width:100%;
         height:380px; overflow:hidden; border-radius:12px;
@@ -446,6 +466,7 @@
         overflow:hidden; cursor:pointer;
         transition:flex-grow 0.45s cubic-bezier(0.4,0,0.2,1);
         position:relative;
+        display:block; text-decoration:none; color:inherit;
     }
     .init-panel-bg {
         position:absolute; inset:0;
@@ -487,13 +508,13 @@
         position:fixed; top:0; left:0; width:100%; height:100vh;
         z-index:25; pointer-events:none;
         display:flex; align-items:flex-start; justify-content:center;
-        padding: 2vh 9vw 0;
+        padding: 12vh 9vw 0;
         transition:opacity 0.4s ease, transform 0.4s ease;
     }
     #hero-text h1 {
         font-family:'Herbik', sans-serif;
         font-weight:500;
-        font-size:clamp(24px, 4.5vw, 60px);
+        font-size:clamp(24px, 4.5vw, 34px);
         line-height:1.1; letter-spacing:-0.01em;
         color:var(--color-off-black);
         text-align:center; margin:0;
@@ -592,7 +613,7 @@
     <div class="scroll-section" data-section="s0-hero" style="height:100vh"></div>
     <div class="scroll-section" data-section="s1-stats">
         <div id="stats-display"><span id="stat-initiatives">0</span> Initiatives<span class="sep"> </span><span id="stat-countries">0</span> Countries<span class="sep"> </span>1 Movement</div>
-        <div id="intro-textbox"><div class="narrative-inner"><p>Ecological jurisprudence is a global movement that challenges human-centric legal frameworks. It centers the interdependence and intrinsic value of nature and encompasses Rights of Nature, Indigenous Models, and Ecological Governance.<br><br>The Eco Jurisprudence Monitor tracks this movement.<br><br>Each dot is one initiative.<br>Click and scroll to explore.</p></div></div>
+        <div id="intro-textbox"><div class="narrative-inner"><p><br>Ecological jurisprudence is a global movement transforming human-centered laws.<br> <br>Each dot is one initiative.<br>Click and scroll to explore.</p></div></div>
     </div>
     <div class="scroll-section" data-section="s4-regions"></div>
     <div class="scroll-section" data-section="s8-nature"></div>
@@ -606,8 +627,14 @@
 
 <!-- Explore screen — fades in over canvas on s9-end -->
 <div id="static-content">
-    <div id="initiative-carousel">
-        <!-- Cards injected by JS once data loads -->
+    <div id="explore-inner">
+        <div id="explore-explainer">
+            <h2 id="explore-heading">What is Ecological Jurisprudence?</h2>
+            <p id="explore-subtext">This is an approach to law that recognizes humans are part of Earth's systems and challenges traditional frameworks that treat nature as property. It encompasses Rights of Nature, Indigenous laws, responsibility-based governance, and policies informed by ecological science and Traditional Ecological Knowledge.</p>
+        </div>
+        <div id="initiative-carousel">
+            <!-- Cards injected by JS once data loads -->
+        </div>
     </div>
 </div>
 
@@ -652,7 +679,8 @@ let hoveredCountry=null;
 let selectedCountry=null;
 let selectedCountryParticles=new Set();
 let countryCounts={};
-let overviewFade=false; // true during s1-stats: map+dots at 50% opacity
+let overviewFade=false; // true during s1-stats: drives soft fade
+let overviewAlpha=1;   // 0–1 continuous fade value for map+dots during s1-stats
 let mapAlpha=1;          // 0–1, drives soft fade-out of the map
 let _mapAlphaTween=null; // requestAnimationFrame handle for the tween
 
@@ -689,7 +717,7 @@ const FORMAL_LAW=['Constitution','Indigenous Law','Court Case','Policy','Legisla
 const SOFT_LAW=['Civil Society Declaration', 'Private Sector Governance', 'Civil Society Tribunal','Indigenous Declaration','Position Statement'];
 const FRAMEWORK_ORDER=[...FORMAL_LAW,...SOFT_LAW];
 const REGION_ORDER=['North America','Latin America','Europe','Africa','Asia','Oceania','International'];
-const NATURE_ORDER=['Nature','Animal','Plant','Land','Water'];
+const NATURE_ORDER=['Nature','Animal','Water','Plant','Land'];
 const REGION_URLS={
     'North America':'https://ecojurisprudence.org/region/north-america/',
     'Latin America':'https://ecojurisprudence.org/region/latin-america/',
@@ -903,7 +931,7 @@ class Particle {
         if(l.includes('ecosystem')||l.includes('multiple')) return NATURE_COLORS['Multiple'];
         return NATURE_COLORS['All Nature'];
     }
-    update(){ if(this.frozen)return; this.x+=(this.targetX-this.x)*0.055; this.y+=(this.targetY-this.y)*0.055; }
+    update(){ if(this.frozen)return; const lerpK=(currentSection==='s9-end')?0.01:0.055; this.x+=(this.targetX-this.x)*lerpK; this.y+=(this.targetY-this.y)*lerpK; }
     display(){
         if(!this.visible) return;
         const isSel=selectedParticle===this, hasSel=selectedParticle!==null;
@@ -968,10 +996,10 @@ function initViz(){
             p.background('#FFFFFF');
             const ctx=p.drawingContext;
             if((showMap||mapAlpha>0)&&worldGeoJson&&mapProjection){
-                const baseAlpha=overviewFade?0.5:1;
+                const baseAlpha=overviewFade?overviewAlpha:1;
                 drawMap(p, baseAlpha*mapAlpha);
             }
-            if(overviewFade) ctx.globalAlpha=0.5;
+            if(overviewFade) ctx.globalAlpha=overviewAlpha;
             particles.forEach(pt=>{pt.update();pt.display();});
             if(overviewFade) ctx.globalAlpha=1.0;
             if(frameworkBrackets.length) drawFrameworkBrackets(p);
@@ -1182,95 +1210,230 @@ function initViz(){
     // ─ Chart: capture current p5 canvas + re-draw axis labels + data source tag ─
     function downloadChartView(){
         if(!p5Instance) return;
-        const p5Canvas=p5Instance.canvas;
-        const W=p5Canvas.width, H=p5Canvas.height; // already scaled by dpr
-        const dpr=window.devicePixelRatio||2;
-        const logW=W/dpr, logH=H/dpr;
 
-        const out=document.createElement('canvas');
-        out.width=W; out.height=H;
-        const ctx=out.getContext('2d');
+        // Section → human-readable category label
+        const SECTION_CATEGORY={
+            's4-regions':   { label:'Region',           caption:'the geographic region of the initiative' },
+            's5-year':      { label:'Year',             caption:'the year it was initiated' },
+            's5-year-b':    { label:'Year',             caption:'the year it was initiated' },
+            's6-framework': { label:'Legal Framework',  caption:'the type of legal framework used' },
+            's7-status':    { label:'Current Status',   caption:'the current status of the initiative' },
+            's7-status-b':  { label:'Current Status',   caption:'the current status of the initiative' },
+            's8-nature':    { label:'Nature Type',      caption:'the type of nature it references' },
+        };
+        const catInfo = SECTION_CATEGORY[currentSection] || { label:'Category', caption:'the category' };
 
-        // White background — no map layer
-        ctx.fillStyle='#FFFFFF';
-        ctx.fillRect(0,0,W,H);
+        // Export at 3× for crisp retina output
+        const EXPORT_SCALE = 3;
+        const logW = window.innerWidth;
+        const logH = window.innerHeight;
 
-        // Draw particles at their current target positions (chart layout), no map
-        ctx.save();
-        ctx.scale(dpr,dpr);
+        const out = document.createElement('canvas');
+        out.width = Math.round(logW * EXPORT_SCALE);
+        out.height = Math.round(logH * EXPORT_SCALE);
+        const ctx = out.getContext('2d');
+        ctx.scale(EXPORT_SCALE, EXPORT_SCALE);
+
+        // White background
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, logW, logH);
+
+        // ── Derive chart left/right edges from particle positions ──
+        const visibleParticles = particles.filter(p=>p.visible);
+        let chartLeft = logW, chartRight = 0;
+        visibleParticles.forEach(p=>{
+            if(p.targetX < chartLeft)  chartLeft  = p.targetX;
+            if(p.targetX > chartRight) chartRight = p.targetX;
+        });
+        // Fallback to safe defaults if no particles visible
+        if(chartLeft >= chartRight){ chartLeft = 40; chartRight = logW - 40; }
+        // Add a small dot-radius buffer
+        chartLeft  = Math.max(0,  chartLeft  - 8);
+        chartRight = Math.min(logW, chartRight + 8);
+        const chartWidth = chartRight - chartLeft;
+
+        // ── Nature legend config ──
+        const LEGEND_ENTRIES = [
+            { color:'#85854D', label:'All Nature / Urban / Climate' },
+            { color:'#FF9B00', label:'Animal' },
+            { color:'#8ECBF0', label:'Freshwater / Marine / Arctic' },
+            { color:'#7A3F0F', label:'Plant / Forest / Fungi' },
+            { color:'#DCC240', label:'Mountain / Grassland / Desert' },
+        ];
+        const LEG_DOT = 6;
+        const LEG_LINE_H = 18;
+        ctx.font = "400 9px 'Geist',sans-serif";
+        const LEG_TEXT_W = Math.max(...LEGEND_ENTRIES.map(e=>ctx.measureText(e.label).width));
+        const LEG_BLOCK_W = LEG_DOT + 8 + LEG_TEXT_W; // dot + gap + text
+
+        // Title y
+        const TITLE_Y = 52;
+
+        // Legend: top = TITLE_Y, right edge = chartRight
+        const legendX = chartRight - LEG_BLOCK_W;
+
+        // ── TITLE — left-aligned to chartLeft ──
+        const titleText = `Eco Jurisprudence by ${catInfo.label}`;
+        ctx.font = "700 15px 'Geist',sans-serif";
+        ctx.fillStyle = '#3D3D31';
+        ctx.textAlign = 'left';
+        ctx.fillText(titleText, chartLeft, TITLE_Y);
+
+        // ── Draw particles ──
         particles.forEach(pt=>{
             if(!pt.visible) return;
             ctx.beginPath();
             ctx.arc(pt.targetX, pt.targetY, pt.size/2, 0, Math.PI*2);
-            ctx.fillStyle=pt.color;
-            ctx.strokeStyle='#fff'; ctx.lineWidth=0.5;
+            ctx.fillStyle = pt.color;
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 0.5;
             ctx.fill(); ctx.stroke();
         });
-        ctx.restore();
 
-        // Re-draw axis labels from DOM into canvas
-        ctx.save();
-        ctx.scale(dpr,dpr);
-        const axisContainer=document.getElementById('axis-labels-container');
-        const containerTop=parseFloat(axisContainer.style.top||'73vh')/100*logH
-                           || logH*0.73;
+        // ── Axis labels from DOM ──
+        const axisContainer = document.getElementById('axis-labels-container');
         axisContainer.querySelectorAll('.chart-label').forEach(el=>{
-            const rect=el.getBoundingClientRect();
-            const text=el.innerText||el.textContent||'';
-            const isMain=el.classList.contains('main');
-            ctx.font=isMain?'600 10pt Geist,sans-serif':'500 7.5pt Geist,sans-serif';
-            ctx.fillStyle=isMain?'#3D3D31':'#666666';
-            ctx.textAlign='center';
-            // rect is already in viewport (CSS fixed), so use rect.left + rect.width/2, rect.top
-            const lines=text.split('\n').filter(Boolean);
+            const rect = el.getBoundingClientRect();
+            const text = el.innerText || el.textContent || '';
+            const isMain = el.classList.contains('main');
+            ctx.font = isMain ? "600 10px 'Geist',sans-serif" : "500 9px 'Geist',sans-serif";
+            ctx.fillStyle = isMain ? '#3D3D31' : '#666666';
+            ctx.textAlign = 'center';
+            const lines = text.split('\n').filter(Boolean);
             lines.forEach((line,li)=>{
                 ctx.fillText(line.trim(), rect.left+rect.width/2, rect.top+12+li*13);
             });
         });
 
-        // Also capture main-labels-container
+        // Main labels
         document.getElementById('main-labels-container').querySelectorAll('.chart-label').forEach(el=>{
-            const rect=el.getBoundingClientRect();
-            const text=el.innerText||el.textContent||'';
-            ctx.font='600 10pt Geist,sans-serif';
-            ctx.fillStyle='#3D3D31';
-            ctx.textAlign='center';
+            const rect = el.getBoundingClientRect();
+            const text = el.innerText || el.textContent || '';
+            ctx.font = "600 10px 'Geist',sans-serif";
+            ctx.fillStyle = '#3D3D31';
+            ctx.textAlign = 'center';
             ctx.fillText(text.trim(), rect.left+rect.width/2, rect.top+12);
         });
 
         // Framework bracket labels
-        const bracketContainer=document.getElementById('framework-bracket-labels');
+        const bracketContainer = document.getElementById('framework-bracket-labels');
         if(bracketContainer){
             bracketContainer.querySelectorAll('.bracket-label').forEach(el=>{
-                const rect=el.getBoundingClientRect();
-                const text=el.innerText||el.textContent||'';
-                ctx.font='500 10px Geist,sans-serif';
-                ctx.fillStyle='#3D3D31';
-                ctx.textAlign='center';
+                const rect = el.getBoundingClientRect();
+                const text = el.innerText || el.textContent || '';
+                ctx.font = "500 9.5px 'Geist',sans-serif";
+                ctx.fillStyle = '#3D3D31';
+                ctx.textAlign = 'center';
                 ctx.fillText(text.trim(), rect.left+rect.width/2, rect.top+10);
             });
         }
-        ctx.restore();
 
-        // Data source label
-        drawDataSourceTag(ctx, logW, logH, dpr);
+        // ── Framework brackets (lines) ──
+        if(frameworkBrackets.length){
+            const bracketY = logH * 0.815;
+            const tickH = 5;
+            ctx.strokeStyle = '#3D3D31'; ctx.lineWidth = 1; ctx.setLineDash([]);
+            frameworkBrackets.forEach(b=>{
+                ctx.beginPath();
+                ctx.moveTo(b.x, bracketY-tickH); ctx.lineTo(b.x, bracketY);
+                ctx.lineTo(b.x+b.w, bracketY);
+                ctx.lineTo(b.x+b.w, bracketY-tickH);
+                ctx.stroke();
+            });
+        }
+
+        // ── Count labels above each bar ──
+        ctx.font = "400 9px 'Geist',sans-serif";
+        ctx.fillStyle = 'rgba(61,61,49,0.65)';
+        ctx.textAlign = 'center';
+        const labelTooltip = document.getElementById('label-tooltip');
+        axisContainer.querySelectorAll('.chart-label.axis').forEach(el=>{
+            const rect = el.getBoundingClientRect();
+            const barCx = rect.left + rect.width / 2;
+            el.dispatchEvent(new MouseEvent('mouseenter', {clientX: barCx, clientY: rect.top}));
+            const ttText = labelTooltip.textContent || '';
+            labelTooltip.style.display = 'none';
+            const match = ttText.match(/(\d+)/);
+            if(match){
+                const count = match[1];
+                const BAR_HALF = 44;
+                let minY = Infinity;
+                particles.forEach(pt=>{
+                    if(!pt.visible) return;
+                    if(Math.abs(pt.targetX - barCx) <= BAR_HALF && pt.targetY < minY) minY = pt.targetY;
+                });
+                const labelY = (minY < Infinity) ? minY - 8 : rect.top - 8;
+                ctx.fillText(count, barCx, labelY);
+            }
+        });
+
+        // ── Legend — top = TITLE_Y, right edge = chartRight ──
+        ctx.textAlign = 'left';
+        LEGEND_ENTRIES.forEach((entry, i)=>{
+            const lx = legendX;
+            const ly = TITLE_Y + i * LEG_LINE_H;
+            ctx.beginPath();
+            ctx.arc(lx + LEG_DOT/2, ly - LEG_DOT/2 + 1, LEG_DOT/2, 0, Math.PI*2);
+            ctx.fillStyle = entry.color;
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 0.5;
+            ctx.fill(); ctx.stroke();
+            ctx.font = "400 9px 'Geist',sans-serif";
+            ctx.fillStyle = '#3D3D31';
+            ctx.fillText(entry.label, lx + LEG_DOT + 6, ly);
+        });
+
+        // ── Caption + Note + Data source — below title, hard line breaks ──
+        const CAPTION_LINE_H = 12.5;
+        const CAPTION_PARA_GAP = CAPTION_LINE_H * 0.55;
+
+        // Hard-broken lines exactly as specified
+        const captionLines = [
+            `This chart represents the total number of ecological jurisprudence initiatives globally`,
+            `categorized by ${catInfo.caption}. Each dot represents a single initiative.`,
+        ];
+        const noteLines = [
+            `Note: Initiatives may reference multiple elements of nature (ex. species and their habitat)`,
+            `or multi-ecosystem areas; however, initiatives are categorized into 5 overarching`,
+            `categories according to the entity or ecosystem that is primarily referenced in the legal`,
+            `text. For secondary nature types, see the initiative's individual EJM page.`,
+        ];
+        const sourceLines = [
+            `Data Source: Eco Jurisprudence Monitor (2026)`,
+        ];
+
+        ctx.font = "400 8.5px 'Geist',sans-serif";
+        ctx.textAlign = 'left';
+        ctx.fillStyle = 'rgba(61,61,49,0.55)';
+
+        // Caption — below title
+        let cy = TITLE_Y + 26;
+        captionLines.forEach(l=>{ ctx.fillText(l, chartLeft, cy); cy += CAPTION_LINE_H; });
+
+        // Note + data source — below the chart
+        let chartBottom = 0;
+        axisContainer.querySelectorAll('.chart-label').forEach(el=>{
+            const r = el.getBoundingClientRect();
+            if(r.bottom > chartBottom) chartBottom = r.bottom;
+        });
+        if(!chartBottom) chartBottom = logH * 0.73 + 40;
+
+        let ny = chartBottom + 18;
+        noteLines.forEach(l=>{ ctx.fillText(l, chartLeft, ny); ny += CAPTION_LINE_H; });
+        ny += CAPTION_PARA_GAP;
+        sourceLines.forEach(l=>{ ctx.fillText(l, chartLeft, ny); ny += CAPTION_LINE_H; });
 
         triggerDownload(out, 'ejm-'+currentSection+'.png');
     }
 
-    function drawDataSourceTag(ctx, W, H, dpr){
-        const scale=dpr||1;
+    // Used only by downloadMapView; chart view embeds source in caption block
+    function drawDataSourceTag(ctx, W, H){
         ctx.save();
-        if(scale!==1) ctx.scale(scale,scale);
         const pad=20, tagH=26;
         const text='Data Source: Eco Jurisprudence Monitor (2026)';
-        ctx.font="400 10px 'Geist',sans-serif";
+        ctx.font="400 9px 'Geist',sans-serif";
         const tw=ctx.measureText(text).width;
-        // Semi-transparent background pill
         ctx.fillStyle='rgba(255,255,255,0.82)';
         roundRect(ctx, pad-6, H-pad-tagH+2, tw+16, tagH, 4);
         ctx.fill();
-        // Text
         ctx.fillStyle='rgba(61,61,49,0.55)';
         ctx.textAlign='left';
         ctx.fillText(text, pad+2, H-pad-4);
@@ -1309,25 +1472,36 @@ function initViz(){
     const mapProjPopup=document.getElementById('map-proj-popup');
     mapProjBtn.addEventListener('click',e=>{
         e.stopPropagation();
-        mapProjPopup.style.display=mapProjPopup.style.display==='block'?'none':'block';
+        const opening = mapProjPopup.style.display !== 'block';
+        mapProjPopup.style.display = opening ? 'block' : 'none';
+        mapProjBtn.classList.toggle('popup-open', opening);
     });
-    document.addEventListener('click',()=>{ mapProjPopup.style.display='none'; });
+    document.addEventListener('click',()=>{
+        mapProjPopup.style.display='none';
+        mapProjBtn.classList.remove('popup-open');
+    });
 
-    // ── HERO scroll animation ──
+    // ── HERO + early s1-stats scroll animation ──
     window.addEventListener('scroll', ()=>{
-        if(currentSection !== 's0-hero') return;
-        const heroSection = document.querySelector('.scroll-section[data-section="s0-hero"]');
-        if(!heroSection) return;
-        const scrolled = window.scrollY;
         const vh = window.innerHeight;
-        const t = Math.min(1, scrolled / vh);
-        const heroEl = document.getElementById('hero-text');
-        const hintEl = document.getElementById('hero-scroll-hint');
-        // Translate hero text upward and fade out
-        heroEl.style.transform = `translateY(${-t * 90}vh)`;
-        heroEl.style.opacity = String(Math.max(0, 1 - t * 2));
-        // Fade scroll hint out quickly
-        if(hintEl) hintEl.style.opacity = String(Math.max(0, 0.4 - t * 2));
+        const scrolled = window.scrollY;
+
+        // Map canvas slide-up: runs from scroll=0 to scroll=vh (hero), then clamps to 0.
+        // Extends slightly into s1-stats to avoid a jerky snap on section transition.
+        const heroSection = document.querySelector('.scroll-section[data-section="s0-hero"]');
+        const heroH = heroSection ? heroSection.offsetHeight : vh;
+        const slideT = Math.min(1, scrolled / heroH);
+        const mapOffset = 30 * (1 - slideT);
+        document.getElementById('p5-canvas').style.transform = `translateY(${mapOffset}vh)`;
+
+        if(currentSection === 's0-hero'){
+            const t = Math.min(1, scrolled / vh);
+            const heroEl = document.getElementById('hero-text');
+            const hintEl = document.getElementById('hero-scroll-hint');
+            heroEl.style.transform = `translateY(${-t * 90}vh)`;
+            heroEl.style.opacity = String(Math.max(0, 1 - t * 2));
+            if(hintEl) hintEl.style.opacity = String(Math.max(0, 0.4 - t * 2));
+        }
     }, {passive:true});
 
     // Trigger stats counter on first scroll + drive intro textbox
@@ -1349,11 +1523,17 @@ function initViz(){
                 animateStats();
             }
 
-            // overviewFade (dim map+dots) while counter/intro are on screen — from the very start until they've scrolled fully off (end of phase 2)
-            overviewFade = (scrolled < 3*vh);
+            // overviewFade: drive a continuous alpha — full opacity at scroll=0, 50% by scroll=vh*0.4, stays 50% until counter exits
+            overviewFade = (scrolled < vh * 1.3);
+            if(overviewFade){
+                // Fade from 1 → 0.5 over first 40% of the section scroll
+                overviewAlpha = Math.max(0.5, 1 - scrolled / (vh * 0.8));
+            } else {
+                overviewAlpha = 1;
+            }
 
-            // Close any open popups while counter/intro are visible
-            if(scrolled < 2*vh){
+            // Close any open popups while counter is on screen
+            if(scrolled < vh * 1.1){
                 if(selectedParticle){ hidePinned(); }
                 if(selectedCountry){
                     selectedCountry=null; selectedCountryParticles.clear();
@@ -1361,61 +1541,41 @@ function initViz(){
                 }
             }
 
-            if(scrolled < vh){
-                // Phase 0: counter scrolls up from below-center into center
-                const t=scrolled/vh;
-                const startOffset=vh*0.6;
-                const curOffset=startOffset*(1-easeOut(t));
-                statsEl.style.top='50%';
-                statsEl.style.transform=`translate(-50%, calc(-50% + ${curOffset}px))`;
-                statsEl.style.opacity=String(Math.min(1, t*2));
-                introEl.style.opacity='0';
-                introEl.style.top=(vh+gap)+'px';
-                // reverse scroll: hide zoom controls
-                if(mapZoomActive){
-                    mapZoomActive=false; resetMapZoom();
-                    document.getElementById('zoom-hint').classList.remove('visible');
-                    document.getElementById('zoom-controls').classList.remove('visible');
-                    document.getElementById('map-proj-btn').style.display='none'; document.getElementById('data-source-label').style.display='none';
-                    const pb=document.getElementById('print-btn'); pb.style.opacity='0'; pb.style.pointerEvents='none';
-                    if(p5Instance&&particleMapPos.length) placeParticlesOnMap();
-                }
-            } else if(scrolled < 2*vh){
-                // Phase 1: counter locked at center; textbox scrolls up from below
-                const t=(scrolled-vh)/vh;
-                statsEl.style.top='50%';
-                statsEl.style.transform='translate(-50%,-50%)';
-                statsEl.style.opacity='1';
-                const startY=vh*0.5+counterHalfH+gap+vh*0.3;
-                const endY  =vh*0.5+counterHalfH+gap;
-                introEl.style.top=(startY+(endY-startY)*easeOut(t))+'px';
-                introEl.style.opacity=String(Math.min(1, t*2.5));
-                // reverse scroll: hide zoom controls
-                if(mapZoomActive){
-                    mapZoomActive=false; resetMapZoom();
-                    document.getElementById('zoom-hint').classList.remove('visible');
-                    document.getElementById('zoom-controls').classList.remove('visible');
-                    document.getElementById('map-proj-btn').style.display='none'; document.getElementById('data-source-label').style.display='none';
-                    const pb=document.getElementById('print-btn'); pb.style.opacity='0'; pb.style.pointerEvents='none';
-                    if(p5Instance&&particleMapPos.length) placeParticlesOnMap();
-                }
-            } else {
-                // Phase 2: scroll both off upward together, no fade
-                const t=(scrolled-2*vh)/vh;
-                const drift=vh*t;
-                statsEl.style.top=(vh*0.5-drift)+'px';
-                statsEl.style.transform='translate(-50%,-50%)';
-                statsEl.style.opacity='1';
-                introEl.style.top=(vh*0.5+counterHalfH+gap-drift)+'px';
-                introEl.style.opacity='1';
-                // Phase 2: activate zoom/globe once counter+intro start scrolling off
+            // Counter scrolls linearly: starts below viewport, passes through center, scrolls off top.
+            // At scrolled=0 -> counterTop = vh*1.1 (below). At scrolled = vh*1.6 -> counterTop = -vh*0.5 (gone).
+            const counterTop = vh * 1.1 - scrolled;
+            statsEl.style.top = counterTop + 'px';
+            statsEl.style.transform = 'translate(-50%, -50%)';
+            // Fade in as it enters, fade out as it exits top
+            const fadeIn = Math.min(1, Math.max(0, (vh - counterTop) / (vh * 0.3)));
+            const fadeOut = Math.min(1, Math.max(0, counterTop / (vh * 0.2)));
+            statsEl.style.opacity = String(Math.min(fadeIn, fadeOut));
+
+            // Intro text: appears once counter reaches center (counterTop <= vh*0.5),
+            // tracks just below it and scrolls off together.
+            const introTop = counterTop + counterHalfH + gap;
+            const introFade = Math.min(1, Math.max(0, (vh * 0.5 - counterTop) / (vh * 0.15)));
+            introEl.style.top = introTop + 'px';
+            introEl.style.opacity = String(introFade);
+
+            // Activate zoom/globe once counter has scrolled well past center heading off screen
+            if(counterTop < vh * 0.3){
                 if(!mapZoomActive){
                     mapZoomActive=true;
                     document.getElementById('zoom-hint').classList.add('visible');
                     document.getElementById('zoom-controls').classList.add('visible');
                     document.getElementById('map-proj-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
-                    const pb=document.getElementById('print-btn'); pb.style.opacity='1'; pb.style.pointerEvents='auto';
+                    document.getElementById('print-btn').classList.add('btn-visible');
                     applyZoomToParticles();
+                }
+            } else {
+                if(mapZoomActive){
+                    mapZoomActive=false; resetMapZoom();
+                    document.getElementById('zoom-hint').classList.remove('visible');
+                    document.getElementById('zoom-controls').classList.remove('visible');
+                    document.getElementById('map-proj-btn').style.display='none'; document.getElementById('data-source-label').style.display='none';
+                    document.getElementById('print-btn').classList.remove('btn-visible');
+                    if(p5Instance&&particleMapPos.length) placeParticlesOnMap();
                 }
             }
         }
@@ -1953,7 +2113,7 @@ function gentleZoomOut(onComplete, duration){
 function onSectionEnter(sec){
     // Reset all overlays
     hide('stats-display'); clearNarrative();
-    overviewFade=false;
+    overviewFade=false; overviewAlpha=1;
     _pendingLayout=null;
     // Hide explore screen when leaving s9-end
     if(sec !== 's9-end') hideExploreScreen();
@@ -1994,9 +2154,9 @@ function onSectionEnter(sec){
     const isMapSection = (sec==='s1-stats');
     const pb=document.getElementById('print-btn');
     if(isEnd || isMapSection || isHero){
-        pb.style.opacity='0'; pb.style.pointerEvents='none';
+        pb.classList.remove('btn-visible');
     } else {
-        pb.style.opacity='1'; pb.style.pointerEvents='auto';
+        pb.classList.add('btn-visible');
     }
 
     // Hide intro textbox whenever leaving s1-stats
@@ -2016,6 +2176,8 @@ function onSectionEnter(sec){
             if(worldGeoJson) worldGeoJson.features.forEach(f=>{ const r=resolveGeoName(f.properties.name); if(countryCounts[r]>0) highlightCountries.add(f.properties.name); });
             if(p5Instance&&particleMapPos.length) placeParticlesOnMap();
             resetStats(); statsScrollTriggered=false;
+            // Reset map offset to initial pushed-down state
+            document.getElementById('p5-canvas').style.transform='translateY(30vh)';
             break;
 
         case 's1-stats':
@@ -2053,7 +2215,7 @@ function onSectionEnter(sec){
         case 's5-year':
             fadeOutMap(); showCountryFills=false; highlightCountries.clear(); hoveredCountry=null;
             document.getElementById('info-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
-            typewrite('The modern Rights of Nature movement is often traced to 2006, though some initiatives predate this moment.');
+            typewrite('The origin of modern rights of nature is often traced to the early 1970s. The legal movement started to gain traction in the mid-2000s, though some initiatives predate this moment.');
             _pendingLayout={fn:layoutByYear, triggered:false};
             break;
 
@@ -2071,7 +2233,7 @@ function onSectionEnter(sec){
             fadeOutMap(); showCountryFills=false; highlightCountries.clear();
             document.getElementById('info-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
             clearNarrative();
-            typewrite('We track both formal and soft law, revealing how ecological ideas move through and reshape governance systems worldwide.', null, true);
+            typewrite('Our database tracks both formal and soft law, showing how ecological ideas generate from and move through civil society to reshape governance systems.', null, true);
             _pendingLayout={fn:layoutByFramework, triggered:false};
             break;
 
@@ -2085,7 +2247,7 @@ function onSectionEnter(sec){
         case 's7-status-b':{
             fadeOutMap(); showCountryFills=false; highlightCountries.clear();
             document.getElementById('info-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
-            typewrite(`The EJM is a living resource. Let us know if we <a href="https://ecojurisprudence.org/new-initiative/" target="_blank">missed something</a> and <a href="https://ecojurisprudence.org/contact/" target="_blank">reach out</a> to collaborate.`, null, true);
+            typewrite(`The EJM is a living resource. Please let us know if we <a href="https://ecojurisprudence.org/new-initiative/" target="_blank">missed something</a> and <a href="https://ecojurisprudence.org/contact/" target="_blank">reach out</a> to collaborate.`, null, true);
             _pendingLayout={fn:layoutByStatus, triggered:false};
             break;}
 
@@ -2093,7 +2255,7 @@ function onSectionEnter(sec){
             fadeOutMap(); showCountryFills=false; highlightCountries.clear();
             document.getElementById('info-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
             clearNarrative();
-            typewrite('Ecological jurisprudence protects nature in many forms, from plants and animals to entire ecosystems. Water ecosystems are the fastest-growing area of legal recognition.', null, true);
+            typewrite('Ecological jurisprudence protects nature in many forms, from individual species to entire ecosystems. Water ecosystems are the fastest-growing area of legal recognition.', null, true);
             _pendingLayout={fn:layoutByNature, triggered:false};
             break;
 
@@ -2169,13 +2331,13 @@ function bY(){ return p5Instance.height*0.70; }
    LAYOUTS
 ════════════════════════════════════════════════════ */
 /* ── Responsive helpers ── */
-function respDotSp(){ return p5Instance.width < 700 ? 6 : 8; }
-function respMaxCols(base){ return p5Instance.width < 700 ? Math.max(4, base-2) : base; }
-function respBarSp(base){ return p5Instance.width < 700 ? Math.max(16, base*0.55) : base; }
+function respDotSp(){ return window.innerWidth < 700 ? 6 : 8; }
+function respMaxCols(base){ return window.innerWidth < 700 ? Math.max(4, base-2) : base; }
+function respBarSp(base){ return window.innerWidth < 700 ? Math.max(16, base*0.55) : base; }
 
 function layoutAllRegions(){
     if(!p5Instance) return; clearLabels();
-    const w=p5Instance.width;
+    const w=window.innerWidth;
     const dotSp=respDotSp(), maxCols=respMaxCols(8);
     const barW=maxCols*dotSp;
     // Fit groups to available width with a side margin
@@ -2201,11 +2363,11 @@ function layoutAllRegions(){
 
 function layoutByYear(){
     if(!p5Instance) return; clearLabels();
-    const w=p5Instance.width, bottom=bY();
+    const w=window.innerWidth, bottom=bY();
     const isMobile=w<700;
     const margin=isMobile?20:60;
     const dotSp=isMobile?5:8;
-    const maxCols=isMobile?5:8;
+    const maxCols=isMobile?4:5;
     const barSpBase=isMobile?4:8;
     const years={};
     particles.forEach(p=>{ const y=parseInt(p.data['Primary Year']); if(!isNaN(y)&&y>=2006&&y<=2026){if(!years[y])years[y]=[];years[y].push(p);} });
@@ -2229,7 +2391,7 @@ function layoutByYear(){
 
 function layoutByFramework(){
     if(!p5Instance) return; clearLabels();
-    const w=p5Instance.width, bottom=bY();
+    const w=window.innerWidth, bottom=bY();
     const isMobile=w<700;
     const dotSp=isMobile?5:8, maxCols=isMobile?6:8;
     const colW=maxCols*dotSp;
@@ -2332,12 +2494,8 @@ function drawFrameworkBrackets(p){
     const labelColor=p5Instance.color('#3D3D31');
     p.stroke(labelColor); p.strokeWeight(1); p.noFill();
     frameworkBrackets.forEach(b=>{
-        // left tick
-        p.line(b.x, bracketY-tickH, b.x, bracketY);
-        // horizontal bar
+        // horizontal bar only (no end ticks)
         p.line(b.x, bracketY, b.x+b.w, bracketY);
-        // right tick
-        p.line(b.x+b.w, bracketY, b.x+b.w, bracketY-tickH);
     });
     p.noStroke();
     // DOM labels (positioned each frame)
@@ -2375,7 +2533,7 @@ function initFrameworkBracketLabels(){
 
 function layoutByStatus(){
     if(!p5Instance) return; clearLabels();
-    const w=p5Instance.width, bottom=bY();
+    const w=window.innerWidth, bottom=bY();
     const isMobile=w<700;
     const CANONICAL=['Approved','Drafted','Submitted','Failed'];
     function norm(s){ const l=(s||'').trim().toLowerCase(); if(l.startsWith('app'))return'Approved'; if(l.startsWith('dra'))return'Drafted'; if(l.startsWith('sub'))return'Submitted'; if(l.startsWith('fai'))return'Failed'; return null; }
@@ -2404,7 +2562,7 @@ function layoutByStatus(){
 
 function layoutByNature(){
     if(!p5Instance) return; clearLabels();
-    const w=p5Instance.width, bottom=bY();
+    const w=window.innerWidth, bottom=bY();
     const isMobile=w<700;
     const groups={'Nature':[],'Plant':[],'Animal':[],'Water':[],'Land':[]};
     particles.forEach(p=>groups[getNatureCat(p.data['Primary Nature Type'])].push(p));
@@ -2501,8 +2659,11 @@ function buildCarousel(allData) {
         const img = (d['Cover Image'] || '').trim();
         const bgStyle = img ? `background-image:url('${img}')` : `background:#C8C8B8`;
         const preload = img && i === 0 ? `<img src="${img}" style="display:none" fetchpriority="high" alt="">` : '';
+        const url = (d.Permalink || '').trim();
+        const panelOpen  = url ? `<a class="init-panel" href="${url}" target="_blank" rel="noopener">` : `<div class="init-panel">`;
+        const panelClose = url ? `</a>` : `</div>`;
         return `
-        <div class="init-panel">
+        ${panelOpen}
             ${preload}
             <div class="init-panel-bg" style="${bgStyle}"></div>
             <div class="init-panel-content">
@@ -2512,9 +2673,9 @@ function buildCarousel(allData) {
                     ${(d.Status || '—').trim()} &nbsp;·&nbsp;
                     ${d.Region || '—'}
                 </div>
-                ${d.Permalink ? `<a class="init-card-link" href="${d.Permalink}" target="_blank">View initiative ↗</a>` : ''}
+
             </div>
-        </div>`;
+        ${panelClose}`;
     }).join('');
 }
 </script>
