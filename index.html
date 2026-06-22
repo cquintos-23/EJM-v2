@@ -76,7 +76,10 @@
         position:absolute; left:36px;
         /* sits in the bottom half of its 200vh section */
         top:calc(100vh + (100vh - var(--box-h, 160px)) / 2);
-        max-width:330px; z-index:2100; pointer-events:auto;
+        max-width:352px; z-index:2100; pointer-events:auto;
+        background:#ffffff; border-radius:4px;
+        padding:10px 14px;
+        box-sizing:border-box;
     }
     .narrative-inner {
         font-family:'Geist',sans-serif; font-size:var(--sz-narrative); font-weight:400;
@@ -507,7 +510,7 @@
     #hero-text {
         position:fixed; top:0; left:0; width:100%; height:100vh;
         z-index:25; pointer-events:none;
-        display:flex; align-items:flex-start; justify-content:center;
+        display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
         padding: 12vh 9vw 0;
         transition:opacity 0.4s ease, transform 0.4s ease;
     }
@@ -518,6 +521,10 @@
         line-height:1.1; letter-spacing:-0.01em;
         color:var(--color-off-black);
         text-align:center; margin:0;
+    }
+    #hero-text .hero-btns {
+        pointer-events:auto;
+        margin-top:20px;
     }
     @media (max-width: 768px) {
         #hero-text { padding:10vh 6vw 0; }
@@ -601,6 +608,10 @@
 <!-- Hero heading (visible on load, scrolls away) -->
 <div id="hero-text">
     <h1>Explore the definitive tracker for<br>ecocentric laws around the world</h1>
+    <div class="hero-btns" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+        <a href="https://ecojurisprudence.org/data/" target="_blank" style="background-color:#FBFBEE;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;height:40px;width:auto;border:1px solid #D1D1BF;border-radius:8px;font-family:'Geist',sans-serif;font-weight:500;font-size:16px;line-height:20px;color:#757559;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none;text-transform:none;">get the charts</a>
+        <a href="https://ecojurisprudence.org/data-request/" target="_blank" style="background-color:#FBFBEE;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;height:40px;width:auto;border:1px solid #D1D1BF;border-radius:8px;font-family:'Geist',sans-serif;font-weight:500;font-size:16px;line-height:20px;color:#757559;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none;text-transform:none;">get the data</a>
+    </div>
 </div>
 <div id="hero-scroll-hint">scroll to explore</div>
 
@@ -1558,14 +1569,19 @@ function initViz(){
             introEl.style.top = introTop + 'px';
             introEl.style.opacity = String(introFade);
 
-            // Activate zoom/globe once counter has scrolled well past center heading off screen
-            if(counterTop < vh * 0.3){
+            // Show all UI (globe, print, skip, nav) together when counter first enters viewport
+            const counterVisible = (counterTop < vh);
+            if(counterVisible){
                 if(!mapZoomActive){
                     mapZoomActive=true;
                     document.getElementById('zoom-hint').classList.add('visible');
                     document.getElementById('zoom-controls').classList.add('visible');
                     document.getElementById('map-proj-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
                     document.getElementById('print-btn').classList.add('btn-visible');
+                    document.getElementById('section-nav').style.opacity='';
+                    document.getElementById('section-nav').style.pointerEvents='';
+                    document.getElementById('skip-btn').style.opacity='';
+                    document.getElementById('skip-btn').style.pointerEvents='';
                     applyZoomToParticles();
                 }
             } else {
@@ -1575,6 +1591,10 @@ function initViz(){
                     document.getElementById('zoom-controls').classList.remove('visible');
                     document.getElementById('map-proj-btn').style.display='none'; document.getElementById('data-source-label').style.display='none';
                     document.getElementById('print-btn').classList.remove('btn-visible');
+                    document.getElementById('section-nav').style.opacity='0';
+                    document.getElementById('section-nav').style.pointerEvents='none';
+                    document.getElementById('skip-btn').style.opacity='0';
+                    document.getElementById('skip-btn').style.pointerEvents='none';
                     if(p5Instance&&particleMapPos.length) placeParticlesOnMap();
                 }
             }
@@ -1597,6 +1617,13 @@ function initViz(){
                     if(boxRect.top <= window.innerHeight * (2/3)){
                         _pendingLayout.triggered=true;
                         _pendingLayout.fn();
+                        // On s4-regions: swap globe→i and hide zoom at morph moment
+                        if(currentSection==='s4-regions'){
+                            document.getElementById('zoom-controls').classList.remove('visible');
+                            document.getElementById('map-proj-btn').style.display='none';
+                            document.getElementById('info-btn').style.display='flex';
+                            document.getElementById('data-source-label').style.display='flex';
+                        }
                     }
                 }
             }
@@ -2022,7 +2049,7 @@ function positionLandmarkPopups(show){
 
     // Initial positions: centered above each dot
     const positions=entries.map(({lm, elH, elW})=>{
-        let top=lm.y - elH - 20;
+        let top=lm.y - elH - 40;
         let left=lm.x;
         // Clamp horizontally
         if(left - elW/2 < 8) left = 8 + elW/2;
@@ -2032,23 +2059,33 @@ function positionLandmarkPopups(show){
         return {top, left};
     });
 
-    // Resolve vertical overlaps: sort by top, push down overlapping ones
+    // Resolve overlaps laterally: nudge left/right so popups don't stack
     const gap=8; // px between popups
-    const indexed=entries.map((e,i)=>({i, top:positions[i].top, bottom:positions[i].top+e.elH, left:positions[i].left, elW:e.elW}));
-    // Sort by initial top position
-    indexed.sort((a,b)=>a.top-b.top);
-    for(let i=1;i<indexed.length;i++){
-        const prev=indexed[i-1];
-        const cur=indexed[i];
-        // Check horizontal overlap
-        const hOverlap=Math.abs(cur.left - prev.left) < (cur.elW/2 + prev.elW/2 - 8);
-        if(hOverlap && cur.top < prev.bottom + gap){
-            const shift=(prev.bottom + gap) - cur.top;
-            cur.top+=shift;
-            cur.bottom+=shift;
-            // Also update in positions array
-            positions[cur.i].top=cur.top;
+    const MAX_PASSES=10;
+    for(let pass=0;pass<MAX_PASSES;pass++){
+        let anyOverlap=false;
+        for(let a=0;a<entries.length;a++){
+            for(let b=a+1;b<entries.length;b++){
+                const pa=positions[a], pb=positions[b];
+                const eaW=entries[a].elW, eaH=entries[a].elH;
+                const ebW=entries[b].elW, ebH=entries[b].elH;
+                const hDist=Math.abs(pa.left-pb.left);
+                const vDist=Math.abs(pa.top-pb.top);
+                const hNeeded=eaW/2+ebW/2+gap;
+                const vNeeded=eaH/2+ebH/2+gap;
+                if(hDist<hNeeded && vDist<vNeeded){
+                    // Overlap — nudge horizontally
+                    anyOverlap=true;
+                    const push=(hNeeded-hDist)/2+1;
+                    if(pa.left<=pb.left){ pa.left-=push; pb.left+=push; }
+                    else                { pa.left+=push; pb.left-=push; }
+                    // Clamp to viewport
+                    pa.left=Math.max(eaW/2+8, Math.min(window.innerWidth-eaW/2-8, pa.left));
+                    pb.left=Math.max(ebW/2+8, Math.min(window.innerWidth-ebW/2-8, pb.left));
+                }
+            }
         }
+        if(!anyOverlap) break;
     }
 
     entries.forEach(({el, elH, elW},i)=>{
@@ -2134,10 +2171,11 @@ function onSectionEnter(sec){
     // Hide skip + print on the explode/end section, show on all others
     const isEnd = (sec==='s9-end');
     const isHero = (sec==='s0-hero');
-    document.getElementById('section-nav').style.opacity = isHero ? '0' : '';
-    document.getElementById('section-nav').style.pointerEvents = isHero ? 'none' : '';
-    document.getElementById('skip-btn').style.opacity = (isEnd || isHero) ? '0' : '';
-    document.getElementById('skip-btn').style.pointerEvents = (isEnd || isHero) ? 'none' : '';
+    const isStats = (sec==='s1-stats');
+    document.getElementById('section-nav').style.opacity = (isHero || isStats) ? '0' : '';
+    document.getElementById('section-nav').style.pointerEvents = (isHero || isStats) ? 'none' : '';
+    document.getElementById('skip-btn').style.opacity = (isEnd || isHero || isStats) ? '0' : '';
+    document.getElementById('skip-btn').style.pointerEvents = (isEnd || isHero || isStats) ? 'none' : '';
     // Show/hide hero elements
     const heroEl = document.getElementById('hero-text');
     const hintEl = document.getElementById('hero-scroll-hint');
@@ -2150,7 +2188,7 @@ function onSectionEnter(sec){
         if(hintEl) hintEl.style.opacity='0';
         document.body.classList.remove('is-hero');
     }
-    // print-btn: only visible when zoom slider is active (s1-stats phase 2) OR on chart sections
+    // print-btn: hidden on hero/end/s1-stats entry (s1-stats shows it via scroll when counter appears)
     const isMapSection = (sec==='s1-stats');
     const pb=document.getElementById('print-btn');
     if(isEnd || isMapSection || isHero){
@@ -2200,7 +2238,9 @@ function onSectionEnter(sec){
         case 's4-regions':{
             fadeInMap(); showCountryFills=true; hoveredCountry=null;
             if(worldGeoJson) worldGeoJson.features.forEach(f=>{ const r=resolveGeoName(f.properties.name); if(countryCounts[r]>0) highlightCountries.add(f.properties.name); });
-            document.getElementById('info-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
+            // Keep globe + zoom visible until morph fires (pendingLayout trigger swaps them)
+            document.getElementById('map-proj-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
+            document.getElementById('zoom-controls').classList.add('visible');
             const total4=particles.length||1;
             const americas=particles.filter(p=>p.data.Region==='North America'||p.data.Region==='Latin America').length;
             const europe=particles.filter(p=>p.data.Region==='Europe').length;
@@ -2304,12 +2344,16 @@ function setupObserver(){
                 }
                 currentSection=sec;
                 onSectionEnter(sec);
-                // Map sections without their own nav dot to the correct parent dot
-                const NAV_ALIAS={'s0-hero':null,'s2-narrate1':'s4-regions','s5-year-b':'s5-year','s7-status-b':'s7-status'};
-                const navSec=NAV_ALIAS[sec]===undefined?sec:NAV_ALIAS[sec];
-                document.querySelectorAll('.section-nav-item').forEach(el=>{
-                    el.classList.toggle('active', navSec!==null && el.dataset.nav===navSec);
-                });
+                // Nav dot is now set inside each layout function (at morph time).
+                // Only set immediately for sections with no chart morph.
+                const _hasPending=['s4-regions','s2-narrate1','s5-year','s5-year-b','s6-framework','s7-status','s7-status-b','s8-nature'];
+                if(!_hasPending.includes(sec)){
+                    const NAV_ALIAS={'s0-hero':null};
+                    const navSec=NAV_ALIAS[sec]===undefined?sec:NAV_ALIAS[sec];
+                    document.querySelectorAll('.section-nav-item').forEach(el=>{
+                        el.classList.toggle('active', navSec!==null && el.dataset.nav===navSec);
+                    });
+                }
             }
         }
     }
@@ -2335,7 +2379,16 @@ function respDotSp(){ return window.innerWidth < 700 ? 6 : 8; }
 function respMaxCols(base){ return window.innerWidth < 700 ? Math.max(4, base-2) : base; }
 function respBarSp(base){ return window.innerWidth < 700 ? Math.max(16, base*0.55) : base; }
 
+function setNavDot(sec){
+    const NAV_ALIAS={'s0-hero':null,'s2-narrate1':'s4-regions','s5-year-b':'s5-year','s7-status-b':'s7-status'};
+    const navSec=NAV_ALIAS[sec]===undefined?sec:NAV_ALIAS[sec];
+    document.querySelectorAll('.section-nav-item').forEach(el=>{
+        el.classList.toggle('active', navSec!==null && el.dataset.nav===navSec);
+    });
+}
+
 function layoutAllRegions(){
+    setNavDot('s4-regions');
     if(!p5Instance) return; clearLabels();
     const w=window.innerWidth;
     const dotSp=respDotSp(), maxCols=respMaxCols(8);
@@ -2362,6 +2415,7 @@ function layoutAllRegions(){
 }
 
 function layoutByYear(){
+    setNavDot('s5-year');
     if(!p5Instance) return; clearLabels();
     const w=window.innerWidth, bottom=bY();
     const isMobile=w<700;
@@ -2390,6 +2444,7 @@ function layoutByYear(){
 }
 
 function layoutByFramework(){
+    setNavDot('s6-framework');
     if(!p5Instance) return; clearLabels();
     const w=window.innerWidth, bottom=bY();
     const isMobile=w<700;
@@ -2532,6 +2587,7 @@ function initFrameworkBracketLabels(){
 }
 
 function layoutByStatus(){
+    setNavDot('s7-status');
     if(!p5Instance) return; clearLabels();
     const w=window.innerWidth, bottom=bY();
     const isMobile=w<700;
@@ -2561,6 +2617,7 @@ function layoutByStatus(){
 }
 
 function layoutByNature(){
+    setNavDot('s8-nature');
     if(!p5Instance) return; clearLabels();
     const w=window.innerWidth, bottom=bY();
     const isMobile=w<700;
