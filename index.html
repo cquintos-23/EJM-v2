@@ -25,7 +25,7 @@
         /* Three type sizes (excluding stats counter) */
         --sz-narrative: 18px;
         --sz-ui:        11px;
-        --sz-small:     10px;
+        --sz-small:     10.5px;
     }
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family:'Geist',sans-serif; background:#fff; color:#3D3D31; overflow-x:hidden; }
@@ -76,9 +76,9 @@
         position:absolute; left:36px;
         /* sits in the bottom half of its 200vh section */
         top:calc(100vh + (100vh - var(--box-h, 160px)) / 2);
-        max-width:352px; z-index:2100; pointer-events:auto;
+        width:fit-content; max-width:352px; z-index:2100; pointer-events:auto;
         background:#ffffff; border-radius:4px;
-        padding:10px 14px;
+        padding:10px;
         box-sizing:border-box;
     }
     .narrative-inner {
@@ -144,7 +144,7 @@
     /* skip */
     #skip-btn {
         position:fixed; bottom:36px; right:36px; z-index:50; display:block;
-        box-sizing:border-box; padding:8px 12px; height:36px; width:auto;
+        box-sizing:border-box; padding:8px 16px; height:36px; width:auto;
         background-color:#B5B5B1; border:none; border-radius:8px;
         font-family:'Geist',sans-serif; font-weight:500; font-size:var(--sz-ui); line-height:20px;
         color:#fff; text-decoration:none; white-space:nowrap;
@@ -155,7 +155,7 @@
 
     /* print/download button */
     #print-btn {
-        position:fixed; top:36px; right:calc(36px + 44px + 4px); z-index:50;
+        position:fixed; top:36px; right:calc(32px + 44px + 4px); z-index:50;
         display:flex; align-items:center; justify-content:center;
         box-sizing:border-box; padding:0; width:36px; height:36px;
         background-color:transparent; border:none;
@@ -163,7 +163,7 @@
         opacity:0;
     }
     #print-btn.btn-visible { opacity:1; pointer-events:auto; }
-    #print-btn.btn-visible:hover { opacity:0.65; }
+    #print-btn.btn-visible:hover img { filter: brightness(0) saturate(100%) invert(18%) sepia(9%) saturate(450%) hue-rotate(20deg); }
     #print-btn img { width:28px; height:28px; display:block; }
     #print-btn::after {
         content:'download PNG';
@@ -178,14 +178,14 @@
 
     /* map projection icon button */
     #map-proj-btn {
-        position:fixed; top:36px; right:36px; z-index:50; display:none;
+        position:fixed; top:36px; right:32px; z-index:50; display:none;
         width:36px; height:36px; padding:0;
         background-color:transparent; border:none;
         cursor:pointer; pointer-events:auto;
         transition:opacity 0.2s;
         align-items:center; justify-content:center;
     }
-    #map-proj-btn:hover { opacity:0.65; }
+    #map-proj-btn:hover img { filter: brightness(0) saturate(100%) invert(18%) sepia(9%) saturate(450%) hue-rotate(20deg); }
     #map-proj-btn img { width:28px; height:28px; display:block; }
     /* tooltip on hover */
     #map-proj-btn::after {
@@ -202,7 +202,7 @@
 
     /* map projection popup */
     #map-proj-popup {
-        position:fixed; top:82px; right:36px; z-index:2000;
+        position:fixed; top:82px; right:32px; z-index:2000;
         background:#FBFBEE; color:#3D3D31;
         padding:10px 14px; border-radius:4px;
         font-family:'Geist',sans-serif; font-size:var(--sz-ui);
@@ -264,7 +264,7 @@
 
     /* country name display — popup positioned over country centroid */
     #country-name-display {
-        position:fixed; z-index:30; pointer-events:auto; opacity:0; transition:opacity 0.3s ease;
+        position:fixed; z-index:60; pointer-events:auto; opacity:0; transition:opacity 0.3s ease;
         font-family:'Geist',sans-serif; font-size:var(--sz-ui); font-weight:400;
         color:#757559; line-height:1.5;
         background:#FBFBEE; padding:10px 18px; border-radius:6px;
@@ -285,7 +285,7 @@
 
     /* ── LANDMARK POPUPS (year chart highlight) ── */
     .landmark-popup {
-        position:fixed; z-index:2000; pointer-events:none;
+        position:fixed; z-index:2000; pointer-events:auto; cursor:pointer;
         background:#FBFBEE; color:#3D3D31;
         padding:10px 14px; border-radius:4px;
         font-family:'Geist',sans-serif; font-size:var(--sz-small); font-weight:400;
@@ -345,7 +345,7 @@
         #explore-subtext { font-size: 14px !important; }
         .narrative-scroll-box { left: 3vw !important; max-width: 80vw !important; }
 
-        #skip-btn { bottom: 20px; right: 16px; padding: 8px 12px; height: 36px; }
+        #skip-btn { bottom: 20px; right: 16px; padding: 8px 16px; height: 36px; }
         #print-btn { top: 16px; right: calc(16px + 44px + 8px); width: 32px; height: 32px; }
 
         #section-nav { right: 12px; gap: 8px; }
@@ -371,7 +371,7 @@
 
     /* ── SECTION DOT NAV ── */
     #section-nav {
-        position:fixed; right:36px; top:50%; transform:translateY(-50%);
+        position:fixed; right:36px; top:100px;
         z-index:100; display:flex; flex-direction:column; align-items:flex-end;
         gap:10px; pointer-events:auto;
     }
@@ -406,14 +406,14 @@
 
     /* info/codebook icon button */
     #info-btn {
-        position:fixed; top:36px; right:36px; z-index:50; display:none;
+        position:fixed; top:36px; right:32px; z-index:50; display:none;
         width:36px; height:36px; padding:0;
         background-color:transparent; border:none;
         cursor:pointer; pointer-events:auto;
         transition:opacity 0.2s;
         align-items:center; justify-content:center;
     }
-    #info-btn:hover { opacity:0.65; }
+    #info-btn:hover img { filter: brightness(0) saturate(100%) invert(18%) sepia(9%) saturate(450%) hue-rotate(20deg); }
     #info-btn img { width:28px; height:28px; display:block; }
     #info-btn::after {
         content:'codebook';
@@ -465,7 +465,7 @@
         height:380px; overflow:hidden; border-radius:12px;
     }
     .init-panel {
-        flex:1 1 0; min-width:0; border-radius:10px;
+        flex:1 1 0; min-width:0; min-height:0; height:100%; border-radius:10px;
         overflow:hidden; cursor:pointer;
         transition:flex-grow 0.45s cubic-bezier(0.4,0,0.2,1);
         position:relative;
@@ -499,8 +499,8 @@
     /* ── HERO MAP GRADIENT ── */
     #hero-map-gradient {
         position:fixed; top:0; left:0; width:100%; height:100vh;
-        z-index:2; pointer-events:none;
-        background: linear-gradient(to bottom, #fff 0%, rgba(255,255,255,0) 60%);
+        z-index:0; pointer-events:none;
+        background: linear-gradient(to bottom, #FBFBEE 0%, #ffffff 100%);
         opacity:0;
         transition: opacity 0.5s ease;
     }
@@ -517,7 +517,7 @@
     #hero-text h1 {
         font-family:'Herbik', sans-serif;
         font-weight:500;
-        font-size:clamp(24px, 4.5vw, 34px);
+        font-size:42px;
         line-height:1.1; letter-spacing:-0.01em;
         color:var(--color-off-black);
         text-align:center; margin:0;
@@ -609,8 +609,8 @@
 <div id="hero-text">
     <h1>Explore the definitive tracker for<br>ecocentric laws around the world</h1>
     <div class="hero-btns" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
-        <a href="https://ecojurisprudence.org/data/" target="_blank" style="background-color:#FBFBEE;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;height:40px;width:auto;border:1px solid #D1D1BF;border-radius:8px;font-family:'Geist',sans-serif;font-weight:500;font-size:16px;line-height:20px;color:#757559;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none;text-transform:none;">get the charts</a>
-        <a href="https://ecojurisprudence.org/data-request/" target="_blank" style="background-color:#FBFBEE;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;height:40px;width:auto;border:1px solid #D1D1BF;border-radius:8px;font-family:'Geist',sans-serif;font-weight:500;font-size:16px;line-height:20px;color:#757559;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none;text-transform:none;">get the data</a>
+        <a href="https://ecojurisprudence.org/data/" target="_blank" style="background-color:transparent;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;height:40px;width:160px;border:1px solid #D1D1BF;border-radius:8px;font-family:'Geist',sans-serif;font-weight:500;font-size:16px;line-height:20px;color:#757559;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none;text-transform:none;">get the charts</a>
+        <a href="https://ecojurisprudence.org/data-request/" target="_blank" style="background-color:transparent;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;height:40px;width:160px;border:1px solid #D1D1BF;border-radius:8px;font-family:'Geist',sans-serif;font-weight:500;font-size:16px;line-height:20px;color:#757559;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none;text-transform:none;">get the data</a>
     </div>
 </div>
 <div id="hero-scroll-hint">scroll to explore</div>
@@ -624,7 +624,7 @@
     <div class="scroll-section" data-section="s0-hero" style="height:100vh"></div>
     <div class="scroll-section" data-section="s1-stats">
         <div id="stats-display"><span id="stat-initiatives">0</span> Initiatives<span class="sep"> </span><span id="stat-countries">0</span> Countries<span class="sep"> </span>1 Movement</div>
-        <div id="intro-textbox"><div class="narrative-inner"><p><br>Ecological jurisprudence is a global movement transforming human-centered laws.<br> <br>Each dot is one initiative.<br>Click and scroll to explore.</p></div></div>
+        <div id="intro-textbox"><div class="narrative-inner"><p><br>Ecological jurisprudence is a movement transforming human-centered laws.<br> <br>Each dot is one initiative.<br>Click and scroll to explore.</p></div></div>
     </div>
     <div class="scroll-section" data-section="s4-regions"></div>
     <div class="scroll-section" data-section="s8-nature"></div>
@@ -728,7 +728,7 @@ const FORMAL_LAW=['Constitution','Indigenous Law','Court Case','Policy','Legisla
 const SOFT_LAW=['Civil Society Declaration', 'Private Sector Governance', 'Civil Society Tribunal','Indigenous Declaration','Position Statement'];
 const FRAMEWORK_ORDER=[...FORMAL_LAW,...SOFT_LAW];
 const REGION_ORDER=['North America','Latin America','Europe','Africa','Asia','Oceania','International'];
-const NATURE_ORDER=['Nature','Animal','Water','Plant','Land'];
+const NATURE_ORDER=['Nature','Animal','Plant','Water','Land'];
 const REGION_URLS={
     'North America':'https://ecojurisprudence.org/region/north-america/',
     'Latin America':'https://ecojurisprudence.org/region/latin-america/',
@@ -1004,7 +1004,11 @@ function initViz(){
             onSectionEnter('s0-hero');
         };
         p.draw=function(){
-            p.background('#FFFFFF');
+            if(document.body.classList.contains('is-hero')){
+                p.clear();
+            } else {
+                p.background('#FFFFFF');
+            }
             const ctx=p.drawingContext;
             if((showMap||mapAlpha>0)&&worldGeoJson&&mapProjection){
                 const baseAlpha=overviewFade?overviewAlpha:1;
@@ -1332,23 +1336,22 @@ function initViz(){
                 const rect = el.getBoundingClientRect();
                 const text = el.innerText || el.textContent || '';
                 ctx.font = "500 9.5px 'Geist',sans-serif";
-                ctx.fillStyle = '#3D3D31';
+                ctx.fillStyle = '#B5B5B1';
                 ctx.textAlign = 'center';
                 ctx.fillText(text.trim(), rect.left+rect.width/2, rect.top+10);
             });
         }
 
-        // ── Framework brackets (lines) ──
+        // ── Framework brackets (narrow rounded rectangles) ──
         if(frameworkBrackets.length){
             const bracketY = logH * 0.815;
-            const tickH = 5;
-            ctx.strokeStyle = '#3D3D31'; ctx.lineWidth = 1; ctx.setLineDash([]);
+            const barH = 3;
+            ctx.fillStyle = '#B5B5B1';
             frameworkBrackets.forEach(b=>{
                 ctx.beginPath();
-                ctx.moveTo(b.x, bracketY-tickH); ctx.lineTo(b.x, bracketY);
-                ctx.lineTo(b.x+b.w, bracketY);
-                ctx.lineTo(b.x+b.w, bracketY-tickH);
-                ctx.stroke();
+                if(ctx.roundRect){ ctx.roundRect(b.x, bracketY-barH/2, b.w, barH, barH/2); }
+                else { ctx.rect(b.x, bracketY-barH/2, b.w, barH); }
+                ctx.fill();
             });
         }
 
@@ -1883,10 +1886,20 @@ function typewrite(text, onDone, isHTML){
     box.innerHTML=`<div class="narrative-inner"><p>${innerHtml}</p></div>`;
     secEl.appendChild(box);
 
-    // After render, measure height and nudge vertical centering in the second vh
+    // After render: binary-search for minimum box width that doesn't increase line-wrapping
     requestAnimationFrame(()=>{
-        const h=box.offsetHeight;
-        box.style.top=`calc(100vh + (100vh - ${h}px) / 2)`;
+        const origH = box.offsetHeight;
+        let lo = 80, hi = box.offsetWidth;
+        box.style.maxWidth = 'none';
+        while(hi - lo > 4){
+            const mid = (lo + hi) >> 1;
+            box.style.width = mid + 'px';
+            if(box.offsetHeight > origH) lo = mid + 1;
+            else hi = mid;
+        }
+        box.style.maxWidth = '';
+        box.style.width = (hi + 2) + 'px'; // +2px subpixel buffer
+        box.style.top = `calc(100vh + (100vh - ${box.offsetHeight}px) / 2)`;
     });
 
     if(isHTML) animateNarrativeNumbers(200);
@@ -2012,6 +2025,11 @@ function showLandmarkPopups(){
         const metaHtml=`${lm.data['Primary Year']||'—'} · ${lm.data['Status']||'—'}`+(ptNatureText?` · <span style="color:${lm.color};font-weight:600">${ptNatureText}</span>`:'');
         const linkHtml=lm.permalink?`<a href="${lm.permalink}" target="_blank">more info ↗</a>`:'';
         el.innerHTML=`<div class="lm-title">${lm.title}</div><div class="lm-meta">${metaHtml}</div>${linkHtml?`<div class="lm-link">${linkHtml}</div>`:''}`;
+        el.addEventListener('click', (e)=>{
+            // Don't fire if the "more info" link itself was clicked
+            if(e.target.tagName==='A') return;
+            showPinned(lm);
+        });
         container.appendChild(el);
     });
     // Position them (and make visible) once layout has settled
@@ -2545,13 +2563,14 @@ let frameworkBrackets=[];
 function drawFrameworkBrackets(p){
     if(!frameworkBrackets.length) return;
     const bracketY=p.height*0.815;
-    const tickH=5;
-    const labelColor=p5Instance.color('#3D3D31');
-    p.stroke(labelColor); p.strokeWeight(1); p.noFill();
+    const barH=3;
+    const barColor=p5Instance.color('#B5B5B1');
+    p.noStroke(); p.fill(barColor);
     frameworkBrackets.forEach(b=>{
-        // horizontal bar only (no end ticks)
-        p.line(b.x, bracketY, b.x+b.w, bracketY);
+        // narrow rounded rectangle instead of a line
+        p.rect(b.x, bracketY-barH/2, b.w, barH, barH/2);
     });
+    p.noFill();
     p.noStroke();
     // DOM labels (positioned each frame)
     const container=document.getElementById('framework-bracket-labels');
@@ -2579,7 +2598,7 @@ function initFrameworkBracketLabels(){
         el.href='https://ecojurisprudence.org/codebook/';
         el.target='_blank';
         el.textContent=b.label;
-        el.style.cssText="position:absolute;transform:translateX(-50%);font-family:'Geist',sans-serif;font-size:10px;font-weight:500;color:#3D3D31;pointer-events:auto;cursor:pointer;white-space:nowrap;text-decoration:none;";
+        el.style.cssText="position:absolute;transform:translateX(-50%);font-family:'Geist',sans-serif;font-size:10px;font-weight:500;color:#B5B5B1;pointer-events:auto;cursor:pointer;white-space:nowrap;text-decoration:none;";
         el.addEventListener('mouseenter',()=>el.style.textDecoration='underline');
         el.addEventListener('mouseleave',()=>el.style.textDecoration='none');
         container.appendChild(el);
@@ -2693,6 +2712,10 @@ let carouselBuilt = false;
 function showExploreScreen() {
     const el = document.getElementById('static-content');
     if (el) el.classList.add('visible');
+    // Axis-labels container sits at z-index:50 above static-content (z-index:20)
+    // and intercepts pointer events over the carousel even when empty — disable it.
+    const axEl = document.getElementById('axis-labels-container');
+    if (axEl) axEl.style.pointerEvents = 'none';
     if (!carouselBuilt) {
         buildCarousel(data);
         carouselBuilt = true;
@@ -2702,6 +2725,8 @@ function showExploreScreen() {
 function hideExploreScreen() {
     const el = document.getElementById('static-content');
     if (el) el.classList.remove('visible');
+    const axEl = document.getElementById('axis-labels-container');
+    if (axEl) axEl.style.pointerEvents = '';
 }
 
 function buildCarousel(allData) {
