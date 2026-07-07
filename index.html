@@ -130,15 +130,24 @@
         border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,0.18);
     }
     /* vertical line-by-line fade-in for narrative text */
-    #narrative-p .fade-line {
+    .narrative-scroll-box .fade-line {
         display:block;
         opacity:0;
         transform:translateY(6px);
         transition:opacity 0.45s ease, transform 0.45s ease;
     }
-    #narrative-p .fade-line.revealed {
+    .narrative-scroll-box .fade-line.revealed {
         opacity:1;
         transform:translateY(0);
+    }
+
+    /* hero CTA buttons */
+    .hero-btn {
+        transition: border-color 0.2s ease, color 0.2s ease;
+    }
+    .hero-btn:hover {
+        border-color: var(--color-off-black) !important;
+        color: var(--color-off-black) !important;
     }
 
     /* skip */
@@ -610,8 +619,8 @@
 <div id="hero-text">
     <h1>Explore the definitive tracker for<br>ecocentric laws around the world</h1>
     <div class="hero-btns" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
-        <a href="https://ecojurisprudence.org/data/" target="_blank" style="background-color:transparent;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;height:40px;width:160px;border:1px solid #D1D1BF;border-radius:8px;font-family:'Geist',sans-serif;font-weight:500;font-size:16px;line-height:20px;color:#757559;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none;text-transform:none;">get the charts</a>
-        <a href="https://ecojurisprudence.org/data-request/" target="_blank" style="background-color:transparent;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;height:40px;width:160px;border:1px solid #D1D1BF;border-radius:8px;font-family:'Geist',sans-serif;font-weight:500;font-size:16px;line-height:20px;color:#757559;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none;text-transform:none;">get the data</a>
+        <a href="https://ecojurisprudence.org/data/" target="_blank" class="hero-btn" style="background-color:transparent;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;height:40px;width:160px;border:1px solid #D1D1BF;border-radius:8px;font-family:'Geist',sans-serif;font-weight:500;font-size:16px;line-height:20px;color:#757559;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none;text-transform:none;">get the charts</a>
+        <a href="https://ecojurisprudence.org/data-request/" target="_blank" class="hero-btn" style="background-color:transparent;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;height:40px;width:160px;border:1px solid #D1D1BF;border-radius:8px;font-family:'Geist',sans-serif;font-weight:500;font-size:16px;line-height:20px;color:#757559;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none;text-transform:none;">get the data</a>
     </div>
 </div>
 <div id="hero-scroll-hint">scroll to explore</div>
@@ -1029,7 +1038,27 @@ function initViz(){
             p.pixelDensity(window.devicePixelRatio||2);
             p.resizeCanvas(window.innerWidth,window.innerHeight);
             mapProjection=buildProjection(p.width,p.height);
-            cacheMapPositions(); onSectionEnter(currentSection);
+            cacheMapPositions();
+            // Capture whether a chart layout is currently active BEFORE onSectionEnter
+            // wipes _pendingLayout, so we can immediately recompute it at the new size
+            // instead of waiting for the next scroll event to fire the deferred trigger.
+            const priorFn = (_pendingLayout && _pendingLayout.triggered) ? _pendingLayout.fn : null;
+            onSectionEnter(currentSection);
+            if(priorFn){
+                // A chart was already on screen — re-run its layout now, at the new dimensions.
+                if(_pendingLayout) _pendingLayout.triggered = true;
+                priorFn();
+                if(currentSection==='s4-regions'){
+                    document.getElementById('zoom-controls').classList.remove('visible');
+                    document.getElementById('map-proj-btn').style.display='none';
+                    document.getElementById('info-btn').style.display='flex';
+                    document.getElementById('data-source-label').style.display='flex';
+                }
+            } else if(currentSection!=='s9-end'){
+                // Still showing the map (chart not yet triggered, or a map-only section) —
+                // reposition dots to match the freshly rebuilt map projection right away.
+                if(p5Instance&&particleMapPos.length) placeParticlesOnMap(true);
+            }
         };
         function isPointerOverUI(x,y){
             const el=document.elementFromPoint(x,y);
@@ -1200,13 +1229,18 @@ function initViz(){
         if(!p5Instance||!worldGeoJson||!mapProjection) return;
         const W=p5Instance.width, H=p5Instance.height;
         const dpr=window.devicePixelRatio||2;
+        const { finalW, finalH, offsetX, offsetY } = get16x9Layout(W, H);
         const out=document.createElement('canvas');
-        out.width=W*dpr; out.height=H*dpr;
+        out.width=Math.round(finalW*dpr); out.height=Math.round(finalH*dpr);
         const ctx=out.getContext('2d');
         ctx.scale(dpr,dpr);
 
-        // White background
-        ctx.fillStyle='#FFFFFF'; ctx.fillRect(0,0,W,H);
+        // White background — full 16:9 canvas
+        ctx.fillStyle='#FFFFFF'; ctx.fillRect(0,0,finalW,finalH);
+
+        // Map + particles are drawn centered within the 16:9 frame
+        ctx.save();
+        ctx.translate(offsetX, offsetY);
 
         // Draw map fills at full alpha (default view: no zoom)
         const pathGen=d3.geoPath().context(ctx);
@@ -1231,8 +1265,10 @@ function initViz(){
             ctx.fill(); ctx.stroke();
         });
 
-        // Data source label
-        drawDataSourceTag(ctx, W, H);
+        ctx.restore(); // end centering transform — data source tag below is pinned to the true canvas edge
+
+        // Data source label — pinned to the true bottom-left corner of the 16:9 canvas
+        drawDataSourceTag(ctx, finalW, finalH);
 
         triggerDownload(out, downloadFilename('map'));
     }
@@ -1257,30 +1293,24 @@ function initViz(){
         const EXPORT_SCALE = 3;
         const logW = window.innerWidth;
         const logH = window.innerHeight;
+        const { finalW, finalH, offsetX, offsetY } = get16x9Layout(logW, logH);
 
         const out = document.createElement('canvas');
-        out.width = Math.round(logW * EXPORT_SCALE);
-        out.height = Math.round(logH * EXPORT_SCALE);
+        out.width = Math.round(finalW * EXPORT_SCALE);
+        out.height = Math.round(finalH * EXPORT_SCALE);
         const ctx = out.getContext('2d');
         ctx.scale(EXPORT_SCALE, EXPORT_SCALE);
 
-        // White background
+        // White background — full 16:9 canvas
         ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(0, 0, logW, logH);
+        ctx.fillRect(0, 0, finalW, finalH);
 
-        // ── Derive chart left/right edges from particle positions ──
-        const visibleParticles = particles.filter(p=>p.visible);
-        let chartLeft = logW, chartRight = 0;
-        visibleParticles.forEach(p=>{
-            if(p.targetX < chartLeft)  chartLeft  = p.targetX;
-            if(p.targetX > chartRight) chartRight = p.targetX;
-        });
-        // Fallback to safe defaults if no particles visible
-        if(chartLeft >= chartRight){ chartLeft = 40; chartRight = logW - 40; }
-        // Add a small dot-radius buffer
-        chartLeft  = Math.max(0,  chartLeft  - 8);
-        chartRight = Math.min(logW, chartRight + 8);
-        const chartWidth = chartRight - chartLeft;
+        // Uniform corner margin — title/caption/legend/note/source all sit this same
+        // distance from the PNG's TRUE edges (finalW/finalH), independent of where the
+        // chart content itself lands once centered within the 16:9 frame.
+        const MARGIN = 40;
+        // Nudge the chart itself up just slightly from its live on-screen position
+        const CHART_LIFT = 24;
 
         // ── Nature legend config ──
         const LEGEND_ENTRIES = [
@@ -1296,20 +1326,26 @@ function initViz(){
         const LEG_TEXT_W = Math.max(...LEGEND_ENTRIES.map(e=>ctx.measureText(e.label).width));
         const LEG_BLOCK_W = LEG_DOT + 8 + LEG_TEXT_W; // dot + gap + text
 
-        // Title y
-        const TITLE_Y = 52;
-
-        // Legend: top = TITLE_Y, right edge = chartRight
-        const legendX = chartRight - LEG_BLOCK_W;
-
-        // ── TITLE — left-aligned to chartLeft ──
+        // Title baseline y — measured so the title glyphs' visual top sits exactly
+        // MARGIN below the canvas top edge, same as the MARGIN used for left/right.
         const titleText = `Eco Jurisprudence by ${catInfo.label}`;
         ctx.font = "700 15px 'Geist',sans-serif";
+        const titleAscent = ctx.measureText(titleText).actualBoundingBoxAscent || 11;
+        const TITLE_Y = MARGIN + titleAscent;
+
+        // Legend: top-right corner
+        const legendX = finalW - MARGIN - LEG_BLOCK_W;
+
+        // ── TITLE — top-left corner ──
         ctx.fillStyle = '#3D3D31';
         ctx.textAlign = 'left';
-        ctx.fillText(titleText, chartLeft, TITLE_Y);
+        ctx.fillText(titleText, MARGIN, TITLE_Y);
 
-        // ── Draw particles ──
+        // ── Chart itself (particles, axis labels, brackets, count labels) — lifted up slightly ──
+        ctx.save();
+        ctx.translate(offsetX, offsetY - CHART_LIFT);
+
+        // Draw particles
         particles.forEach(pt=>{
             if(!pt.visible) return;
             ctx.beginPath();
@@ -1319,7 +1355,7 @@ function initViz(){
             ctx.fill(); ctx.stroke();
         });
 
-        // ── Axis labels from DOM ──
+        // Axis labels from DOM
         const axisContainer = document.getElementById('axis-labels-container');
         axisContainer.querySelectorAll('.chart-label').forEach(el=>{
             const rect = el.getBoundingClientRect();
@@ -1357,7 +1393,7 @@ function initViz(){
             });
         }
 
-        // ── Framework brackets (narrow rounded rectangles) ──
+        // Framework brackets (narrow rounded rectangles)
         if(frameworkBrackets.length){
             const bracketY = logH * 0.815;
             const barH = 3;
@@ -1370,7 +1406,7 @@ function initViz(){
             });
         }
 
-        // ── Count labels above each bar ──
+        // Count labels above each bar
         ctx.font = "400 9px 'Geist',sans-serif";
         ctx.fillStyle = 'rgba(61,61,49,0.65)';
         ctx.textAlign = 'center';
@@ -1395,7 +1431,9 @@ function initViz(){
             }
         });
 
-        // ── Legend — top = TITLE_Y, right edge = chartRight ──
+        ctx.restore(); // end chart-lift transform — title/legend/caption/note/source below are unaffected
+
+        // ── Legend — top-right corner ──
         ctx.textAlign = 'left';
         LEGEND_ENTRIES.forEach((entry, i)=>{
             const lx = legendX;
@@ -1410,7 +1448,7 @@ function initViz(){
             ctx.fillText(entry.label, lx + LEG_DOT + 6, ly);
         });
 
-        // ── Caption + Note + Data source — below title, hard line breaks ──
+        // ── Caption + Note + Data source — top-left / bottom-left corners, hard line breaks ──
         const CAPTION_LINE_H = 12.5;
         const CAPTION_PARA_GAP = CAPTION_LINE_H * 0.55;
 
@@ -1426,29 +1464,28 @@ function initViz(){
             `text. For secondary nature types, see the initiative's individual EJM page.`,
         ];
         const sourceLines = [
-            `Data Source: Eco Jurisprudence Monitor (2026)`,
+            `Data Source: Eco Jurisprudence Monitor as of ${formatDateDDMonthYYYY()}`,
         ];
 
         ctx.font = "400 8.5px 'Geist',sans-serif";
         ctx.textAlign = 'left';
         ctx.fillStyle = 'rgba(61,61,49,0.55)';
 
-        // Caption — below title
+        // Caption — below title, top-left corner
         let cy = TITLE_Y + 26;
-        captionLines.forEach(l=>{ ctx.fillText(l, chartLeft, cy); cy += CAPTION_LINE_H; });
+        captionLines.forEach(l=>{ ctx.fillText(l, MARGIN, cy); cy += CAPTION_LINE_H; });
 
-        // Note + data source — below the chart
-        let chartBottom = 0;
-        axisContainer.querySelectorAll('.chart-label').forEach(el=>{
-            const r = el.getBoundingClientRect();
-            if(r.bottom > chartBottom) chartBottom = r.bottom;
-        });
-        if(!chartBottom) chartBottom = logH * 0.73 + 40;
-
-        let ny = chartBottom + 18;
-        noteLines.forEach(l=>{ ctx.fillText(l, chartLeft, ny); ny += CAPTION_LINE_H; });
+        // Note + data source — bottom-left corner, positioned so the distance from the source
+        // line's visual bottom edge to the canvas bottom edge is exactly MARGIN — the same
+        // MARGIN used for the top, left, and right — independent of where the chart falls.
+        const lastSourceLine = sourceLines[sourceLines.length - 1];
+        const sourceDescent = ctx.measureText(lastSourceLine).actualBoundingBoxDescent || 2;
+        const lastLineTargetY = finalH - MARGIN - sourceDescent;
+        const noteBlockSpan = noteLines.length * CAPTION_LINE_H + CAPTION_PARA_GAP + (sourceLines.length - 1) * CAPTION_LINE_H;
+        let ny = lastLineTargetY - noteBlockSpan;
+        noteLines.forEach(l=>{ ctx.fillText(l, MARGIN, ny); ny += CAPTION_LINE_H; });
         ny += CAPTION_PARA_GAP;
-        sourceLines.forEach(l=>{ ctx.fillText(l, chartLeft, ny); ny += CAPTION_LINE_H; });
+        sourceLines.forEach(l=>{ ctx.fillText(l, MARGIN, ny); ny += CAPTION_LINE_H; });
 
         triggerDownload(out, downloadFilename(SECTION_TO_FILENAME_CATEGORY[currentSection] || 'chart'));
     }
@@ -1457,7 +1494,7 @@ function initViz(){
     function drawDataSourceTag(ctx, W, H){
         ctx.save();
         const pad=20, tagH=26;
-        const text='Data Source: Eco Jurisprudence Monitor (2026)';
+        const text=`Data Source: Eco Jurisprudence Monitor as of ${formatDateDDMonthYYYY()}`;
         ctx.font="400 9px 'Geist',sans-serif";
         const tw=ctx.measureText(text).width;
         ctx.fillStyle='rgba(255,255,255,0.82)';
@@ -1485,6 +1522,36 @@ function initViz(){
         const mm=String(d.getMonth()+1).padStart(2,'0');
         const yyyy=d.getFullYear();
         return `${dd}-${mm}-${yyyy}`;
+    }
+    const MONTH_NAMES=['January','February','March','April','May','June','July','August','September','October','November','December'];
+    function formatDateDDMonthYYYY(){
+        const d=new Date();
+        const dd=String(d.getDate()).padStart(2,'0');
+        const month=MONTH_NAMES[d.getMonth()];
+        const yyyy=d.getFullYear();
+        return `${dd} ${month} ${yyyy}`;
+    }
+    // Compose a rendered canvas onto a 16:9 canvas (white letterbox/pillarbox, centered)
+    // so every downloaded PNG always has a 16:9 aspect ratio, regardless of window size.
+    // Compute the 16:9 canvas size needed to contain a logW×logH render without cropping,
+    // plus the (offsetX, offsetY) needed to center that content within it. Letting callers
+    // draw title/legend/note/etc. against finalW/finalH directly (not offset) means those
+    // elements are pinned to the PNG's true edges, while the chart content itself is
+    // translated by (offsetX, offsetY) to sit centered.
+    function get16x9Layout(logW, logH){
+        const TARGET_RATIO = 16/9;
+        const srcRatio = logW / logH;
+        let finalW, finalH;
+        if(srcRatio > TARGET_RATIO){
+            finalW = logW;
+            finalH = Math.round(logW / TARGET_RATIO);
+        } else {
+            finalH = logH;
+            finalW = Math.round(logH * TARGET_RATIO);
+        }
+        const offsetX = Math.round((finalW - logW) / 2);
+        const offsetY = Math.round((finalH - logH) / 2);
+        return { finalW, finalH, offsetX, offsetY };
     }
     const SECTION_TO_FILENAME_CATEGORY={
         's4-regions':'region',
@@ -1646,8 +1713,11 @@ function initViz(){
             const nd=document.getElementById('country-name-display');
             nd.style.opacity=(rect.top<=window.innerHeight)?'0':'1';
         }
-        // Deferred chart layout: trigger when narrative text is 1/3 up the viewport
-        if(_pendingLayout && !_pendingLayout.triggered){
+        // Deferred chart layout: trigger when narrative text is 1/3 up the viewport.
+        // Bidirectional: if a reverseFn is provided, scrolling back down past the same
+        // threshold (box re-entering view) un-triggers it and morphs back, so the
+        // transition looks identical whether scrolling forward or in reverse.
+        if(_pendingLayout){
             const secEl=document.querySelector(`.scroll-section[data-section="${currentSection}"]`);
             if(secEl){
                 const box=secEl.querySelector('.narrative-scroll-box');
@@ -1655,7 +1725,8 @@ function initViz(){
                     const boxRect=box.getBoundingClientRect();
                     // Trigger once the narrative box has fully scrolled into view (its bottom edge
                     // has cleared the top of the viewport), not just partway up.
-                    if(boxRect.bottom <= window.innerHeight){
+                    const shouldTrigger = boxRect.bottom <= window.innerHeight;
+                    if(shouldTrigger && !_pendingLayout.triggered){
                         _pendingLayout.triggered=true;
                         _pendingLayout.fn();
                         // On s4-regions: swap globe→i and hide zoom at morph moment
@@ -1663,6 +1734,16 @@ function initViz(){
                             document.getElementById('zoom-controls').classList.remove('visible');
                             document.getElementById('map-proj-btn').style.display='none';
                             document.getElementById('info-btn').style.display='flex';
+                            document.getElementById('data-source-label').style.display='flex';
+                        }
+                    } else if(!shouldTrigger && _pendingLayout.triggered && _pendingLayout.reverseFn){
+                        _pendingLayout.triggered=false;
+                        _pendingLayout.reverseFn();
+                        // On s4-regions: swap back i→globe and restore zoom when un-morphing
+                        if(currentSection==='s4-regions'){
+                            document.getElementById('zoom-controls').classList.add('visible');
+                            document.getElementById('map-proj-btn').style.display='flex';
+                            document.getElementById('info-btn').style.display='none';
                             document.getElementById('data-source-label').style.display='flex';
                         }
                     }
@@ -1813,10 +1894,11 @@ function cacheMapPositions(){
         return {x:w-80,y:40};
     });
 }
-function placeParticlesOnMap(){
+function placeParticlesOnMap(instant=true){
     particles.forEach((p,i)=>{
         const pos=particleMapPos[i]||{x:p5Instance.width-80,y:40};
-        p.snapTo(pos.x,pos.y,true);
+        if(instant) p.snapTo(pos.x,pos.y,true);
+        else { p.frozen=false; p.setTarget(pos.x,pos.y,true); }
     });
 }
 
@@ -1952,13 +2034,20 @@ function typewrite(text, onDone, isHTML){
 
     // Staggered fade-in of lines
     const lines=box.querySelectorAll('.fade-line');
+    const FADE_DURATION=450; // must match .fade-line transition duration in CSS
     lines.forEach((line,i)=>{
         const t=setTimeout(()=>{
             line.classList.add('revealed');
-            if(i===lines.length-1 && onDone) onDone();
         }, 120+i*160);
         typewriterTimers.push(t);
     });
+    // Fire onDone only once the LAST line has fully finished fading in (not just started),
+    // so anything gated on "narrative fully visible" (e.g. landmark popups) waits long enough.
+    if(onDone){
+        const lastLineDelay=120+(lines.length-1)*160;
+        const t=setTimeout(onDone, lastLineDelay+FADE_DURATION);
+        typewriterTimers.push(t);
+    }
 }
 function clearNarrative(){
     typewriterTimers.forEach(t=>clearTimeout(t)); typewriterTimers=[];
@@ -2289,7 +2378,7 @@ function onSectionEnter(sec){
             selectedCountry=null; selectedCountryParticles.clear();
             document.getElementById('country-name-display').style.opacity='0';
             if(worldGeoJson) worldGeoJson.features.forEach(f=>{ const r=resolveGeoName(f.properties.name); if(countryCounts[r]>0) highlightCountries.add(f.properties.name); });
-            if(p5Instance&&particleMapPos.length) placeParticlesOnMap();
+            if(p5Instance&&particleMapPos.length) placeParticlesOnMap(false);
             resetStats(); statsScrollTriggered=false;
             // Reset map offset to initial pushed-down state
             canvasOffsetPx = 0.30 * window.innerHeight;
@@ -2303,7 +2392,9 @@ function onSectionEnter(sec){
             selectedCountry=null; selectedCountryParticles.clear();
             document.getElementById('country-name-display').style.opacity='0';
             if(worldGeoJson) worldGeoJson.features.forEach(f=>{ const r=resolveGeoName(f.properties.name); if(countryCounts[r]>0) highlightCountries.add(f.properties.name); });
-            if(p5Instance&&particleMapPos.length) placeParticlesOnMap();
+            // Smoothly morph dots back into map formation (mirrors the smooth chart-morph
+            // used when scrolling forward) instead of snapping instantly into place.
+            if(p5Instance&&particleMapPos.length) placeParticlesOnMap(false);
             resetStats();
             statsScrollTriggered=false;
             // Signal to parent (WordPress) that the story has reset to start
@@ -2327,7 +2418,7 @@ function onSectionEnter(sec){
             const pEu=Math.round(europe/total4*100);
             const pOt=Math.round(other/total4*100);
             typewrite(`<span data-countup="${pAm}">0%</span> of initiatives are located in the Americas, <span data-countup="${pEu}">0%</span> in Europe, and <span data-countup="${pOt}">0%</span> in other regions or international.`, null, true);
-            _pendingLayout={fn:layoutAllRegions, triggered:false};
+            _pendingLayout={fn:layoutAllRegions, triggered:false, reverseFn:()=>{ if(p5Instance&&particleMapPos.length) placeParticlesOnMap(false); }};
             break;}
 
         case 's5-year':
