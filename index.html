@@ -740,6 +740,13 @@ const SOFT_LAW=['Civil Society Declaration', 'Private Sector Governance', 'Civil
 const FRAMEWORK_ORDER=[...FORMAL_LAW,...SOFT_LAW];
 const REGION_ORDER=['North America','Latin America','Europe','Africa','Asia','Oceania','International'];
 const NATURE_ORDER=['Nature','Animal','Plant','Water','Land'];
+const NATURE_URLS={
+    'Nature':'https://ecojurisprudence.org/?post_type=ejm_initiative&_ejm_eactor=all-nature%2Curban%2Cspace',
+    'Animal':'https://ecojurisprudence.org/?post_type=ejm_initiative&_ejm_eactor=animal',
+    'Plant':'https://ecojurisprudence.org/?post_type=ejm_initiative&_ejm_eactor=forest%2Cplant%2Cfungi',
+    'Water':'https://ecojurisprudence.org/?post_type=ejm_initiative&_ejm_eactor=freshwater-ecosystem%2Cmarine-ecosystem%2Carctic',
+    'Land':'https://ecojurisprudence.org/?post_type=ejm_initiative&_ejm_eactor=mountain%2Cgrassland'
+};
 const REGION_URLS={
     'North America':'https://ecojurisprudence.org/region/north-america/',
     'Latin America':'https://ecojurisprudence.org/region/latin-america/',
@@ -2189,7 +2196,7 @@ function addAxisLabel(text,x,opts={}){
     el.addEventListener('mousemove',e=>{ct.style.left=(e.clientX+10)+'px';ct.style.top=(e.clientY-36)+'px';});
     el.addEventListener('mouseleave',()=>ct.style.display='none');
     if(opts.clickable){
-        const clickUrl=opts.year!=null?YEAR_URLS[opts.year]:REGION_URLS[opts.region];
+        const clickUrl=opts.year!=null?YEAR_URLS[opts.year]:(opts.nature!=null?NATURE_URLS[opts.nature]:REGION_URLS[opts.region]);
         el.addEventListener('click',()=>window.open(clickUrl,'_blank'));
     }
     document.getElementById('axis-labels-container').appendChild(el);
@@ -2875,7 +2882,7 @@ function layoutByNature(){
     let cx=(w-totalW)/2;
     keys.forEach(g=>{
         const labelCx=cx+barW/2;
-        addAxisLabel(g,labelCx,{count:groups[g].length});
+        addAxisLabel(g,labelCx,{count:groups[g].length,clickable:true,nature:g});
         const colsUsed=Math.min(groups[g].length,maxCols);
         const dotStartX=labelCx-(colsUsed-1)*dotSp/2;
         groups[g].forEach((p,j)=>{p.frozen=false;p.setTarget(dotStartX+(j%maxCols)*dotSp,bY()-Math.floor(j/maxCols)*dotSp,true);});
