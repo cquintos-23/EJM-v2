@@ -24,8 +24,8 @@
         --color-dark-sand: #5A5A48;
         /* Three type sizes (excluding stats counter) */
         --sz-narrative: 18px;
-        --sz-ui:        11px;
-        --sz-small:     10.5px;
+        --sz-ui:        12px;
+        --sz-small:     11px;
     }
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family:'Geist',sans-serif; background:#fff; color:#3D3D31; overflow-x:hidden; }
@@ -36,7 +36,7 @@
     .scroll-section[data-section="s1-stats"] { height:250vh; }
 
     /* ── FIXED CANVAS ── */
-    #p5-canvas { position:fixed; top:0; left:0; width:100%; height:100vh; z-index:1; cursor:default; will-change:transform; touch-action:none; transform:translateY(30vh); transition:none; }
+    #p5-canvas { position:fixed; top:0; left:0; width:100%; height:100vh; z-index:1; cursor:default; will-change:transform; touch-action:none; transform:translateY(calc(30vh + 10px)); transition:none; }
     #p5-canvas canvas { touch-action:none; }
 
     /* ── FIXED OVERLAYS ── */
@@ -58,16 +58,18 @@
     #stats-display .sep { font-weight:400; margin:0 0.4rem; }
 
     /* ── INTRO TEXT BOX (s1-stats phase 2) ── */
+    /* Same box treatment as the in-section narrative boxes (.narrative-scroll-box):
+       white card, left-aligned, anchored to the left edge instead of centered. */
     #intro-textbox {
-        position:fixed; left:50%; z-index:30; pointer-events:none;
-        transform:translateX(-50%);
-        width:820px; max-width:90vw;
+        position:fixed; left:36px; z-index:30; pointer-events:none;
+        width:fit-content; max-width:352px;
+        background:#ffffff; border-radius:4px; padding:10px; box-sizing:border-box;
         opacity:0; transition:opacity 0.4s ease;
     }
     #intro-textbox .narrative-inner {
         font-family:'Geist',sans-serif; font-size:var(--sz-narrative); font-weight:400;
         color:var(--color-off-black); line-height:1.5;
-        text-align:center;
+        text-align:left;
     }
     #intro-textbox .narrative-inner p { margin:0; }
 
@@ -97,38 +99,6 @@
         isolation:isolate;
     }
     #zoom-controls.visible { display:flex; }
-    .zoom-slider-label {
-        font-family:'Geist',sans-serif; font-size:10px; color:var(--color-off-black);
-        opacity:0.55; user-select:none; line-height:1;
-    }
-    #zoom-out-btn, #zoom-in-btn {
-        font-family:'Geist',sans-serif; font-size:16px; font-weight:400;
-        color:#B5B5B1; opacity:1;
-        background:none; border:none; cursor:pointer;
-        padding:4px 6px; line-height:1; user-select:none;
-        pointer-events:auto; touch-action:auto; transition:opacity 0.15s;
-        position:relative; z-index:201;
-    }
-    #zoom-out-btn:hover, #zoom-in-btn:hover { opacity:0.65; }
-    #zoom-slider {
-        -webkit-appearance:none; appearance:none;
-        width:120px; height:4px;
-        background:#B5B5B1; border-radius:999px;
-        outline:none; cursor:pointer;
-        pointer-events:auto; touch-action:auto;
-        position:relative; z-index:201;
-    }
-    #zoom-slider::-webkit-slider-thumb {
-        -webkit-appearance:none; appearance:none;
-        width:14px; height:14px; border-radius:50%;
-        background:#B5B5B1; cursor:pointer;
-        border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,0.18);
-    }
-    #zoom-slider::-moz-range-thumb {
-        width:14px; height:14px; border-radius:50%;
-        background:#B5B5B1; cursor:pointer;
-        border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,0.18);
-    }
     /* vertical line-by-line fade-in for narrative text */
     .narrative-scroll-box .fade-line {
         display:block;
@@ -155,7 +125,7 @@
         position:fixed; bottom:36px; right:36px; z-index:50; display:block;
         box-sizing:border-box; padding:8px 16px; height:36px; width:auto;
         background-color:#B5B5B1; border:none; border-radius:8px;
-        font-family:'Geist',sans-serif; font-weight:500; font-size:var(--sz-ui); line-height:20px;
+        font-family:'Geist',sans-serif; font-weight:500; font-size:var(--sz-small); line-height:20px;
         color:#fff; text-decoration:none; white-space:nowrap;
         cursor:pointer; box-shadow:none; text-transform:none; pointer-events:auto;
         transition:background-color 0.2s;
@@ -198,7 +168,7 @@
     #map-proj-btn img { width:28px; height:28px; display:block; }
     /* tooltip on hover */
     #map-proj-btn::after {
-        content:'map projection';
+        content:'Map Projection';
         position:absolute; top:calc(100% + 6px); right:0;
         font-family:'Geist',sans-serif; font-size:var(--sz-small); white-space:nowrap;
         background:rgba(61,61,49,0.85); color:#fff;
@@ -221,10 +191,10 @@
     }
 
     /* chart labels */
-    #axis-labels-container { position:fixed; top:73vh; left:0; width:100%; height:100px; pointer-events:auto; z-index:50; }
-    #main-labels-container  { position:fixed; top:83vh; left:0; width:100%; height:30px; pointer-events:none; z-index:15; }
-    .chart-label { position:absolute; font-family:'Geist',sans-serif; font-size:var(--sz-small); font-weight:500; color:#666; white-space:nowrap; line-height:1.3; pointer-events:none; top:0; text-decoration:none; }
-    .chart-label.main { font-size:var(--sz-small); font-weight:600; color:#3D3D31; text-decoration:none; }
+    #axis-labels-container { position:fixed; top:calc(73vh + 10px); left:0; width:100%; height:100px; pointer-events:auto; z-index:50; }
+    #main-labels-container  { position:fixed; top:calc(83vh + 10px); left:0; width:100%; height:30px; pointer-events:none; z-index:15; }
+    .chart-label { position:absolute; font-family:'Geist',sans-serif; font-size:var(--sz-ui); font-weight:500; color:#666; white-space:nowrap; line-height:1.3; pointer-events:none; top:0; text-decoration:none; }
+    .chart-label.main { font-size:var(--sz-ui); font-weight:600; color:#3D3D31; text-decoration:none; }
     .chart-label.axis { pointer-events:auto; cursor:default; padding:4px 6px; margin:0; text-decoration:none; }
     .chart-label.axis.clickable { cursor:pointer; color:#3D3D31; }
     .chart-label.axis.clickable:hover { text-decoration:underline; }
@@ -245,6 +215,16 @@
         max-width:160px; width:auto;
         line-height:1.5; display:none; box-shadow:0 4px 14px rgba(0,0,0,.22);
     }
+    #zoom-tip-popup {
+        position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+        background:#3D3D31; color:#fff;
+        padding:8px 12px; border-radius:4px; font-family:'Geist',sans-serif;
+        font-size:var(--sz-ui); pointer-events:none; z-index:2500;
+        max-width:280px; width:auto; text-align:center;
+        line-height:1.5; box-shadow:0 4px 14px rgba(0,0,0,.22);
+        opacity:0; transition:opacity 0.6s ease;
+    }
+    #zoom-tip-popup.visible { opacity:1; }
     #label-tooltip {
         position:fixed; background:#3D3D31; color:#fff;
         padding:8px 12px; border-radius:4px; font-family:'Geist',sans-serif;
@@ -347,13 +327,13 @@
             text-align: center;
             width: 90vw;
         }
-        #intro-textbox { width: 88vw !important; }
+        #intro-textbox { left: 3vw !important; max-width: 80vw !important; }
         #intro-textbox .narrative-inner { font-size: 14px !important; padding: 1rem !important; }
         .narrative-inner { font-size: 14px !important; padding: 1rem !important; }
         #explore-heading { font-size: 20px !important; line-height: 28px !important; }
         #explore-subtext { font-size: 14px !important; }
         .narrative-scroll-box { left: 3vw !important; max-width: 80vw !important; }
-        #initiative-carousel { width: calc(100% - 30px) !important; }
+        #initiative-carousel { width: calc(100% - 10px) !important; }
 
         #skip-btn { bottom: 20px; right: 16px; padding: 8px 16px; height: 36px; }
         #print-btn { top: 16px; right: calc(16px + 44px + 8px); width: 32px; height: 32px; }
@@ -363,12 +343,12 @@
         .section-nav-dot { width: 5px; height: 5px; }
 
         #zoom-controls { bottom: 56px; }
-        #zoom-slider { width: 90px; }
 
         #map-proj-btn { top: 16px; right: 16px; }
         #info-btn { top: 16px; right: 16px; }
 
         .chart-label.axis { padding: 2px 3px !important; margin: 0 !important; }
+        .bracket-label { padding: 2px 3px !important; }
 
         #tooltip { width: 200px; max-width: 85vw; }
         #pinned-tooltip { width: 200px; max-width: 85vw; }
@@ -395,6 +375,9 @@
         opacity:0; transform:translateX(6px);
         transition:opacity 0.25s ease, transform 0.25s ease;
         white-space:nowrap;
+    }
+    .section-nav-item.active .section-nav-label {
+        font-size:var(--sz-ui);
     }
     .section-nav-dot {
         width:6px; height:6px; border-radius:50%;
@@ -426,7 +409,7 @@
     #info-btn:hover img { filter: brightness(0) saturate(100%) invert(18%) sepia(9%) saturate(450%) hue-rotate(20deg); }
     #info-btn img { width:28px; height:28px; display:block; }
     #info-btn::after {
-        content:'codebook';
+        content:'Codebook';
         position:absolute; top:calc(100% + 6px); right:0;
         font-family:'Geist',sans-serif; font-size:var(--sz-small); white-space:nowrap;
         background:rgba(61,61,49,0.85); color:#fff;
@@ -471,7 +454,7 @@
         line-height:1.55; color:var(--color-off-black); margin:0;
     }
     #initiative-carousel {
-        display:flex; gap:6px; width:calc(100% - 150px);
+        display:flex; gap:6px; width:calc(100% - 80px);
         height:380px; overflow:hidden; border-radius:12px;
     }
     .init-panel {
@@ -510,7 +493,7 @@
     #hero-map-gradient {
         position:fixed; top:0; left:0; width:100%; height:100vh;
         z-index:0; pointer-events:none;
-        background: linear-gradient(to bottom, #FBFBEE 0%, #ffffff 100%);
+        background: linear-gradient(to bottom, #FBFBEE 0%, #ffffff 50%);
         opacity:0;
         transition: opacity 0.5s ease;
     }
@@ -521,13 +504,13 @@
         position:fixed; top:0; left:0; width:100%; height:100vh;
         z-index:25; pointer-events:none;
         display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
-        padding: 12vh 9vw 0;
+        padding: 10vh 9vw 0;
         transition:none;
     }
     #hero-text h1 {
         font-family:'Herbik', sans-serif;
         font-weight:500;
-        font-size:42px;
+        font-size:50px;
         line-height:1.1; letter-spacing:-0.01em;
         color:var(--color-off-black);
         text-align:center; margin:0;
@@ -535,10 +518,11 @@
     #hero-text .hero-btns {
         pointer-events:auto;
         margin-top:20px;
+        margin-bottom:20px;
     }
     @media (max-width: 768px) {
         #hero-text { padding:10vh 6vw 0; }
-        #hero-text h1 { font-size:clamp(22px, 7vw, 36px); }
+        #hero-text h1 { font-size:clamp(26px, 8.4vw, 43px); }
     }
     #hero-scroll-hint { display:none; }
 
@@ -582,18 +566,15 @@
 <!-- Fixed overlays (pills + narrative) -->
 <div id="fixed-overlays"></div>
 <!-- (narrative boxes are injected into each scroll section by JS) -->
-<button id="print-btn"><img src="Print.svg" alt="download PNG"></button>
+<button id="print-btn"><img src="Print.svg" alt="Download PNG"></button>
 <button id="skip-btn">Skip</button>
-<button id="map-proj-btn"><img src="Globe.svg" alt="map projection"></button>
+<button id="map-proj-btn"><img src="Globe.svg" alt="Map Projection"></button>
 <div id="map-proj-popup"><span class="tt-title2">This map serves illustrative purposes only. The boundaries, denominations, and, more generally, all eco jurisprudence-unrelated information shown on this map do not imply any judgment on the part of the creators concerning the legal status of any territory or the endorsement or acceptance of such boundaries, denominations, or the like.</span></div>
-<a id="info-btn" href="https://ecojurisprudence.org/codebook/" target="_blank"><img src="Info.svg" alt="codebook"></a>
+<a id="info-btn" href="https://ecojurisprudence.org/codebook/" target="_blank"><img src="Info.svg" alt="Codebook"></a>
 <div id="data-source-label">Data Source: Eco Jurisprudence Monitor (2026)</div>
 <div id="zoom-hint">slider to zoom · drag to pan</div>
-<div id="zoom-controls">
-    <button id="zoom-out-btn" aria-label="Zoom out">−</button>
-    <input id="zoom-slider" type="range" min="1" max="12" step="0.01" value="1">
-    <button id="zoom-in-btn" aria-label="Zoom in">+</button>
-</div>
+<div id="zoom-controls"></div>
+<div id="zoom-tip-popup">Use Command + scroll to zoom into the map (Control for Windows)</div>
 <div id="country-name-display"><button id="cnd-close">×</button><span id="cnd-text"></span></div>
 
 <!-- Landmark highlight popups (year chart s5-year-b) -->
@@ -619,8 +600,8 @@
 <div id="hero-text">
     <h1>Explore the definitive tracker for<br>ecocentric laws around the world</h1>
     <div class="hero-btns" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
-        <a href="https://ecojurisprudence.org/data/" target="_blank" class="hero-btn" style="background-color:transparent;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;height:40px;width:160px;border:1px solid #D1D1BF;border-radius:8px;font-family:'Geist',sans-serif;font-weight:500;font-size:16px;line-height:20px;color:#757559;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none;text-transform:none;">get the charts</a>
-        <a href="https://ecojurisprudence.org/data-request/" target="_blank" class="hero-btn" style="background-color:transparent;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;height:40px;width:160px;border:1px solid #D1D1BF;border-radius:8px;font-family:'Geist',sans-serif;font-weight:500;font-size:16px;line-height:20px;color:#757559;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none;text-transform:none;">get the data</a>
+        <a href="https://ecojurisprudence.org/data/" target="_blank" class="hero-btn" style="background-color:transparent;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;height:40px;width:160px;border:1px solid #D1D1BF;border-radius:8px;font-family:'Geist',sans-serif;font-weight:500;font-size:16px;line-height:20px;color:#757559;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none;text-transform:none;">Get the Charts</a>
+        <a href="https://ecojurisprudence.org/data-request/" target="_blank" class="hero-btn" style="background-color:transparent;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;height:40px;width:160px;border:1px solid #D1D1BF;border-radius:8px;font-family:'Geist',sans-serif;font-weight:500;font-size:16px;line-height:20px;color:#757559;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none;text-transform:none;">Get the Data</a>
     </div>
 </div>
 <div id="hero-scroll-hint">scroll to explore</div>
@@ -634,7 +615,7 @@
     <div class="scroll-section" data-section="s0-hero" style="height:100vh"></div>
     <div class="scroll-section" data-section="s1-stats">
         <div id="stats-display"><span id="stat-initiatives">0</span> Initiatives<span class="sep"> </span><span id="stat-countries">0</span> Countries<span class="sep"> </span>1 Movement</div>
-        <div id="intro-textbox"><div class="narrative-inner"><p><br>Ecological jurisprudence is a movement transforming human-centered laws.<br> <br>Each dot is one initiative.<br>Click and scroll to explore.</p></div></div>
+        <div id="intro-textbox"><div class="narrative-inner"><p>Ecological jurisprudence is a movement transforming human-centered laws.<br><br><strong>Each dot</strong> is one initiative. <strong>Click and scroll</strong> to explore.</p></div></div>
     </div>
     <div class="scroll-section" data-section="s4-regions"></div>
     <div class="scroll-section" data-section="s8-nature"></div>
@@ -698,6 +679,13 @@ let statsAnimated=false;
 let statsScrollTriggered=false;
 let particleMapPos=[];
 let hoveredCountry=null;
+// The map canvas is repositioned with a CSS transform as the page scrolls (see
+// canvasOffsetPx below), which shifts the canvas underneath a stationary cursor.
+// p5 recomputes mouseX/mouseY relative to the canvas every frame, so that shift
+// alone is enough to spuriously fire mouseMoved mid-scroll (in either direction)
+// and re-show a tooltip right after we hide it. isUserScrolling suppresses that.
+let isUserScrolling=false;
+let scrollEndTimer=null;
 let selectedCountry=null;
 let selectedCountryParticles=new Set();
 let countryCounts={};
@@ -709,6 +697,7 @@ let _mapAlphaTween=null; // requestAnimationFrame handle for the tween
 /* ── MAP ZOOM (active in s2-narrate1) ── */
 let mapZoom={ k:1, tx:0, ty:0 };
 let mapZoomActive=false;
+let zoomOutTransitionPending=false; // true while easing zoom back to 1 before a section switch — other scroll logic should not fight this animation
 let _drag={ down:false, x:0, y:0, tx:0, ty:0 };
 let _pinch={ active:false, dist:0, k0:1, tx0:0, ty0:0 };
 const MAP_ZOOM_MIN=1, MAP_ZOOM_MAX=12;
@@ -969,28 +958,30 @@ class Particle {
         const isCountrySel=selectedCountryParticles.has(this);
         const hasCountrySel=selectedCountry!==null;
         const isLandmark=landmarkMode&&isLandmarkTitle(this.title);
+        // Dots grow a bit as you zoom into the map so they stay easy to see and click.
+        const zoomMult=(mapZoomActive&&mapZoom.k>1)?Math.sqrt(mapZoom.k):1;
         // Always draw white stroke around every dot
         p5Instance.stroke(255); p5Instance.strokeWeight(0.5);
         if(landmarkMode){
             if(isLandmark){
                 // Highlight: ring + full color
                 p5Instance.noFill(); p5Instance.stroke(this.color); p5Instance.strokeWeight(1.5);
-                p5Instance.circle(this.x,this.y,this.size+8);
+                p5Instance.circle(this.x,this.y,(this.size+8)*zoomMult);
                 p5Instance.stroke(255); p5Instance.strokeWeight(0.5); p5Instance.fill(this.color);
-                p5Instance.circle(this.x,this.y,this.size+2); return;
+                p5Instance.circle(this.x,this.y,(this.size+2)*zoomMult); return;
             } else {
                 // Grey out
                 const c=p5Instance.color(this.color); c.setAlpha(35); p5Instance.fill(c);
-                p5Instance.circle(this.x,this.y,this.size); return;
+                p5Instance.circle(this.x,this.y,this.size*zoomMult); return;
             }
         }
         if(hasSel&&!isSel){
             const c=p5Instance.color(this.color); c.setAlpha(35); p5Instance.fill(c);
         } else if(isSel){
             p5Instance.noFill(); p5Instance.stroke(this.color); p5Instance.strokeWeight(1.5);
-            p5Instance.circle(this.x,this.y,this.size+8);
+            p5Instance.circle(this.x,this.y,(this.size+8)*zoomMult);
             p5Instance.stroke(255); p5Instance.strokeWeight(0.5); p5Instance.fill(this.color);
-            p5Instance.circle(this.x,this.y,this.size+2); return;
+            p5Instance.circle(this.x,this.y,(this.size+2)*zoomMult); return;
         } else if(hasCountrySel&&isCountrySel){
             p5Instance.stroke(255); p5Instance.strokeWeight(0.5); p5Instance.fill(this.color);
         } else if(hasCountrySel&&!isCountrySel){
@@ -998,7 +989,7 @@ class Particle {
         } else {
             p5Instance.fill(this.color);
         }
-        p5Instance.circle(this.x,this.y,this.size);
+        p5Instance.circle(this.x,this.y,this.size*zoomMult);
     }
     setTarget(x,y,visible=true){ this.targetX=x; this.targetY=y; this.visible=visible; this.frozen=false; }
     snapTo(x,y,visible=true){ this.x=x; this.y=y; this.targetX=x; this.targetY=y; this.visible=visible; this.frozen=false; }
@@ -1074,6 +1065,10 @@ function initViz(){
         p.mouseMoved=function(){
             const ttEl=document.getElementById('tooltip');
             const ctEl=document.getElementById('country-tooltip');
+            if(isUserScrolling){
+                ttEl.style.display='none'; ctEl.style.display='none'; hoveredCountry=null;
+                return;
+            }
             if(isPointerOverUI(p.mouseX,p.mouseY)){
                 ttEl.style.display='none'; ctEl.style.display='none'; hoveredCountry=null;
                 if(p.canvas) p.canvas.style.cursor='default';
@@ -1199,6 +1194,9 @@ function initViz(){
     onSectionEnter('s0-hero');
     // dot nav click: instant jump (no scrollytelling transitions)
     function jumpToSection(sec){
+        // Respect the brief scroll lock shown alongside the zoom-tip popup —
+        // nothing should move the page while it's on screen, not just wheel/touch/keys.
+        if(_scrollLockActive) return;
         const el=document.querySelector(`.scroll-section[data-section="${sec}"]`);
         if(!el) return;
         // Scroll to the midpoint of the section so the observer picks it up cleanly
@@ -1457,7 +1455,7 @@ function initViz(){
             bracketContainer.querySelectorAll('.bracket-label').forEach(el=>{
                 const rect = el.getBoundingClientRect();
                 const text = el.innerText || el.textContent || '';
-                ctx.font = "500 9.5px 'Geist',sans-serif";
+                ctx.font = "500 12px 'Geist',sans-serif";
                 ctx.fillStyle = '#B5B5B1';
                 ctx.textAlign = 'center';
                 ctx.fillText(text.trim(), rect.left+rect.width/2, rect.top+10);
@@ -1466,8 +1464,8 @@ function initViz(){
 
         // Framework brackets (narrow rounded rectangles)
         if(frameworkBrackets.length){
-            const bracketY = logH * 0.815;
-            const barH = 3;
+            const bracketY = frameworkBracketY!=null ? frameworkBracketY : logH * 0.815;
+            const barH = FRAMEWORK_BRACKET_BARH;
             ctx.fillStyle = '#B5B5B1';
             frameworkBrackets.forEach(b=>{
                 ctx.beginPath();
@@ -1666,6 +1664,8 @@ function initViz(){
     document.addEventListener('click',()=>{
         mapProjPopup.style.display='none';
         mapProjBtn.classList.remove('popup-open');
+        // Clicking anywhere on screen dismisses the landmark initiative popups
+        if(landmarkMode) hideLandmarkPopups();
     });
 
     // ── HERO + early s1-stats scroll animation ──
@@ -1679,8 +1679,8 @@ function initViz(){
         const heroH = heroSection ? heroSection.offsetHeight : vh;
         const slideT = Math.min(1, scrolled / heroH);
         const mapOffset = 30 * (1 - slideT);
-        canvasOffsetPx = mapOffset / 100 * vh;
-        document.getElementById('p5-canvas').style.transform = `translateY(${mapOffset}vh)`;
+        canvasOffsetPx = mapOffset / 100 * vh + 10;
+        document.getElementById('p5-canvas').style.transform = `translateY(calc(${mapOffset}vh + 10px))`;
 
         if(currentSection === 's0-hero'){
             const t = Math.min(1, scrolled / vh);
@@ -1732,7 +1732,9 @@ function initViz(){
             const counterTop = vh * 1.1 - scrolled;
             statsEl.style.top = counterTop + 'px';
             statsEl.style.transform = 'translate(-50%, -50%)';
-            // Fade in as it enters, fade out as it exits top
+            // Fade in as it enters, fade out as it exits top — but hold the counter
+            // fully hidden until the zoom-tip popup has appeared and gone away, so
+            // the two never overlap.
             const fadeIn = Math.min(1, Math.max(0, (vh - counterTop) / (vh * 0.3)));
             const fadeOut = Math.min(1, Math.max(0, counterTop / (vh * 0.2)));
             statsEl.style.opacity = String(Math.min(fadeIn, fadeOut));
@@ -1742,13 +1744,19 @@ function initViz(){
             // entering right as the counter finishes scrolling off the top of the screen.
             const introTop = vh * 2.1 - scrolled;
             introEl.style.top = introTop + 'px';
-            introEl.style.transform = 'translate(-50%, -50%)';
-            const introFadeIn = Math.min(1, Math.max(0, (vh - introTop) / (vh * 0.3)));
-            const introFadeOut = Math.min(1, Math.max(0, introTop / (vh * 0.2)));
-            introEl.style.opacity = String(Math.min(introFadeIn, introFadeOut));
+            introEl.style.transform = 'translateY(-50%)';
+            if(_zoomTipPopupVisible){
+                // Never let the intro box show while the zoom-tip popup is up.
+                introEl.style.opacity='0';
+            } else {
+                const introFadeIn = Math.min(1, Math.max(0, (vh - introTop) / (vh * 0.3)));
+                const introFadeOut = Math.min(1, Math.max(0, introTop / (vh * 0.2)));
+                introEl.style.opacity = String(Math.min(introFadeIn, introFadeOut));
+            }
 
-            // Show all UI (globe, print, skip, nav) together when counter first enters viewport
-            const counterVisible = (counterTop < vh);
+            // Show all UI (globe, print, skip, nav, zoom-tip popup) together, slightly
+            // before the map finishes sliding into its fully centered position.
+            const counterVisible = (counterTop < vh + vh*0.15);
             if(counterVisible){
                 if(!mapZoomActive){
                     mapZoomActive=true;
@@ -1761,19 +1769,31 @@ function initViz(){
                     document.getElementById('skip-btn').style.opacity='';
                     document.getElementById('skip-btn').style.pointerEvents='';
                     applyZoomToParticles();
+                    // Only show the tip + its scroll lock the first time ever — mapZoomActive
+                    // gets reset (and re-triggers this block) on every re-entry into s1-stats,
+                    // including scrolling back UP from further down the page, which could land
+                    // mid-scroll right where the intro text is visible and lock the two
+                    // together on screen. The map zoom UI itself is fine to re-enable each
+                    // time; the one-off tip/lock should not repeat.
+                    if(!_zoomTipShownOnce){
+                        _zoomTipShownOnce=true;
+                        showZoomTipPopup();
+                    }
                 }
             } else {
-                if(mapZoomActive){
-                    mapZoomActive=false; resetMapZoom();
-                    document.getElementById('zoom-hint').classList.remove('visible');
-                    document.getElementById('zoom-controls').classList.remove('visible');
-                    document.getElementById('map-proj-btn').style.display='none'; document.getElementById('data-source-label').style.display='none';
-                    document.getElementById('print-btn').classList.remove('btn-visible');
-                    document.getElementById('section-nav').style.opacity='0';
-                    document.getElementById('section-nav').style.pointerEvents='none';
-                    document.getElementById('skip-btn').style.opacity='0';
-                    document.getElementById('skip-btn').style.pointerEvents='none';
-                    if(p5Instance&&particleMapPos.length) placeParticlesOnMap();
+                if(mapZoomActive && !zoomOutTransitionPending){
+                    if(mapZoom.k>1.01){
+                        // Zoomed in and scrolling normally back out of the map area —
+                        // ease the zoom back to 1 first, then hide the map UI, instead
+                        // of snapping instantly.
+                        zoomOutTransitionPending=true;
+                        gentleZoomOut(()=>{
+                            zoomOutTransitionPending=false;
+                            deactivateMapZoomUI();
+                        }, 500);
+                    } else {
+                        deactivateMapZoomUI();
+                    }
                 }
             }
         }
@@ -1799,14 +1819,27 @@ function initViz(){
                     const shouldTrigger = boxRect.bottom <= window.innerHeight;
                     if(shouldTrigger && !_pendingLayout.triggered){
                         _pendingLayout.triggered=true;
-                        _pendingLayout.fn();
-                        // On s4-regions: swap globe→i and hide zoom at morph moment
-                        if(currentSection==='s4-regions'){
-                            document.getElementById('zoom-controls').classList.remove('visible');
-                            document.getElementById('map-proj-btn').style.display='none';
-                            document.getElementById('info-btn').style.display='flex';
-                            document.getElementById('data-source-label').style.display='flex';
-                            if(mapZoomActive){ mapZoomActive=false; resetMapZoom(); }
+                        const runMorph=()=>{
+                            _pendingLayout.fn();
+                            // On s4-regions: swap globe→i and hide zoom at morph moment
+                            if(currentSection==='s4-regions'){
+                                document.getElementById('zoom-controls').classList.remove('visible');
+                                document.getElementById('map-proj-btn').style.display='none';
+                                document.getElementById('info-btn').style.display='flex';
+                                document.getElementById('data-source-label').style.display='flex';
+                                mapZoomActive=false;
+                            }
+                        };
+                        // If zoomed in, ease the zoom back out first, then morph —
+                        // matching the same easing used when leaving the map section.
+                        if(currentSection==='s4-regions' && mapZoomActive && mapZoom.k>1.01){
+                            zoomOutTransitionPending=true;
+                            gentleZoomOut(()=>{
+                                zoomOutTransitionPending=false;
+                                runMorph();
+                            }, 500);
+                        } else {
+                            runMorph();
                         }
                     } else if(!shouldTrigger && _pendingLayout.triggered && _pendingLayout.reverseFn){
                         _pendingLayout.triggered=false;
@@ -1818,7 +1851,6 @@ function initViz(){
                             document.getElementById('info-btn').style.display='none';
                             document.getElementById('data-source-label').style.display='flex';
                             mapZoomActive=true;
-                            document.getElementById('zoom-slider').value=mapZoom.k;
                         }
                     }
                 }
@@ -1826,41 +1858,27 @@ function initViz(){
         }
     });
 
-    /* ── MAP ZOOM: slider + mouse drag only ── */
-    const zoomSlider=document.getElementById('zoom-slider');
-    function syncSlider(){ zoomSlider.value=mapZoom.k; }
+    /* ── MAP ZOOM: Cmd (Mac) / Ctrl (Windows) + scroll wheel, zoomed toward the cursor ── */
+    // No-op stub kept because touch pinch-zoom below still calls it; there's no slider to sync anymore.
+    function syncSlider(){}
 
-    zoomSlider.addEventListener('input',()=>{
-        if(!mapZoomActive) return;
-        const cx=window.innerWidth/2, cy=window.innerHeight/2;
+    window.addEventListener('wheel', (e)=>{
+        // Only zoom while the map is the active view (never during region charts),
+        // and only when the zoom modifier key is held — otherwise let the page
+        // scroll normally so scrollytelling behaves exactly as before.
+        if(!mapZoomActive || !(e.metaKey || e.ctrlKey)) return;
+        if(e.target && e.target.closest && e.target.closest('#map-proj-btn, #print-btn, #skip-btn, #info-btn, #section-nav, #map-proj-popup, #pinned-tooltip, #country-name-display')) return;
+        e.preventDefault();
+        const cx=e.clientX, cy=e.clientY;
         const k0=mapZoom.k;
-        mapZoom.k=parseFloat(zoomSlider.value);
+        // Clamp deltaY so a single large trackpad/mouse tick can't cause a huge jump
+        const dy=Math.max(-100, Math.min(100, e.deltaY));
+        const factor=Math.exp(-dy*0.003);
+        mapZoom.k=Math.max(MAP_ZOOM_MIN,Math.min(MAP_ZOOM_MAX,k0*factor));
         mapZoom.tx=cx-(cx-mapZoom.tx)*(mapZoom.k/k0);
         mapZoom.ty=cy-(cy-mapZoom.ty)*(mapZoom.k/k0);
         clampZoom(); applyZoomToParticles();
-    });
-
-    function zoomStep(direction){
-        if(!mapZoomActive) return;
-        const cx=window.innerWidth/2, cy=window.innerHeight/2;
-        const k0=mapZoom.k;
-        const step=direction>0 ? Math.max(0.5, k0*0.25) : -Math.max(0.5, k0*0.25);
-        mapZoom.k=Math.max(MAP_ZOOM_MIN,Math.min(MAP_ZOOM_MAX,k0+step));
-        mapZoom.tx=cx-(cx-mapZoom.tx)*(mapZoom.k/k0);
-        mapZoom.ty=cy-(cy-mapZoom.ty)*(mapZoom.k/k0);
-        clampZoom(); syncSlider(); applyZoomToParticles();
-    }
-    document.getElementById('zoom-in-btn').addEventListener('click',(e)=>{ e.stopPropagation(); zoomStep(1); });
-    document.getElementById('zoom-out-btn').addEventListener('click',(e)=>{ e.stopPropagation(); zoomStep(-1); });
-    document.getElementById('zoom-in-btn').addEventListener('mousedown',(e)=>e.stopPropagation());
-    document.getElementById('zoom-out-btn').addEventListener('mousedown',(e)=>e.stopPropagation());
-    document.getElementById('zoom-slider').addEventListener('mousedown',(e)=>e.stopPropagation());
-    // Also block pointerdown so p5/canvas never sees these interactions
-    ['pointerdown','touchstart'].forEach(evt=>{
-        document.getElementById('zoom-in-btn').addEventListener(evt,(e)=>e.stopPropagation(),{passive:false});
-        document.getElementById('zoom-out-btn').addEventListener(evt,(e)=>e.stopPropagation(),{passive:false});
-        document.getElementById('zoom-slider').addEventListener(evt,(e)=>e.stopPropagation(),{passive:false});
-    });
+    }, {passive:false});
 
     const canvasWrap=document.getElementById('p5-canvas');
     canvasWrap.addEventListener('mousedown',(e)=>{
@@ -1950,6 +1968,14 @@ function drawMap(p, alpha){
             ctx.fillStyle=`rgba(61,61,49,${0.07*a})`;
         }
         ctx.fill();
+        // As the map zooms in, fade in a faint white outline around each country
+        // so borders read a bit more clearly without cluttering the default view.
+        if(mapZoomActive && mapZoom.k>1.01){
+            const outlineAlpha=Math.min(0.7,(mapZoom.k-1)/11*0.7)*a;
+            ctx.strokeStyle=`rgba(255,255,255,${outlineAlpha})`;
+            ctx.lineWidth=1.2/mapZoom.k; // counteract ctx.scale so the line reads a consistent width on screen
+            ctx.stroke();
+        }
     });
     ctx.restore();
 }
@@ -1983,6 +2009,76 @@ function applyZoomToParticles(){
         const pos=particleMapPos[i]||{x:p5Instance.width-80,y:40};
         p.snapTo(pos.x*mapZoom.k+mapZoom.tx, pos.y*mapZoom.k+mapZoom.ty, true);
     });
+}
+
+/* Fixed, centered popup hinting Cmd/Ctrl + scroll to zoom the map.
+   Styled to match #country-tooltip; appears alongside the map icons, stays
+   for 2s, then fades out (0.6s CSS transition). Scrolling itself is briefly
+   locked for those first 2s so the initiative counter can't start scrolling
+   into place until the popup has had its moment on screen. */
+let _zoomTipShownOnce=false;
+let _zoomTipPopupVisible=false;
+let _zoomTipTimer=null;
+function showZoomTipPopup(){
+    const el=document.getElementById('zoom-tip-popup');
+    if(!el) return;
+    clearTimeout(_zoomTipTimer);
+    el.classList.add('visible');
+    lockScroll(2000);
+    // The intro text box must never be visible at the same time as this popup —
+    // hide it now and keep it suppressed (the s1-stats scroll handler checks
+    // _zoomTipPopupVisible before touching its opacity) until the popup is gone.
+    _zoomTipPopupVisible=true;
+    const introEl=document.getElementById('intro-textbox');
+    if(introEl) introEl.style.opacity='0';
+    _zoomTipTimer=setTimeout(()=>{
+        el.classList.remove('visible');
+        _zoomTipPopupVisible=false;
+    }, 2000);
+}
+
+/* Briefly prevent the page from scrolling (wheel, touch, and keyboard) without
+   moving the current scroll position — used to hold the view still while the
+   zoom-tip popup is being read. */
+let _scrollLockActive=false, _scrollLockTimer=null;
+function _blockScrollEvent(e){ e.preventDefault(); }
+function _blockScrollKeys(e){
+    if(['ArrowDown','ArrowUp','PageDown','PageUp','Home','End',' '].includes(e.key)) e.preventDefault();
+}
+function lockScroll(ms){
+    clearTimeout(_scrollLockTimer);
+    if(!_scrollLockActive){
+        _scrollLockActive=true;
+        document.documentElement.style.overflowY='hidden';
+        document.body.style.overflowY='hidden';
+        window.addEventListener('wheel', _blockScrollEvent, {passive:false});
+        window.addEventListener('touchmove', _blockScrollEvent, {passive:false});
+        window.addEventListener('keydown', _blockScrollKeys, {passive:false});
+    }
+    _scrollLockTimer=setTimeout(()=>{
+        document.documentElement.style.overflowY='';
+        document.body.style.overflowY='';
+        window.removeEventListener('wheel', _blockScrollEvent, {passive:false});
+        window.removeEventListener('touchmove', _blockScrollEvent, {passive:false});
+        window.removeEventListener('keydown', _blockScrollKeys, {passive:false});
+        _scrollLockActive=false;
+    }, ms);
+}
+
+/* Turns off the map UI (globe/print/nav/skip) and resets zoom back to 1.
+   Shared by every place that leaves the zoomed map view, so the end state is
+   always identical whether or not it was reached via a gentle zoom-out. */
+function deactivateMapZoomUI(){
+    mapZoomActive=false; resetMapZoom();
+    document.getElementById('zoom-hint').classList.remove('visible');
+    document.getElementById('zoom-controls').classList.remove('visible');
+    document.getElementById('map-proj-btn').style.display='none'; document.getElementById('data-source-label').style.display='none';
+    document.getElementById('print-btn').classList.remove('btn-visible');
+    document.getElementById('section-nav').style.opacity='0';
+    document.getElementById('section-nav').style.pointerEvents='none';
+    document.getElementById('skip-btn').style.opacity='0';
+    document.getElementById('skip-btn').style.pointerEvents='none';
+    if(p5Instance&&particleMapPos.length) placeParticlesOnMap();
 }
 
 function resetMapZoom(){
@@ -2050,6 +2146,29 @@ function hidePinned(){
 /* ════════════════════════════════════════════════════
    NARRATIVE — per-section scrolling boxes
 ════════════════════════════════════════════════════ */
+// Wrap a fixed set of key words/phrases in <strong> wherever they appear in
+// narrative copy. Matching is case-insensitive but the original casing in the
+// text is preserved (only the surrounding tags are added).
+const NARRATIVE_BOLD_PHRASES=[
+    'early 1970s',
+    'mid[- ]?2000s',
+    'nature in many forms',
+    'global expansion',
+    'formal and soft law',
+    'missed something',
+    'reach out',
+    'each dot',
+    'click and scroll'
+];
+function boldKeyPhrases(str){
+    let out=str;
+    NARRATIVE_BOLD_PHRASES.forEach(phrase=>{
+        const re=new RegExp('('+phrase+')','i');
+        out=out.replace(re,'<strong>$1</strong>');
+    });
+    return out;
+}
+
 // Inject a narrative box into the given section element (once per section, lazily)
 function typewrite(text, onDone, isHTML){
     typewriterTimers.forEach(t=>clearTimeout(t)); typewriterTimers=[];
@@ -2066,9 +2185,11 @@ function typewrite(text, onDone, isHTML){
     let innerHtml;
     if(isHTML){
         innerHtml=text.replace(/(<span data-countup="[^"]*">[^<]*<\/span>)/g,'<strong>$1</strong>');
+        innerHtml=boldKeyPhrases(innerHtml);
         innerHtml=`<span class="fade-line">${innerHtml}</span>`;
     } else {
-        const sentences=text.match(/[^.!?]+[.!?]?\s*/g)||[text];
+        const boldedText=boldKeyPhrases(text);
+        const sentences=boldedText.match(/[^.!?]+[.!?]?\s*/g)||[boldedText];
         innerHtml=sentences.map(s=>{
             const safe=s.replace(/(\d+%)/g,'<strong>$1</strong>');
             return `<span class="fade-line">${safe}</span>`;
@@ -2236,6 +2357,10 @@ function showLandmarkPopups(){
         const linkHtml=lm.permalink?`<a href="${lm.permalink}" target="_blank">more info ↗</a>`:'';
         el.innerHTML=`<div class="lm-title">${lm.title}</div><div class="lm-meta">${metaHtml}</div>${linkHtml?`<div class="lm-link">${linkHtml}</div>`:''}`;
         el.addEventListener('click', (e)=>{
+            // Stop this from bubbling to the document-level click handler, which
+            // would immediately dismiss the landmark popups (and, via the pinned-
+            // tooltip restore logic, clobber the selection we're about to make).
+            e.stopPropagation();
             // Don't fire if the "more info" link itself was clicked
             if(e.target.tagName==='A') return;
             showPinned(lm);
@@ -2407,6 +2532,19 @@ function onSectionEnter(sec){
     // selectedCountry persists through all sections until user explicitly clicks out
     document.getElementById('zoom-hint').classList.remove('visible');
     document.getElementById('zoom-controls').classList.remove('visible');
+    clearTimeout(_zoomTipTimer);
+    document.getElementById('zoom-tip-popup').classList.remove('visible');
+    _zoomTipPopupVisible=false;
+    // Release an in-progress scroll lock if the section changes out from under it
+    clearTimeout(_scrollLockTimer);
+    if(_scrollLockActive){
+        document.documentElement.style.overflowY='';
+        document.body.style.overflowY='';
+        window.removeEventListener('wheel', _blockScrollEvent, {passive:false});
+        window.removeEventListener('touchmove', _blockScrollEvent, {passive:false});
+        window.removeEventListener('keydown', _blockScrollKeys, {passive:false});
+        _scrollLockActive=false;
+    }
 
     // Hide skip + print on the explode/end section, show on all others
     const isEnd = (sec==='s9-end');
@@ -2455,8 +2593,8 @@ function onSectionEnter(sec){
             if(p5Instance&&particleMapPos.length) placeParticlesOnMap(false);
             resetStats(); statsScrollTriggered=false;
             // Reset map offset to initial pushed-down state
-            canvasOffsetPx = 0.30 * window.innerHeight;
-            document.getElementById('p5-canvas').style.transform='translateY(30vh)';
+            canvasOffsetPx = 0.30 * window.innerHeight + 10;
+            document.getElementById('p5-canvas').style.transform='translateY(calc(30vh + 10px))';
             break;
 
         case 's1-stats':
@@ -2484,10 +2622,9 @@ function onSectionEnter(sec){
             // Keep globe + zoom visible until morph fires (pendingLayout trigger swaps them)
             document.getElementById('map-proj-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
             document.getElementById('zoom-controls').classList.add('visible');
-            // The controls are visible here, so zoom interaction must actually be enabled too —
-            // otherwise the slider/+/- render but every handler no-ops on the mapZoomActive check.
+            // The controls container is toggled visible here purely as a state flag
+            // (it renders nothing now) — zoom interaction itself is gated on mapZoomActive.
             mapZoomActive=true;
-            document.getElementById('zoom-slider').value=mapZoom.k;
             const total4=particles.length||1;
             const americas=particles.filter(p=>p.data.Region==='North America'||p.data.Region==='Latin America').length;
             const europe=particles.filter(p=>p.data.Region==='Europe').length;
@@ -2569,6 +2706,22 @@ function onSectionEnter(sec){
 function setupObserver(){
     const sections=[...document.querySelectorAll('.scroll-section')];
     let rafPending=false;
+    let pendingSec=null;
+
+    function applySectionChange(sec){
+        currentSection=sec;
+        onSectionEnter(sec);
+        // Nav dot is now set inside each layout function (at morph time).
+        // Only set immediately for sections with no chart morph.
+        const _hasPending=['s4-regions','s2-narrate1','s5-year','s5-year-b','s6-framework','s7-status','s7-status-b','s8-nature'];
+        if(!_hasPending.includes(sec)){
+            const NAV_ALIAS={'s0-hero':null};
+            const navSec=NAV_ALIAS[sec]===undefined?sec:NAV_ALIAS[sec];
+            document.querySelectorAll('.section-nav-item').forEach(el=>{
+                el.classList.toggle('active', navSec!==null && el.dataset.nav===navSec);
+            });
+        }
+    }
 
     function update(){
         rafPending=false;
@@ -2584,23 +2737,27 @@ function setupObserver(){
         });
         if(best){
             const sec=best.dataset.section;
+            // A gentle zoom-out is already animating toward a section switch — just
+            // remember the latest target and let the animation finish before we act,
+            // rather than cutting it off with another jump.
+            if(zoomOutTransitionPending){
+                pendingSec=sec;
+                return;
+            }
             if(sec!==currentSection){
-                // If leaving the map section while zoomed in, do a gentle zoom-out first
+                // If leaving the map section while zoomed in, ease the zoom back out
+                // first, then begin the section transition — instead of snapping the
+                // map back to normal and switching sections at the same instant.
                 if(currentSection==='s1-stats' && mapZoomActive && mapZoom.k>1.01){
-                    gentleZoomOut(null, 500);
+                    zoomOutTransitionPending=true;
+                    pendingSec=sec;
+                    gentleZoomOut(()=>{
+                        zoomOutTransitionPending=false;
+                        applySectionChange(pendingSec);
+                    }, 500);
+                    return;
                 }
-                currentSection=sec;
-                onSectionEnter(sec);
-                // Nav dot is now set inside each layout function (at morph time).
-                // Only set immediately for sections with no chart morph.
-                const _hasPending=['s4-regions','s2-narrate1','s5-year','s5-year-b','s6-framework','s7-status','s7-status-b','s8-nature'];
-                if(!_hasPending.includes(sec)){
-                    const NAV_ALIAS={'s0-hero':null};
-                    const navSec=NAV_ALIAS[sec]===undefined?sec:NAV_ALIAS[sec];
-                    document.querySelectorAll('.section-nav-item').forEach(el=>{
-                        el.classList.toggle('active', navSec!==null && el.dataset.nav===navSec);
-                    });
-                }
+                applySectionChange(sec);
             }
         }
     }
@@ -2611,6 +2768,22 @@ function setupObserver(){
 
     window.addEventListener('scroll', onScroll, {passive:true});
     setTimeout(update, 100);
+
+    // Hover tooltips are only valid for a static mouse position — as soon as the
+    // page scrolls, dismiss them immediately instead of letting them stick around,
+    // and keep them suppressed for the whole scroll gesture (isUserScrolling),
+    // since the canvas's own scroll-linked transform can spuriously re-trigger
+    // p5's mouseMoved mid-scroll in either direction otherwise.
+    window.addEventListener('scroll', ()=>{
+        isUserScrolling=true;
+        const ttEl=document.getElementById('tooltip');
+        const ctEl=document.getElementById('country-tooltip');
+        if(ttEl) ttEl.style.display='none';
+        if(ctEl) ctEl.style.display='none';
+        hoveredCountry=null;
+        clearTimeout(scrollEndTimer);
+        scrollEndTimer=setTimeout(()=>{ isUserScrolling=false; }, 150);
+    }, {passive:true});
 }
 
 /* ════════════════════════════════════════════════════
@@ -2783,16 +2956,35 @@ function layoutByFramework(){
     frameworkBrackets=[];
     if(fKeys.length) frameworkBrackets.push({x:startX, w:(fKeys.length-1)*step+colW, label:'Formal Law'});
     if(sKeys.length) frameworkBrackets.push({x:sStartX, w:(sKeys.length-1)*step+colW, label:'Soft Law'});
+
+    // Measure how far the category labels (e.g. "Constitution", "Court Case") actually
+    // extend down, so the gap above the bracket bar matches the gap below it exactly.
+    // The Formal/Soft Law label under the bar (.bracket-label) is styled with the same
+    // line-height and padding as these axis labels, so measuring box-edge to box-edge
+    // on both sides (using the same GAP) lands on the same visible whitespace on both
+    // sides of the bar.
+    let labelsBottom=0;
+    document.querySelectorAll('#axis-labels-container .chart-label.axis').forEach(el=>{
+        const r=el.getBoundingClientRect();
+        if(r.bottom>labelsBottom) labelsBottom=r.bottom;
+    });
+    frameworkBracketY = labelsBottom ? (labelsBottom+FRAMEWORK_BRACKET_GAP+FRAMEWORK_BRACKET_BARH/2) : null;
+
     initFrameworkBracketLabels();
 }
 
 // Drawn each frame in drawFrameworkBrackets(), called from p5 draw
 let frameworkBrackets=[];
+// Measured once per layout so the gap above the bracket bar (from the axis
+// category labels) and the gap below it (to the Formal/Soft Law label) match.
+let frameworkBracketY=null;
+const FRAMEWORK_BRACKET_GAP=14;
+const FRAMEWORK_BRACKET_BARH=3;
 
 function drawFrameworkBrackets(p){
     if(!frameworkBrackets.length) return;
-    const bracketY=p.height*0.815;
-    const barH=3;
+    const bracketY = frameworkBracketY!=null ? frameworkBracketY : p.height*0.815;
+    const barH=FRAMEWORK_BRACKET_BARH;
     const barColor=p5Instance.color('#B5B5B1');
     p.noStroke(); p.fill(barColor);
     frameworkBrackets.forEach(b=>{
@@ -2801,13 +2993,13 @@ function drawFrameworkBrackets(p){
     });
     p.noFill();
     p.noStroke();
-    // DOM labels (positioned each frame)
+    // DOM labels (positioned each frame) — same gap below the bar as above it
     const container=document.getElementById('framework-bracket-labels');
     if(container){
         const els=container.querySelectorAll('.bracket-label');
         frameworkBrackets.forEach((b,i)=>{
             const el=els[i];
-            if(el){ el.style.left=(b.x+b.w/2)+'px'; el.style.top=(bracketY+12)+'px'; }
+            if(el){ el.style.left=(b.x+b.w/2)+'px'; el.style.top=(bracketY+barH/2+FRAMEWORK_BRACKET_GAP)+'px'; }
         });
     }
 }
@@ -2827,7 +3019,7 @@ function initFrameworkBracketLabels(){
         el.href='https://ecojurisprudence.org/codebook/';
         el.target='_blank';
         el.textContent=b.label;
-        el.style.cssText="position:absolute;transform:translateX(-50%);font-family:'Geist',sans-serif;font-size:10px;font-weight:500;color:#B5B5B1;pointer-events:auto;cursor:pointer;white-space:nowrap;text-decoration:none;";
+        el.style.cssText="position:absolute;transform:translateX(-50%);font-family:'Geist',sans-serif;font-size:var(--sz-ui);font-weight:500;line-height:1.3;padding:4px 6px;color:#B5B5B1;pointer-events:auto;cursor:pointer;white-space:nowrap;text-decoration:none;";
         el.addEventListener('mouseenter',()=>el.style.textDecoration='underline');
         el.addEventListener('mouseleave',()=>el.style.textDecoration='none');
         container.appendChild(el);
