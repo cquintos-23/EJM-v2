@@ -361,7 +361,7 @@
 
     /* ── SECTION DOT NAV ── */
     #section-nav {
-        position:fixed; right:36px; top:100px;
+        position:fixed; right:36px; top:40vh;
         z-index:100; display:flex; flex-direction:column; align-items:flex-end;
         gap:10px; pointer-events:auto;
     }
@@ -2093,11 +2093,18 @@ function clampZoom(){
     const h=p5Instance?p5Instance.height:window.innerHeight;
     // Clamp scale
     mapZoom.k=Math.max(MAP_ZOOM_MIN,Math.min(MAP_ZOOM_MAX,mapZoom.k));
-    // Clamp translate so map can't be panned fully off screen
-    const maxTx=w*(mapZoom.k-1)*0.6;
-    const maxTy=h*(mapZoom.k-1)*0.6;
-    mapZoom.tx=Math.max(-maxTx,Math.min(maxTx,mapZoom.tx));
-    mapZoom.ty=Math.max(-maxTy,Math.min(maxTy,mapZoom.ty));
+    // Clamp translate so the map always fully covers the canvas, but no farther.
+    // The map content spans roughly [0,w]x[0,h] before zoom (translate applied,
+    // then scale), so at zoom k: screen_x = tx + k*world_x. To keep the left edge
+    // covered, tx must stay <= 0; to keep the right edge covered, tx must stay
+    // >= w*(1-k) (i.e. -w*(k-1)). That range is NOT symmetric around 0 — it runs
+    // from -w*(k-1) up to 0 — so a symmetric ±maxTx clamp (the old bug) always
+    // let you reach the left/top edges easily but cut the range short before you
+    // could reach the right/bottom edges. Same logic for ty.
+    const minTx=-w*(mapZoom.k-1), maxTx=0;
+    const minTy=-h*(mapZoom.k-1), maxTy=0;
+    mapZoom.tx=Math.max(minTx,Math.min(maxTx,mapZoom.tx));
+    mapZoom.ty=Math.max(minTy,Math.min(maxTy,mapZoom.ty));
 }
 
 /* ════════════════════════════════════════════════════
@@ -2123,11 +2130,13 @@ function positionPinnedTooltip(){
     if(top<10) top=dotY+16; // flip below if no room above
     el.style.left=left+'px'; el.style.top=top+'px';
 }
+let _pinnedShownAt=0;
 function showPinned(p){
     // Close country name display and deselect country when opening initiative popup
     selectedCountry=null; selectedCountryParticles.clear();
     document.getElementById('country-name-display').style.opacity='0';
     selectedParticle=p;
+    _pinnedShownAt=Date.now();
     document.getElementById('pt-title').textContent=p.title;
     const ptNatureText=p.data['Primary Nature Type']||'';
     document.getElementById('pt-meta').innerHTML=`${p.data['Primary Year']||'—'} · ${p.data['Status']||'—'}`+(ptNatureText?` · <span style="color:${p.color};font-weight:600">${ptNatureText}</span>`:'');
@@ -2778,11 +2787,22 @@ function setupObserver(){
         isUserScrolling=true;
         const ttEl=document.getElementById('tooltip');
         const ctEl=document.getElementById('country-tooltip');
+        const ltEl=document.getElementById('label-tooltip');
         if(ttEl) ttEl.style.display='none';
         if(ctEl) ctEl.style.display='none';
+        if(ltEl) ltEl.style.display='none';
         hoveredCountry=null;
+        if(selectedParticle) hidePinned();
         clearTimeout(scrollEndTimer);
         scrollEndTimer=setTimeout(()=>{ isUserScrolling=false; }, 150);
+    }, {passive:true});
+
+    // Pinned (click-to-open) tooltip: also dismiss on any mouse movement, not just
+    // scroll — it's meant to reflect a single static look, not linger indefinitely.
+    // Ignore movement for a brief moment right after it opens so the same click/
+    // tap gesture that opened it doesn't immediately close it again.
+    window.addEventListener('mousemove', ()=>{
+        if(selectedParticle && Date.now()-_pinnedShownAt>150) hidePinned();
     }, {passive:true});
 }
 
@@ -2968,7 +2988,14 @@ function layoutByFramework(){
         const r=el.getBoundingClientRect();
         if(r.bottom>labelsBottom) labelsBottom=r.bottom;
     });
-    frameworkBracketY = labelsBottom ? (labelsBottom+FRAMEWORK_BRACKET_GAP+FRAMEWORK_BRACKET_BARH/2) : null;
+    // labelsBottom is the bottom edge of the TALLEST axis label (e.g. a two-line
+    // category name); most category labels are only one line and end well above
+    // that, so measuring the gap from labelsBottom alone under-counts how far the
+    // bar visually sits from most of the labels above it, while the single-line
+    // Formal/Soft Law label below is always exactly FRAMEWORK_BRACKET_GAP away.
+    // Net effect: the bar reads as closer to the labels below than the ones above.
+    // FRAMEWORK_BRACKET_LIFT nudges the bar up to compensate and balance the two.
+    frameworkBracketY = labelsBottom ? (labelsBottom+FRAMEWORK_BRACKET_GAP+FRAMEWORK_BRACKET_BARH/2-FRAMEWORK_BRACKET_LIFT) : null;
 
     initFrameworkBracketLabels();
 }
@@ -2980,6 +3007,7 @@ let frameworkBrackets=[];
 let frameworkBracketY=null;
 const FRAMEWORK_BRACKET_GAP=14;
 const FRAMEWORK_BRACKET_BARH=3;
+const FRAMEWORK_BRACKET_LIFT=14;
 
 function drawFrameworkBrackets(p){
     if(!frameworkBrackets.length) return;
