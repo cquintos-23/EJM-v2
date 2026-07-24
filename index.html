@@ -36,7 +36,7 @@
     .scroll-section[data-section="s1-stats"] { height:250vh; }
 
     /* ── FIXED CANVAS ── */
-    #p5-canvas { position:fixed; top:0; left:0; width:100%; height:100vh; z-index:1; cursor:default; will-change:transform; touch-action:none; transform:translateY(calc(30vh + 10px)); transition:none; }
+    #p5-canvas { position:fixed; top:0; left:0; width:100%; height:100vh; z-index:1; cursor:default; will-change:transform; touch-action:none; transform:translateY(30vh); transition:none; }
     #p5-canvas canvas { touch-action:none; }
 
     /* ── FIXED OVERLAYS ── */
@@ -91,14 +91,25 @@
     .narrative-inner p { margin:0; }
     .narrative-inner a { color:var(--color-off-black); text-decoration:underline; }
     .narrative-inner a:hover { opacity:0.7; }
-    /* zoom controls */
+    /* zoom controls — pill with +/- buttons, styled like #skip-btn, sitting below
+       the print and globe icons. Width spans from the print icon's left edge to
+       the globe icon's right edge (72+36=108px left edge; 32px right edge). */
     #zoom-controls {
-        position:fixed; bottom:68px; left:50%; transform:translateX(-50%);
-        z-index:200; display:none; flex-direction:row; align-items:center; gap:8px;
+        position:fixed; top:80px; right:32px; width:76px; height:28px;
+        z-index:50; display:none; flex-direction:row; align-items:stretch;
+        background-color:#B5B5B1; border-radius:7px; overflow:hidden;
         pointer-events:auto; touch-action:auto;
         isolation:isolate;
     }
     #zoom-controls.visible { display:flex; }
+    #zoom-controls button {
+        flex:1 1 50%; display:flex; align-items:center; justify-content:center;
+        box-sizing:border-box; padding:0; margin:0; background:transparent; border:none;
+        color:#fff; font-family:'Geist',sans-serif; font-weight:500; font-size:15px; line-height:1;
+        cursor:pointer; box-shadow:none; transition:background-color 0.2s;
+    }
+    #zoom-controls button:hover { background-color:#3D3D31; }
+    #zoom-controls .zoom-divider { flex:0 0 1px; width:1px; background-color:rgba(255,255,255,0.4); }
     /* vertical line-by-line fade-in for narrative text */
     .narrative-scroll-box .fade-line {
         display:block;
@@ -134,11 +145,11 @@
 
     /* print/download button */
     #print-btn {
-        position:fixed; top:36px; right:calc(32px + 44px + 4px); z-index:50;
+        position:fixed; top:36px; right:calc(32px + 36px + 4px); z-index:55;
         display:flex; align-items:center; justify-content:center;
         box-sizing:border-box; padding:0; width:36px; height:36px;
         background-color:transparent; border:none;
-        cursor:pointer; pointer-events:none; transition:opacity 0.2s;
+        cursor:pointer; pointer-events:none; transition:none;
         opacity:0;
     }
     #print-btn.btn-visible { opacity:1; pointer-events:auto; }
@@ -146,7 +157,7 @@
     #print-btn img { width:28px; height:28px; display:block; }
     #print-btn::after {
         content:'Download PNG';
-        position:absolute; top:calc(100% + 6px); right:0;
+        position:absolute; bottom:calc(100% + 6px); right:0;
         font-family:'Geist',sans-serif; font-size:var(--sz-small); white-space:nowrap;
         background:rgba(61,61,49,0.85); color:#fff;
         padding:3px 7px; border-radius:4px;
@@ -157,7 +168,7 @@
 
     /* map projection icon button */
     #map-proj-btn {
-        position:fixed; top:36px; right:32px; z-index:50; display:none;
+        position:fixed; top:36px; right:32px; z-index:55; display:none;
         width:36px; height:36px; padding:0;
         background-color:transparent; border:none;
         cursor:pointer; pointer-events:auto;
@@ -169,7 +180,7 @@
     /* tooltip on hover */
     #map-proj-btn::after {
         content:'Map Projection';
-        position:absolute; top:calc(100% + 6px); right:0;
+        position:absolute; bottom:calc(100% + 6px); right:0;
         font-family:'Geist',sans-serif; font-size:var(--sz-small); white-space:nowrap;
         background:rgba(61,61,49,0.85); color:#fff;
         padding:3px 7px; border-radius:4px;
@@ -254,7 +265,7 @@
 
     /* country name display — popup positioned over country centroid */
     #country-name-display {
-        position:fixed; z-index:60; pointer-events:auto; opacity:0; transition:opacity 0.3s ease;
+        position:fixed; z-index:60; pointer-events:none; opacity:0; transition:opacity 0.3s ease;
         font-family:'Geist',sans-serif; font-size:var(--sz-ui); font-weight:400;
         color:#757559; line-height:1.5;
         background:#FBFBEE; padding:10px 18px; border-radius:6px;
@@ -331,19 +342,20 @@
         #intro-textbox { left: 3vw !important; max-width: 80vw !important; }
         #intro-textbox .narrative-inner { font-size: 14px !important; padding: 1rem !important; }
         .narrative-inner { font-size: 14px !important; padding: 1rem !important; }
-        #explore-heading { font-size: 20px !important; line-height: 28px !important; }
+        #explore-heading { font-size: 18px !important; line-height: 28px !important; }
         #explore-subtext { font-size: 14px !important; }
         .narrative-scroll-box { left: 3vw !important; max-width: 80vw !important; }
         #initiative-carousel { width: calc(100% - 10px) !important; }
 
         #skip-btn { bottom: 20px; right: 16px; padding: 8px 16px; height: 36px; }
-        #print-btn { top: 16px; right: calc(16px + 44px + 8px); width: 32px; height: 32px; }
+        #print-btn { top: 16px; right: calc(16px + 32px + 4px); width: 32px; height: 32px; }
 
         #section-nav { right: 12px; gap: 8px; }
         .section-nav-label { display: none; }
         .section-nav-dot { width: 5px; height: 5px; }
 
-        #zoom-controls { bottom: 56px; }
+        #zoom-controls { top: 60px; right: 16px; width: 68px; height: 26px; }
+        #zoom-controls button { font-size: 14px; }
 
         #map-proj-btn { top: 16px; right: 16px; }
         #info-btn { top: 16px; right: 16px; }
@@ -400,7 +412,7 @@
 
     /* info/codebook icon button */
     #info-btn {
-        position:fixed; top:36px; right:32px; z-index:50; display:none;
+        position:fixed; top:36px; right:32px; z-index:55; display:none;
         width:36px; height:36px; padding:0;
         background-color:transparent; border:none;
         cursor:pointer; pointer-events:auto;
@@ -411,7 +423,7 @@
     #info-btn img { width:28px; height:28px; display:block; }
     #info-btn::after {
         content:'Codebook';
-        position:absolute; top:calc(100% + 6px); right:0;
+        position:absolute; bottom:calc(100% + 6px); right:0;
         font-family:'Geist',sans-serif; font-size:var(--sz-small); white-space:nowrap;
         background:rgba(61,61,49,0.85); color:#fff;
         padding:3px 7px; border-radius:4px;
@@ -446,7 +458,7 @@
         text-align:center; max-width:680px;
     }
     #explore-heading {
-        font-family:'Geist',sans-serif; font-size:34px; font-weight:600;
+        font-family:'Geist',sans-serif; font-size:28px; font-weight:600;
         line-height:42px; letter-spacing:-0.01em;
         color:var(--color-off-black); margin:0 0 14px 0;
     }
@@ -496,7 +508,7 @@
         z-index:0; pointer-events:none;
         background: linear-gradient(to bottom, #FBFBEE 0%, #ffffff 50%);
         opacity:0;
-        transition: opacity 0.5s ease;
+        transition:none;
     }
     body.is-hero #hero-map-gradient { opacity:1; }
 
@@ -574,7 +586,11 @@
 <a id="info-btn" href="https://ecojurisprudence.org/codebook/" target="_blank"><img src="Info.svg" alt="Codebook"></a>
 <div id="data-source-label">Data Source: Eco Jurisprudence Monitor (2026)</div>
 <div id="zoom-hint">slider to zoom · drag to pan</div>
-<div id="zoom-controls"></div>
+<div id="zoom-controls">
+    <button id="zoom-out-btn" type="button" aria-label="Zoom out">−</button>
+    <div class="zoom-divider"></div>
+    <button id="zoom-in-btn" type="button" aria-label="Zoom in">+</button>
+</div>
 <div id="zoom-tip-popup">Use ⌘ + scroll to zoom into the map</div>
 <div id="country-name-display"><button id="cnd-close">×</button><span id="cnd-text"></span></div>
 
@@ -671,6 +687,7 @@ function isLandmarkTitle(title){
 }
 let p5Instance, worldGeoJson=null, mapProjection=null;
 let canvasOffsetPx=0; // current translateY offset (px) applied to #p5-canvas — tooltips/popups must add this back in to align with the visually-shifted dots
+let heroSlideT=1; // 0 → 1 progress of the hero map sliding into its centered position; 1 once settled
 let selectedParticle=null;
 let showMap=true;
 let showCountryFills=true;
@@ -701,6 +718,18 @@ let mapZoomActive=false;
 let zoomOutTransitionPending=false; // true while easing zoom back to 1 before a section switch — other scroll logic should not fight this animation
 let _drag={ down:false, x:0, y:0, tx:0, ty:0 };
 let _pinch={ active:false, dist:0, k0:1, tx0:0, ty0:0 };
+let _heroZoomAutoTriggered=false; // re-armed each time s0-hero is (re-)entered
+
+// Starting to zoom the map while still on the hero implies the person is done
+// with the landing view — jump the page straight to the settled overview
+// position (map centered, hero gone, all buttons/nav revealed together) rather
+// than requiring them to keep scrolling past the hero first.
+function triggerHeroToOverview(){
+    const heroSection=document.querySelector('.scroll-section[data-section="s0-hero"]');
+    const heroH=heroSection?heroSection.offsetHeight:window.innerHeight;
+    const target=heroH+window.innerHeight*0.1;
+    window.scrollTo({top:target, behavior:'smooth'});
+}
 const MAP_ZOOM_MIN=1, MAP_ZOOM_MAX=12;
 
 /* ════════════════════════════════════════════════════
@@ -1016,7 +1045,7 @@ function initViz(){
             onSectionEnter('s0-hero');
         };
         p.draw=function(){
-            if(document.body.classList.contains('is-hero')){
+            if(document.body.classList.contains('is-hero') && heroSlideT<1){
                 p.clear();
             } else {
                 p.background('#FFFFFF');
@@ -1070,7 +1099,7 @@ function initViz(){
                 ttEl.style.display='none'; ctEl.style.display='none'; hoveredCountry=null;
                 return;
             }
-            if(isPointerOverUI(p.mouseX,p.mouseY+canvasOffsetPx)){
+            if(isPointerOverUI(p.winMouseX,p.winMouseY)){
                 ttEl.style.display='none'; ctEl.style.display='none'; hoveredCountry=null;
                 if(p.canvas) p.canvas.style.cursor='default';
                 return;
@@ -1130,7 +1159,7 @@ function initViz(){
             }
         };
         p.mouseClicked=function(){
-            if(isPointerOverUI(p.mouseX,p.mouseY+canvasOffsetPx)) return;
+            if(isPointerOverUI(p.winMouseX,p.winMouseY)) return;
             const found=findParticle(p.mouseX,p.mouseY);
             if(found && !landmarkMode){ selectedParticle===found?hidePinned():showPinned(found); return; }
             if(found && landmarkMode){ return; }
@@ -1220,6 +1249,20 @@ function initViz(){
     // ── PRINT / DOWNLOAD PNG ──
     document.getElementById('print-btn').addEventListener('click', downloadCurrentView);
 
+    // +/- zoom buttons — step the zoom toward the center of the viewport, using
+    // the same clamp/particle-sync logic as wheel and pinch zoom.
+    function zoomButtonStep(factor){
+        if(!mapZoomActive) return;
+        const cx=window.innerWidth/2, cy=window.innerHeight/2;
+        const k0=mapZoom.k;
+        mapZoom.k=Math.max(MAP_ZOOM_MIN,Math.min(MAP_ZOOM_MAX,k0*factor));
+        mapZoom.tx=cx-(cx-mapZoom.tx)*(mapZoom.k/k0);
+        mapZoom.ty=cy-(cy-mapZoom.ty)*(mapZoom.k/k0);
+        clampZoom(); applyZoomToParticles();
+    }
+    document.getElementById('zoom-in-btn').addEventListener('click', ()=>zoomButtonStep(1.4));
+    document.getElementById('zoom-out-btn').addEventListener('click', ()=>zoomButtonStep(1/1.4));
+
     function downloadCurrentView(){
         // Determine mode: whenever the zoom slider is visible, the user is still
         // looking at the map (globe view, or s4-regions before its bar-chart morph
@@ -1251,7 +1294,7 @@ function initViz(){
         if(!p5Instance||!worldGeoJson||!mapProjection) return;
         const W=p5Instance.width, H=p5Instance.height;
         const dpr=window.devicePixelRatio||2;
-        const { finalW, finalH, offsetX, offsetY } = get16x9Layout(W, H);
+        const { finalW, finalH } = get16x9Layout(W, H);
         const out=document.createElement('canvas');
         out.width=Math.round(finalW*dpr); out.height=Math.round(finalH*dpr);
         const ctx=out.getContext('2d');
@@ -1260,9 +1303,40 @@ function initViz(){
         // White background — full 16:9 canvas
         ctx.fillStyle='#FFFFFF'; ctx.fillRect(0,0,finalW,finalH);
 
-        // Map + particles are drawn centered within the 16:9 frame
+        const MARGIN = 40;
+
+        // ── TITLE + CAPTION — top-left corner, same format as the chart downloads ──
+        const titleText = `Eco Jurisprudence Worldwide`;
+        ctx.font = "700 15px 'Geist',sans-serif";
+        const titleAscent = ctx.measureText(titleText).actualBoundingBoxAscent || 11;
+        const TITLE_Y = MARGIN + titleAscent;
+        ctx.fillStyle = '#3D3D31';
+        ctx.textAlign = 'left';
+        ctx.fillText(titleText, MARGIN, TITLE_Y);
+
+        const CAPTION_LINE_H = 12.5;
+        const captionLines = [
+            `This map represents the total number of ecological jurisprudence initiatives globally`,
+            `by their geographic location. Each dot represents a single initiative.`,
+        ];
+        ctx.font = "400 8.5px 'Geist',sans-serif";
+        ctx.fillStyle = 'rgba(61,61,49,0.55)';
+        let capY = TITLE_Y + 26;
+        captionLines.forEach(l=>{ ctx.fillText(l, MARGIN, capY); capY += CAPTION_LINE_H; });
+
+        // Reserve the vertical space used by the title/caption block (plus a little
+        // breathing room) and shrink the map to fit below it, so the two never overlap.
+        const titleBlockBottom = capY + 12;
+        const availH = finalH - titleBlockBottom - MARGIN;
+        const mapScale = Math.max(0.5, Math.min(1, availH / H));
+        const scaledW = W * mapScale, scaledH = H * mapScale;
+        const mapOffsetX = (finalW - scaledW) / 2;
+        const mapOffsetY = titleBlockBottom + (finalH - MARGIN - titleBlockBottom - scaledH) / 2;
+
+        // Map + particles are drawn centered within the space below the title block
         ctx.save();
-        ctx.translate(offsetX, offsetY);
+        ctx.translate(mapOffsetX, mapOffsetY);
+        ctx.scale(mapScale, mapScale);
 
         // Draw map fills at full alpha (default view: no zoom)
         const pathGen=d3.geoPath().context(ctx);
@@ -1287,12 +1361,9 @@ function initViz(){
             ctx.fill(); ctx.stroke();
         });
 
-        ctx.restore(); // end centering transform — corner elements below are pinned to the true canvas edges
+        ctx.restore(); // end map transform — corner elements below are pinned to the true canvas edges
 
-        const MARGIN = 40;
-
-        // ── Legend — top-right corner (same style/position as chart downloads, ──
-        // just anchored off MARGIN directly since there's no title above it here)
+        // ── Legend — top-right corner (same baseline as the title, same as chart downloads) ──
         const LEGEND_ENTRIES = [
             { color:'#85854D', label:'All Nature / Urban / Climate' },
             { color:'#FF9B00', label:'Animal' },
@@ -1306,11 +1377,7 @@ function initViz(){
         const LEG_TEXT_W = Math.max(...LEGEND_ENTRIES.map(e=>ctx.measureText(e.label).width));
         const LEG_BLOCK_W = LEG_DOT + 8 + LEG_TEXT_W;
         const legendX = finalW - MARGIN - LEG_BLOCK_W;
-        // Same vertical anchor the chart export uses for its title baseline, so the
-        // legend lands in the identical spot whether or not a title is drawn above it.
-        ctx.font = "700 15px 'Geist',sans-serif";
-        const titleAscent = ctx.measureText('Eco Jurisprudence').actualBoundingBoxAscent || 11;
-        const legendTop = MARGIN + titleAscent;
+        const legendTop = TITLE_Y;
 
         ctx.textAlign = 'left';
         LEGEND_ENTRIES.forEach((entry, i)=>{
@@ -1674,14 +1741,25 @@ function initViz(){
         const vh = window.innerHeight;
         const scrolled = window.scrollY;
 
-        // Map canvas slide-up: runs from scroll=0 to scroll=vh (hero), then clamps to 0.
-        // Extends slightly into s1-stats to avoid a jerky snap on section transition.
+        // Map canvas slide-up: runs from scroll=0 to scroll=heroH/2 — the same point
+        // where the "Get the Charts" / "Get the Data" hero buttons finish fading out
+        // (see the t*2 opacity formula below) — so the map is fully centered right
+        // as the hero buttons disappear, instead of continuing to slide for the rest
+        // of the hero section after they're already gone.
         const heroSection = document.querySelector('.scroll-section[data-section="s0-hero"]');
         const heroH = heroSection ? heroSection.offsetHeight : vh;
-        const slideT = Math.min(1, scrolled / heroH);
+        const slideT = Math.min(1, scrolled / (heroH * 0.5));
+        heroSlideT = slideT;
         const mapOffset = 30 * (1 - slideT);
-        canvasOffsetPx = mapOffset / 100 * vh + 10;
-        document.getElementById('p5-canvas').style.transform = `translateY(calc(${mapOffset}vh + 10px))`;
+        canvasOffsetPx = mapOffset / 100 * vh;
+        document.getElementById('p5-canvas').style.transform = `translateY(${mapOffset}vh)`;
+
+        // Sand gradient behind the map: fade it out continuously in step with the
+        // same slide progress (rather than snapping off via the is-hero class at
+        // the section boundary) so it never lingers as a leftover rectangle once
+        // the map has already visually settled into place.
+        const gradEl = document.getElementById('hero-map-gradient');
+        if(gradEl) gradEl.style.opacity = String(Math.max(0, 1 - slideT));
 
         // Zoom-tip popup: rather than a fixed screen-centered popup on a timer, it
         // tracks the map's own visual center while the map is sliding into view —
@@ -1690,7 +1768,14 @@ function initViz(){
         {
             const tipEl=document.getElementById('zoom-tip-popup');
             if(tipEl){
-                if(scrolled>0 && slideT<1){
+                if(scrolled<=0){
+                    // Back at the very top of the hero — always hide, regardless of
+                    // whether the map had finished sliding into place.
+                    if(tipEl.classList.contains('visible')){
+                        tipEl.classList.remove('visible');
+                        _zoomTipPopupVisible=false;
+                    }
+                } else if(scrolled>0 && slideT<1){
                     tipEl.style.top=(canvasOffsetPx + vh/2)+'px';
                     if(!tipEl.classList.contains('visible')){
                         tipEl.classList.add('visible');
@@ -1699,6 +1784,46 @@ function initViz(){
                 } else if(slideT>=1 && tipEl.classList.contains('visible')){
                     tipEl.classList.remove('visible');
                     _zoomTipPopupVisible=false;
+                }
+            }
+        }
+
+        // Map button chrome (globe, print, skip, nav, zoom controls): reveal it
+        // the instant the map finishes sliding into its centered position —
+        // i.e. exactly when the zoom-tip popup above disappears — rather than
+        // on a separate, later scroll trigger that could leave a gap where the
+        // popup is gone but no chrome has appeared yet. Runs on every scroll
+        // tick regardless of which section is active, so it can't get stuck
+        // behind a section-specific gate.
+        {
+            const chromeVisible = (slideT>=1);
+            if(chromeVisible){
+                if(!_zoomUIRevealed){
+                    _zoomUIRevealed=true;
+                    document.getElementById('zoom-hint').classList.add('visible');
+                    document.getElementById('zoom-controls').classList.add('visible');
+                    document.getElementById('map-proj-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
+                    document.getElementById('print-btn').classList.add('btn-visible');
+                    document.getElementById('section-nav').style.opacity='';
+                    document.getElementById('section-nav').style.pointerEvents='';
+                    document.getElementById('skip-btn').style.opacity='';
+                    document.getElementById('skip-btn').style.pointerEvents='';
+                    applyZoomToParticles();
+                }
+            } else {
+                if(_zoomUIRevealed && !zoomOutTransitionPending){
+                    if(mapZoomActive && mapZoom.k>1.01){
+                        // Zoomed in and scrolling normally back out of the map area —
+                        // ease the zoom back to 1 first, then hide the map UI, instead
+                        // of snapping instantly.
+                        zoomOutTransitionPending=true;
+                        gentleZoomOut(()=>{
+                            zoomOutTransitionPending=false;
+                            deactivateMapZoomUI();
+                        }, 500);
+                    } else {
+                        deactivateMapZoomUI();
+                    }
                 }
             }
         }
@@ -1764,9 +1889,11 @@ function initViz(){
             statsEl.style.opacity = String(Math.min(fadeIn, fadeOut));
 
             // Intro text: same linear scroll + fade behavior as the counter (enters from
-            // below, passes through center, exits top), just delayed so it starts
-            // entering right as the counter finishes scrolling off the top of the screen.
-            const introTop = vh * 2.1 - scrolled;
+            // below, passes through center, exits top), delayed so it starts entering
+            // once the counter itself is 20% of the way down from the top of the screen
+            // (counterTop = vh*0.2, i.e. scrolled = vh*0.9) rather than waiting for the
+            // counter to have fully scrolled off the top.
+            const introTop = vh * 1.9 - scrolled;
             introEl.style.top = introTop + 'px';
             introEl.style.transform = 'translateY(-50%)';
             if(_zoomTipPopupVisible){
@@ -1778,40 +1905,11 @@ function initViz(){
                 introEl.style.opacity = String(Math.min(introFadeIn, introFadeOut));
             }
 
-            // Show all UI (globe, print, skip, nav, zoom-tip popup) together, slightly
-            // before the map finishes sliding into its fully centered position.
-            // Note: this only reveals the map's button chrome — Cmd/Ctrl+scroll zoom
-            // itself is already enabled from the hero onward (see mapZoomActive).
-            const counterVisible = (counterTop < vh + vh*0.15);
-            if(counterVisible){
-                if(!_zoomUIRevealed){
-                    _zoomUIRevealed=true;
-                    document.getElementById('zoom-hint').classList.add('visible');
-                    document.getElementById('zoom-controls').classList.add('visible');
-                    document.getElementById('map-proj-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
-                    document.getElementById('print-btn').classList.add('btn-visible');
-                    document.getElementById('section-nav').style.opacity='';
-                    document.getElementById('section-nav').style.pointerEvents='';
-                    document.getElementById('skip-btn').style.opacity='';
-                    document.getElementById('skip-btn').style.pointerEvents='';
-                    applyZoomToParticles();
-                }
-            } else {
-                if(_zoomUIRevealed && !zoomOutTransitionPending){
-                    if(mapZoomActive && mapZoom.k>1.01){
-                        // Zoomed in and scrolling normally back out of the map area —
-                        // ease the zoom back to 1 first, then hide the map UI, instead
-                        // of snapping instantly.
-                        zoomOutTransitionPending=true;
-                        gentleZoomOut(()=>{
-                            zoomOutTransitionPending=false;
-                            deactivateMapZoomUI();
-                        }, 500);
-                    } else {
-                        deactivateMapZoomUI();
-                    }
-                }
-            }
+            // NOTE: the map's button chrome (globe, print, skip, nav, zoom
+            // controls) is revealed/hidden from the always-on hero/slide
+            // scroll listener above, in exact lockstep with the zoom-tip
+            // popup — see the "chromeVisible" block there. That keeps the
+            // two in sync regardless of which section is currently active.
         }
         if(selectedParticle) positionPinnedTooltip();
         const staticEl=document.getElementById('static-content');
@@ -1887,7 +1985,11 @@ function initViz(){
         // (never during region charts or other scrollytelling sections) —
         // otherwise do nothing at all, as if the scroll never happened.
         if(!mapZoomActive) return;
-        if(e.target && e.target.closest && e.target.closest('#map-proj-btn, #print-btn, #skip-btn, #info-btn, #section-nav, #map-proj-popup, #pinned-tooltip, #country-name-display')) return;
+        if(e.target && e.target.closest && e.target.closest('#map-proj-btn, #print-btn, #skip-btn, #info-btn, #zoom-controls, #section-nav, #map-proj-popup, #pinned-tooltip, #country-name-display')) return;
+        if(currentSection==='s0-hero' && !_heroZoomAutoTriggered){
+            _heroZoomAutoTriggered=true;
+            triggerHeroToOverview();
+        }
         const cx=e.clientX, cy=e.clientY;
         const k0=mapZoom.k;
         // Clamp deltaY so a single large trackpad/mouse tick can't cause a huge jump
@@ -1925,6 +2027,10 @@ function initViz(){
             const dy=e.touches[1].clientY-e.touches[0].clientY;
             _pinch={active:true,dist:Math.hypot(dx,dy),k0:mapZoom.k,tx0:mapZoom.tx,ty0:mapZoom.ty};
             _drag.down=false;
+            if(currentSection==='s0-hero' && !_heroZoomAutoTriggered){
+                _heroZoomAutoTriggered=true;
+                triggerHeroToOverview();
+            }
         }
         e.preventDefault();
     },{passive:false});
@@ -2551,14 +2657,16 @@ function onSectionEnter(sec){
         _scrollLockActive=false;
     }
 
-    // Hide skip + print on the explode/end section, show on all others
+    // Hide skip + print on the hero and the explode/end section; on every other
+    // section (including s1-stats) they're governed by the slideT-synced chrome
+    // logic above, which already keeps them in lockstep with the zoom-tip popup —
+    // don't fight it here.
     const isEnd = (sec==='s9-end');
     const isHero = (sec==='s0-hero');
-    const isStats = (sec==='s1-stats');
-    document.getElementById('section-nav').style.opacity = (isHero || isStats) ? '0' : '';
-    document.getElementById('section-nav').style.pointerEvents = (isHero || isStats) ? 'none' : '';
-    document.getElementById('skip-btn').style.opacity = (isEnd || isHero || isStats) ? '0' : '';
-    document.getElementById('skip-btn').style.pointerEvents = (isEnd || isHero || isStats) ? 'none' : '';
+    document.getElementById('section-nav').style.opacity = (isHero || isEnd) ? '0' : '';
+    document.getElementById('section-nav').style.pointerEvents = (isHero || isEnd) ? 'none' : '';
+    document.getElementById('skip-btn').style.opacity = (isEnd || isHero) ? '0' : '';
+    document.getElementById('skip-btn').style.pointerEvents = (isEnd || isHero) ? 'none' : '';
     // Show/hide hero elements
     const heroEl = document.getElementById('hero-text');
     const hintEl = document.getElementById('hero-scroll-hint');
@@ -2571,10 +2679,10 @@ function onSectionEnter(sec){
         if(hintEl) hintEl.style.opacity='0';
         document.body.classList.remove('is-hero');
     }
-    // print-btn: hidden on hero/end/s1-stats entry (s1-stats shows it via scroll when counter appears)
-    const isMapSection = (sec==='s1-stats');
+    // print-btn: hidden on hero/end entry; elsewhere governed by the slideT-synced
+    // chrome logic (see above) rather than forced here.
     const pb=document.getElementById('print-btn');
-    if(isEnd || isMapSection || isHero){
+    if(isEnd || isHero){
         pb.classList.remove('btn-visible');
     } else {
         pb.classList.add('btn-visible');
@@ -2590,6 +2698,7 @@ function onSectionEnter(sec){
 
     switch(sec){
         case 's0-hero':
+            _heroZoomAutoTriggered=false;
             fadeInMap(); showCountryFills=true; overviewFade=false;
             clearLabels(); hidePinned();
             selectedCountry=null; selectedCountryParticles.clear();
@@ -2598,8 +2707,8 @@ function onSectionEnter(sec){
             if(p5Instance&&particleMapPos.length) placeParticlesOnMap(false);
             resetStats(); statsScrollTriggered=false;
             // Reset map offset to initial pushed-down state
-            canvasOffsetPx = 0.30 * window.innerHeight + 10;
-            document.getElementById('p5-canvas').style.transform='translateY(calc(30vh + 10px))';
+            canvasOffsetPx = 0.30 * window.innerHeight;
+            document.getElementById('p5-canvas').style.transform='translateY(30vh)';
             // The map is already partially visible here (behind the hero) — let
             // Cmd/Ctrl+scroll zoom it right away, well before the rest of the map
             // UI (globe icon, print button, etc.) reveals itself later on scroll.
@@ -2619,6 +2728,13 @@ function onSectionEnter(sec){
             resetStats();
             statsScrollTriggered=false;
             mapZoomActive=true;
+            // The map is always fully centered and interactive by the time s1-stats
+            // is active, so its map-only chrome (zoom controls, globe icon, data
+            // source label) belongs on screen here too — re-assert it since the
+            // generic reset above unconditionally hides it on every section entry.
+            document.getElementById('zoom-controls').classList.add('visible');
+            document.getElementById('map-proj-btn').style.display='flex';
+            document.getElementById('data-source-label').style.display='flex';
             // Signal to parent (WordPress) that the story has reset to start
             if(window.parent !== window) window.parent.postMessage('ejm:reset', '*');
             break;
@@ -2974,8 +3090,24 @@ function layoutByFramework(){
     particles.forEach(p=>{ if(!FORMAL_LAW.includes(p.data['Legal Provision'])&&!SOFT_LAW.includes(p.data['Legal Provision'])){p.frozen=false;p.setTarget(-100,-100,false);} });
 
     frameworkBrackets=[];
-    if(fKeys.length) frameworkBrackets.push({x:startX, w:(fKeys.length-1)*step+colW, label:'Formal Law'});
-    if(sKeys.length) frameworkBrackets.push({x:sStartX, w:(sKeys.length-1)*step+colW, label:'Soft Law'});
+    // The bracket bars' outer edges align with the same margin the icons/skip
+    // button sit at (36px desktop, 16px mobile) instead of hugging the dot
+    // columns tightly. The inner edge of each bar is then extended so the bar
+    // stays centered on that group's actual dots — Soft Law's right edge locks
+    // to the right margin (extending its left edge outward), and Formal Law
+    // mirrors this on the left margin (extending its right edge outward).
+    const edgeMargin = isMobile ? 16 : 36;
+    if(fKeys.length){
+        const fCenter = startX + ((fKeys.length-1)*step+colW)/2;
+        const fRight = 2*fCenter - edgeMargin;
+        frameworkBrackets.push({x:edgeMargin, w:fRight-edgeMargin, label:'Formal Law'});
+    }
+    if(sKeys.length){
+        const sCenter = sStartX + ((sKeys.length-1)*step+colW)/2;
+        const sRight = w - edgeMargin;
+        const sLeft = 2*sCenter - sRight;
+        frameworkBrackets.push({x:sLeft, w:sRight-sLeft, label:'Soft Law'});
+    }
 
     // Measure how far the category labels (e.g. "Constitution", "Court Case") actually
     // extend down, so the gap above the bracket bar matches the gap below it exactly.
