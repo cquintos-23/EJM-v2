@@ -64,7 +64,7 @@
         position:fixed; left:36px; z-index:30; pointer-events:none;
         width:fit-content; max-width:352px;
         background:#ffffff; border-radius:4px; padding:10px; box-sizing:border-box;
-        opacity:0; transition:opacity 0.4s ease;
+        opacity:0;
     }
     #intro-textbox .narrative-inner {
         font-family:'Geist',sans-serif; font-size:var(--sz-narrative); font-weight:400;
@@ -97,19 +97,35 @@
     #zoom-controls {
         position:fixed; top:80px; right:32px; width:76px; height:28px;
         z-index:50; display:none; flex-direction:row; align-items:stretch;
-        background-color:#B5B5B1; border-radius:7px; overflow:hidden;
+        background-color:#B5B5B1; border-radius:7px; overflow:visible;
         pointer-events:auto; touch-action:auto;
         isolation:isolate;
     }
     #zoom-controls.visible { display:flex; }
     #zoom-controls button {
+        position:relative;
         flex:1 1 50%; display:flex; align-items:center; justify-content:center;
         box-sizing:border-box; padding:0; margin:0; background:transparent; border:none;
         color:#fff; font-family:'Geist',sans-serif; font-weight:500; font-size:15px; line-height:1;
         cursor:pointer; box-shadow:none; transition:background-color 0.2s;
     }
     #zoom-controls button:hover { background-color:#3D3D31; }
+    #zoom-out-btn { border-radius:7px 0 0 7px; }
+    #zoom-in-btn { border-radius:0 7px 7px 0; }
     #zoom-controls .zoom-divider { flex:0 0 1px; width:1px; background-color:rgba(255,255,255,0.4); }
+    /* tooltips on hover, below the buttons — matches the print/globe tooltip style,
+       just anchored under each button instead of above it */
+    #zoom-controls button::after {
+        position:absolute; top:calc(100% + 6px); left:50%; transform:translateX(-50%);
+        font-family:'Geist',sans-serif; font-size:var(--sz-small); white-space:nowrap;
+        background:rgba(61,61,49,0.85); color:#fff;
+        padding:3px 7px; border-radius:4px;
+        opacity:0; pointer-events:none;
+        transition:opacity 0.15s ease;
+    }
+    #zoom-out-btn::after { content:'Zoom Out'; }
+    #zoom-in-btn::after { content:'Zoom In'; }
+    #zoom-controls button:hover::after { opacity:1; }
     /* vertical line-by-line fade-in for narrative text */
     .narrative-scroll-box .fade-line {
         display:block;
@@ -517,7 +533,7 @@
         position:fixed; top:0; left:0; width:100%; height:100vh;
         z-index:25; pointer-events:none;
         display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
-        padding: 5vh 9vw 0;
+        padding: 3vh 9vw 0;
         transition:none;
     }
     #hero-text h1 {
@@ -530,11 +546,12 @@
     }
     #hero-text .hero-btns {
         pointer-events:auto;
-        margin-top:20px;
-        margin-bottom:20px;
+        position:absolute;
+        left:50%;
+        transform:translateX(-50%);
     }
     @media (max-width: 768px) {
-        #hero-text { padding:5vh 6vw 0; }
+        #hero-text { padding:3vh 6vw 0; }
         #hero-text h1 { font-size:clamp(26px, 8.4vw, 43px); }
     }
     #hero-scroll-hint { display:none; }
@@ -688,6 +705,7 @@ function isLandmarkTitle(title){
 let p5Instance, worldGeoJson=null, mapProjection=null;
 let canvasOffsetPx=0; // current translateY offset (px) applied to #p5-canvas — tooltips/popups must add this back in to align with the visually-shifted dots
 let heroSlideT=1; // 0 → 1 progress of the hero map sliding into its centered position; 1 once settled
+let heroExitDistanceVh=45; // how far (in vh) the hero text/buttons must translate up to fully leave the viewport — recomputed by layoutHeroButtons()
 let selectedParticle=null;
 let showMap=true;
 let showCountryFills=true;
@@ -1028,6 +1046,36 @@ class Particle {
 /* ════════════════════════════════════════════════════
    P5 INIT
 ════════════════════════════════════════════════════ */
+// Positions the "Get the Charts" / "Get the Data" buttons in the gap between
+// the hero heading and the top of the map canvas (the map sits at 30vh — see
+// #p5-canvas's initial translateY), sitting as close to the map as the cushion
+// allows instead of a fixed margin below the heading.
+// Also recomputes how far (in vh) the whole hero block needs to translate
+// upward to fully clear the viewport once the user starts scrolling.
+function layoutHeroButtons(){
+    const heroEl=document.getElementById('hero-text');
+    const h1=heroEl && heroEl.querySelector('h1');
+    const btns=heroEl && heroEl.querySelector('.hero-btns');
+    if(!heroEl || !h1 || !btns) return;
+    // Measure with the hero block at rest (no scroll-driven transform applied)
+    // so the measurement reflects true on-screen position.
+    const prevTransform=heroEl.style.transform;
+    heroEl.style.transform='translateY(0)';
+    const vh=window.innerHeight;
+    const mapTopPx=vh * 0.30; // matches #p5-canvas's initial transform:translateY(30vh)
+    const btnHeight=btns.offsetHeight;
+    const h1Bottom=h1.getBoundingClientRect().bottom;
+    const CUSHION=16; // minimum gap (px) — both from the heading above and the map below, so the buttons never overlap either
+    // Sit as close to the map's top edge as the cushion allows, but never closer
+    // to the heading than the cushion allows either.
+    const top=Math.max(mapTopPx - btnHeight - CUSHION, h1Bottom + CUSHION);
+    btns.style.top=top + 'px';
+    heroEl.style.transform=prevTransform;
+    // Distance needed to move the buttons' bottom edge above the top of the
+    // viewport, plus a small buffer.
+    heroExitDistanceVh=Math.max(35, ((top + btnHeight) / vh) * 100 + 5);
+}
+
 function initViz(){
     new p5(p=>{
         p5Instance=p;
@@ -1222,6 +1270,11 @@ function initViz(){
     // init dot nav — no dot active on hero
     document.querySelectorAll('.section-nav-item').forEach(el=>el.classList.remove('active'));
     onSectionEnter('s0-hero');
+    // Position the hero CTA buttons vertically centered between the hero text and
+    // the top of the map, and keep them centered as the viewport/text reflows.
+    layoutHeroButtons();
+    window.addEventListener('resize', layoutHeroButtons);
+    if(document.fonts && document.fonts.ready){ document.fonts.ready.then(layoutHeroButtons); }
     // dot nav click: instant jump (no scrollytelling transitions)
     function jumpToSection(sec){
         // Respect the brief scroll lock shown alongside the zoom-tip popup —
@@ -1829,15 +1882,16 @@ function initViz(){
         }
 
         if(currentSection === 's0-hero'){
-            const t = Math.min(1, scrolled / vh);
             const heroEl = document.getElementById('hero-text');
             const hintEl = document.getElementById('hero-scroll-hint');
-            // Move at the exact same rate the map canvas slides (30vh over the same
-            // scroll range) so the visual gap between the hero/buttons and the map
-            // never grows or shrinks while scrolling — they travel together.
-            heroEl.style.transform = `translateY(${-t * 30}vh)`;
-            heroEl.style.opacity = String(Math.max(0, 1 - t * 2));
-            if(hintEl) hintEl.style.opacity = String(Math.max(0, 0.4 - t * 2));
+            // Move at the exact same speed the map slides into place (30vh over the
+            // same heroH*0.5 scroll range as slideT/mapOffset above), continuing at
+            // that same rate past the point the map settles so the hero content keeps
+            // moving — rather than stopping — until it's fully scrolled out of frame.
+            const heroTranslateVh = Math.min(heroExitDistanceVh, (scrolled / (heroH * 0.5)) * 30);
+            heroEl.style.transform = `translateY(${-heroTranslateVh}vh)`;
+            const hintT = Math.min(1, scrolled / vh);
+            if(hintEl) hintEl.style.opacity = String(Math.max(0, 0.4 - hintT * 2));
         }
     }, {passive:true});
 
@@ -1858,14 +1912,17 @@ function initViz(){
                 animateStats();
             }
 
-            // overviewFade: drive a continuous alpha — full opacity at scroll=0, 50% by scroll=vh*0.4, stays 50% until counter exits
-            overviewFade = (scrolled < vh * 1.3);
-            if(overviewFade){
-                // Fade from 1 → 0.5 over first 40% of the section scroll
-                overviewAlpha = Math.max(0.5, 1 - scrolled / (vh * 0.8));
-            } else {
-                overviewAlpha = 1;
-            }
+            // Map/dot dim envelope: a smooth, symmetric, eased ramp down to 50% as the
+            // counter approaches screen-center, then back up to full as it leaves —
+            // the exact same tempo on both sides, so it grays back in exactly as
+            // gradually as it grays out (no hard snap back to full opacity).
+            const dimCenter = vh * 0.6;    // scroll position where the counter sits at screen-center
+            const dimHalfRange = vh * 0.6; // ramp width on each side of center
+            const dimDist = Math.min(1, Math.abs(scrolled - dimCenter) / dimHalfRange); // 0 at center → 1 at/after the edges
+            const dimRaw = 1 - dimDist; // 1 at center → 0 at the edges (linear)
+            const dimProximity = dimRaw * dimRaw * (3 - 2 * dimRaw); // smoothstep ease
+            overviewFade = true;
+            overviewAlpha = 1 - 0.5 * dimProximity;
 
             // Close any open popups while counter is on screen
             if(scrolled < vh * 1.1){
@@ -1878,32 +1935,25 @@ function initViz(){
 
             // Counter scrolls linearly: starts below viewport, passes through center, scrolls off top.
             // At scrolled=0 -> counterTop = vh*1.1 (below). At scrolled = vh*1.6 -> counterTop = -vh*0.5 (gone).
+            // No fade — it's just always fully opaque and enters/exits purely by position
+            // (fixed positioning means it's naturally invisible once it's outside the
+            // viewport), except it's held hidden while the zoom-tip popup is up so the
+            // two never overlap.
             const counterTop = vh * 1.1 - scrolled;
             statsEl.style.top = counterTop + 'px';
             statsEl.style.transform = 'translate(-50%, -50%)';
-            // Fade in as it enters, fade out as it exits top — but hold the counter
-            // fully hidden until the zoom-tip popup has appeared and gone away, so
-            // the two never overlap.
-            const fadeIn = Math.min(1, Math.max(0, (vh - counterTop) / (vh * 0.3)));
-            const fadeOut = Math.min(1, Math.max(0, counterTop / (vh * 0.2)));
-            statsEl.style.opacity = String(Math.min(fadeIn, fadeOut));
+            statsEl.style.opacity = _zoomTipPopupVisible ? '0' : '1';
 
-            // Intro text: same linear scroll + fade behavior as the counter (enters from
-            // below, passes through center, exits top), delayed so it starts entering
-            // once the counter itself is 20% of the way down from the top of the screen
+            // Intro text: same linear scroll behavior as the counter (enters from below,
+            // passes through center, exits top), delayed so it starts entering once the
+            // counter itself is 20% of the way down from the top of the screen
             // (counterTop = vh*0.2, i.e. scrolled = vh*0.9) rather than waiting for the
-            // counter to have fully scrolled off the top.
+            // counter to have fully scrolled off the top. Same as the counter, it just
+            // scrolls — no fade — and is only hidden while the zoom-tip popup is up.
             const introTop = vh * 1.9 - scrolled;
             introEl.style.top = introTop + 'px';
             introEl.style.transform = 'translateY(-50%)';
-            if(_zoomTipPopupVisible){
-                // Never let the intro box show while the zoom-tip popup is up.
-                introEl.style.opacity='0';
-            } else {
-                const introFadeIn = Math.min(1, Math.max(0, (vh - introTop) / (vh * 0.3)));
-                const introFadeOut = Math.min(1, Math.max(0, introTop / (vh * 0.2)));
-                introEl.style.opacity = String(Math.min(introFadeIn, introFadeOut));
-            }
+            introEl.style.opacity = _zoomTipPopupVisible ? '0' : '1';
 
             // NOTE: the map's button chrome (globe, print, skip, nav, zoom
             // controls) is revealed/hidden from the always-on hero/slide
@@ -2566,28 +2616,31 @@ function positionLandmarkPopups(show){
 /* ════════════════════════════════════════════════════
    MAP ALPHA TWEEN
 ════════════════════════════════════════════════════ */
-function fadeOutMap(duration){
+const MAP_FADE_IN_MS=1800;  // smooth, gradual tempo for the map fading in
+const MAP_FADE_OUT_MS=1200; // 1.5x faster than fade-in, same eased shape
+function fadeOutMap(onComplete){
     if(_mapAlphaTween) cancelAnimationFrame(_mapAlphaTween);
-    duration=duration||600;
     const start=performance.now();
     const from=mapAlpha;
     function step(now){
-        const t=Math.min((now-start)/duration,1);
-        const ease=1-Math.pow(1-t,3); // easeOutCubic
+        const t=Math.min((now-start)/MAP_FADE_OUT_MS,1);
+        // easeInCubic — the exact time-mirror of fadeInMap's easeOutCubic curve, so
+        // the perceptible part of the fade (near full opacity) takes just as long to
+        // pass through as it does on the way in, instead of dropping off quickly.
+        const ease=Math.pow(t,3);
         mapAlpha=from*(1-ease);
         if(t<1){ _mapAlphaTween=requestAnimationFrame(step); }
-        else { mapAlpha=0; showMap=false; _mapAlphaTween=null; }
+        else { mapAlpha=0; showMap=false; _mapAlphaTween=null; if(onComplete) onComplete(); }
     }
     _mapAlphaTween=requestAnimationFrame(step);
 }
-function fadeInMap(duration){
+function fadeInMap(){
     if(_mapAlphaTween) cancelAnimationFrame(_mapAlphaTween);
     showMap=true;
-    if(!duration){ mapAlpha=1; _mapAlphaTween=null; return; }
     const start=performance.now();
     const from=mapAlpha;
     function step(now){
-        const t=Math.min((now-start)/duration,1);
+        const t=Math.min((now-start)/MAP_FADE_IN_MS,1);
         const ease=1-Math.pow(1-t,3); // easeOutCubic
         mapAlpha=from+(1-from)*ease;
         if(t<1){ _mapAlphaTween=requestAnimationFrame(step); }
@@ -2626,7 +2679,11 @@ function gentleZoomOut(onComplete, duration){
 /* ════════════════════════════════════════════════════
    SECTION LOGIC — called on EVERY enter (up or down)
 ════════════════════════════════════════════════════ */
+let _prevSectionForZoomReset=null; // tracks the section we're transitioning FROM, so the map-position-snap below only fires when it should
+
 function onSectionEnter(sec){
+    const prevSec=_prevSectionForZoomReset;
+    _prevSectionForZoomReset=sec;
     // Reset all overlays
     hide('stats-display'); clearNarrative();
     overviewFade=false; overviewAlpha=1;
@@ -2642,7 +2699,16 @@ function onSectionEnter(sec){
     document.getElementById('map-proj-popup').style.display='none';
     document.getElementById('info-btn').style.display='none'; document.getElementById('data-source-label').style.display='none';
     // Deactivate zoom (narrate sections re-enable it below)
-    if(mapZoomActive){ mapZoomActive=false; resetMapZoom(); if(p5Instance&&particleMapPos.length) placeParticlesOnMap(); }
+    if(mapZoomActive){
+        mapZoomActive=false; resetMapZoom();
+        // Only snap particles back to their lat/long map positions when we're
+        // actually leaving a true map view (hero or overview) — the region chart
+        // also sets mapZoomActive (purely as an interaction-state flag, its dots
+        // are already in column formation, not geo positions), so leaving it
+        // shouldn't cause a jarring one-frame flash back to the map before the
+        // next chart's layout animates in.
+        if(p5Instance&&particleMapPos.length && (prevSec==='s0-hero'||prevSec==='s1-stats')) placeParticlesOnMap();
+    }
     // selectedCountry persists through all sections until user explicitly clicks out
     document.getElementById('zoom-hint').classList.remove('visible');
     document.getElementById('zoom-controls').classList.remove('visible');
@@ -2671,11 +2737,11 @@ function onSectionEnter(sec){
     const heroEl = document.getElementById('hero-text');
     const hintEl = document.getElementById('hero-scroll-hint');
     if(isHero){
-        heroEl.style.opacity='1'; heroEl.style.transform='translateY(0)';
+        heroEl.style.transform='translateY(0)';
         if(hintEl) hintEl.style.opacity='0.4';
         document.body.classList.add('is-hero');
     } else {
-        heroEl.style.opacity='0'; heroEl.style.transform='translateY(-30vh)';
+        heroEl.style.transform=`translateY(-${heroExitDistanceVh}vh)`;
         if(hintEl) hintEl.style.opacity='0';
         document.body.classList.remove('is-hero');
     }
@@ -2693,7 +2759,7 @@ function onSectionEnter(sec){
         const introEl=document.getElementById('intro-textbox');
         if(introEl){ introEl.style.opacity='0'; }
         const statsEl=document.getElementById('stats-display');
-        if(statsEl){ statsEl.style.top='50%'; statsEl.style.transform='translate(-50%,-50%)'; }
+        if(statsEl){ statsEl.style.top='50%'; statsEl.style.transform='translate(-50%,-50%)'; statsEl.style.opacity='0'; }
     }
 
     switch(sec){
@@ -2743,7 +2809,7 @@ function onSectionEnter(sec){
             // spacer section — no action, regions handles everything
             break;
         case 's4-regions':{
-            fadeInMap(1800); showCountryFills=true; hoveredCountry=null;
+            fadeInMap(); showCountryFills=true; hoveredCountry=null;
             if(worldGeoJson) worldGeoJson.features.forEach(f=>{ const r=resolveGeoName(f.properties.name); if(countryCounts[r]>0) highlightCountries.add(f.properties.name); });
             // Keep globe + zoom visible until morph fires (pendingLayout trigger swaps them)
             document.getElementById('map-proj-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
@@ -2763,14 +2829,14 @@ function onSectionEnter(sec){
             break;}
 
         case 's5-year':
-            fadeOutMap(1800); showCountryFills=false; highlightCountries.clear(); hoveredCountry=null;
+            fadeOutMap(()=>highlightCountries.clear()); showCountryFills=false; hoveredCountry=null;
             document.getElementById('info-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
             typewrite('The origin of modern rights of nature is often traced to the early 1970s. The legal movement started to gain traction in the mid-2000s, though some initiatives predate this moment.');
             _pendingLayout={fn:layoutByYear, triggered:false};
             break;
 
         case 's5-year-b':
-            fadeOutMap(); showCountryFills=false; highlightCountries.clear(); hoveredCountry=null;
+            fadeOutMap(()=>highlightCountries.clear()); showCountryFills=false; hoveredCountry=null;
             document.getElementById('info-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
             typewrite('Several landmark initiatives helped shape its global expansion.', ()=>{
                 // After text fades in, show landmark highlights
@@ -2780,7 +2846,7 @@ function onSectionEnter(sec){
             break;
 
         case 's6-framework':
-            fadeOutMap(); showCountryFills=false; highlightCountries.clear();
+            fadeOutMap(()=>highlightCountries.clear()); showCountryFills=false;
             document.getElementById('info-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
             clearNarrative();
             typewrite('Our database tracks both formal and soft law, showing how ecological ideas generate from and move through civil society to reshape governance systems.', null, true);
@@ -2788,21 +2854,21 @@ function onSectionEnter(sec){
             break;
 
         case 's7-status':{
-            fadeOutMap(); showCountryFills=false; highlightCountries.clear();
+            fadeOutMap(()=>highlightCountries.clear()); showCountryFills=false;
             document.getElementById('info-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
             typewrite(`Ecological jurisprudence is an evolving field. <strong>63%</strong> of initiatives are adopted, <strong>15%</strong> have been unsuccessful or overturned, and <strong>22%</strong> are in progress.`, null, true);
             _pendingLayout={fn:layoutByStatus, triggered:false};
             break;}
 
         case 's7-status-b':{
-            fadeOutMap(); showCountryFills=false; highlightCountries.clear();
+            fadeOutMap(()=>highlightCountries.clear()); showCountryFills=false;
             document.getElementById('info-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
             typewrite(`The EJM is a living resource. Please let us know if we <a href="https://ecojurisprudence.org/new-initiative/" target="_blank">missed something</a> and <a href="https://ecojurisprudence.org/contact/" target="_blank">reach out</a> to collaborate.`, null, true);
             _pendingLayout={fn:layoutByStatus, triggered:false};
             break;}
 
         case 's8-nature':
-            fadeOutMap(); showCountryFills=false; highlightCountries.clear();
+            fadeOutMap(()=>highlightCountries.clear()); showCountryFills=false;
             document.getElementById('info-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
             clearNarrative();
             typewrite('Ecological jurisprudence protects nature in many forms, from individual species to entire ecosystems. Water ecosystems are the fastest-growing area of legal recognition.', null, true);
@@ -2810,7 +2876,7 @@ function onSectionEnter(sec){
             break;
 
         case 's9-end':
-            fadeOutMap(); showCountryFills=false; highlightCountries.clear();
+            fadeOutMap(()=>highlightCountries.clear()); showCountryFills=false;
             clearLabels(); hidePinned();
             particles.forEach(p=>{
                 p.frozen=false;
@@ -3127,7 +3193,7 @@ function layoutByFramework(){
     // Formal/Soft Law label below is always exactly FRAMEWORK_BRACKET_GAP away.
     // Net effect: the bar reads as closer to the labels below than the ones above.
     // FRAMEWORK_BRACKET_LIFT nudges the bar up to compensate and balance the two.
-    frameworkBracketY = labelsBottom ? (labelsBottom+FRAMEWORK_BRACKET_GAP+FRAMEWORK_BRACKET_BARH/2-FRAMEWORK_BRACKET_LIFT) : null;
+    frameworkBracketY = labelsBottom ? (labelsBottom+FRAMEWORK_BRACKET_GAP_ABOVE+FRAMEWORK_BRACKET_BARH/2-FRAMEWORK_BRACKET_LIFT) : null;
 
     initFrameworkBracketLabels();
 }
@@ -3137,7 +3203,8 @@ let frameworkBrackets=[];
 // Measured once per layout so the gap above the bracket bar (from the axis
 // category labels) and the gap below it (to the Formal/Soft Law label) match.
 let frameworkBracketY=null;
-const FRAMEWORK_BRACKET_GAP=14;
+const FRAMEWORK_BRACKET_GAP_ABOVE=24;
+const FRAMEWORK_BRACKET_GAP_BELOW=14;
 const FRAMEWORK_BRACKET_BARH=3;
 const FRAMEWORK_BRACKET_LIFT=14;
 
@@ -3159,7 +3226,7 @@ function drawFrameworkBrackets(p){
         const els=container.querySelectorAll('.bracket-label');
         frameworkBrackets.forEach((b,i)=>{
             const el=els[i];
-            if(el){ el.style.left=(b.x+b.w/2)+'px'; el.style.top=(bracketY+barH/2+FRAMEWORK_BRACKET_GAP)+'px'; }
+            if(el){ el.style.left=(b.x+b.w/2)+'px'; el.style.top=(bracketY+barH/2+FRAMEWORK_BRACKET_GAP_BELOW)+'px'; }
         });
     }
 }
