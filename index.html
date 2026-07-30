@@ -154,8 +154,8 @@
         background-color:#B5B5B1; border:none; border-radius:8px;
         font-family:'Geist',sans-serif; font-weight:500; font-size:var(--sz-small); line-height:20px;
         color:#fff; text-decoration:none; white-space:nowrap;
-        cursor:pointer; box-shadow:none; text-transform:none; pointer-events:auto;
-        transition:background-color 0.2s;
+        cursor:pointer; box-shadow:none; text-transform:none; pointer-events:none;
+        opacity:0; transition:background-color 0.2s, opacity 0.3s ease;
     }
     #skip-btn:hover { background-color:#3D3D31; color:#fff; }
 
@@ -294,6 +294,12 @@
     #cnd-text strong {
         margin-right:8px;
     }
+    #cnd-text a.cnd-link {
+        pointer-events:auto; cursor:pointer;
+        color:#3D3D31; text-decoration:none; font-weight:600;
+        margin-right:8px;
+    }
+    #cnd-text a.cnd-link:hover { text-decoration:underline; }
 
     /* zoom hint — hidden */
     #zoom-hint { display:none !important; }
@@ -392,7 +398,8 @@
     #section-nav {
         position:fixed; right:36px; top:30vh;
         z-index:100; display:flex; flex-direction:column; align-items:flex-end;
-        gap:10px; pointer-events:auto;
+        gap:10px; pointer-events:none; opacity:0;
+        transition:opacity 0.3s ease;
     }
     .section-nav-item {
         display:flex; align-items:center; gap:8px;
@@ -489,10 +496,16 @@
     .init-panel {
         flex:1 1 0; min-width:0; min-height:0; height:100%; border-radius:10px;
         overflow:hidden; cursor:pointer;
-        transition:flex-grow 0.45s cubic-bezier(0.4,0,0.2,1);
+        transition:flex-grow 0.45s cubic-bezier(0.4,0,0.2,1),
+                   transform 0.75s cubic-bezier(0.16,1,0.3,1),
+                   opacity 0.6s ease;
         position:relative;
         display:block; text-decoration:none; color:inherit;
     }
+    /* ── Entrance: left-half panels slide in from the left, right-half from the right ── */
+    .init-panel.slide-pre { transition:none; opacity:0; }
+    .init-panel.slide-pre.from-left  { transform:translateX(-90px); }
+    .init-panel.slide-pre.from-right { transform:translateX(90px); }
     .init-panel-bg {
         position:absolute; inset:0;
         background-size:cover; background-position:center;
@@ -737,16 +750,81 @@ let zoomOutTransitionPending=false; // true while easing zoom back to 1 before a
 let _drag={ down:false, x:0, y:0, tx:0, ty:0 };
 let _pinch={ active:false, dist:0, k0:1, tx0:0, ty0:0 };
 let _heroZoomAutoTriggered=false; // re-armed each time s0-hero is (re-)entered
+let heroZoomOverrideActive=false; // true while the hero is showing the "jumped straight into zoom" preview state
+let _chromeElsShown=false; // guards the one-time display/class flip that starts the chrome fade-in
+let _heroChromeFirstRevealDone=false; // once true, the gradual scroll-linked chrome fade never runs again — all
+                                       // later reveal/hide near the hero boundary reverts to the original,
+                                       // instant classList-based toggle, so the two systems never fight each other
 
-// Starting to zoom the map while still on the hero implies the person is done
-// with the landing view — jump the page straight to the settled overview
-// position (map centered, hero gone, all buttons/nav revealed together) rather
-// than requiring them to keep scrolling past the hero first.
-function triggerHeroToOverview(){
-    const heroSection=document.querySelector('.scroll-section[data-section="s0-hero"]');
-    const heroH=heroSection?heroSection.offsetHeight:window.innerHeight;
-    const target=heroH+window.innerHeight*0.1;
-    window.scrollTo({top:target, behavior:'smooth'});
+// Starting to zoom the map while it's still only partially slid into place (top
+// part showing, behind the hero) means the person is done with the landing view
+// and wants to interact with the map directly. The canvas is left exactly where
+// it is — it never moves, snaps, or slides here — so whatever's under the
+// cursor stays under the cursor as the zoom happens. Only the hero text/chrome
+// fade out of the way; the wheel/pinch handlers account for the canvas's
+// current on-screen offset directly when computing the zoom target, so the
+// math is correct at any offset and nothing needs to move for it to work.
+function activateHeroZoomOverride(){
+    if(heroZoomOverrideActive) return;
+    heroZoomOverrideActive=true;
+    _heroZoomAutoTriggered=true;
+
+    const heroEl=document.getElementById('hero-text');
+    heroEl.style.transition='opacity 0.35s ease';
+    heroEl.style.opacity='0';
+    heroEl.style.pointerEvents='none';
+
+    const hintEl=document.getElementById('hero-scroll-hint');
+    if(hintEl){ hintEl.style.transition='opacity 0.25s ease'; hintEl.style.opacity='0'; }
+
+    const gradEl=document.getElementById('hero-map-gradient');
+    if(gradEl){ gradEl.style.transition='opacity 0.35s ease'; gradEl.style.opacity='0'; }
+
+    document.body.classList.remove('is-hero');
+
+    // Reveal all the map chrome together, instantly — this "jump straight into
+    // the interactive view" path is deliberately different from the gradual,
+    // scroll-linked fade used when arriving here by scrolling normally.
+    const zc=document.getElementById('zoom-controls');
+    zc.classList.add('visible'); zc.style.opacity='1'; zc.style.pointerEvents='auto';
+    const mpb=document.getElementById('map-proj-btn');
+    mpb.style.display='flex'; mpb.style.opacity='1'; mpb.style.pointerEvents='auto';
+    document.getElementById('data-source-label').style.display='flex';
+    const pb=document.getElementById('print-btn');
+    pb.classList.add('btn-visible'); pb.style.opacity='1';
+    const sn=document.getElementById('section-nav');
+    sn.style.opacity='1'; sn.style.pointerEvents='auto';
+    const sb=document.getElementById('skip-btn');
+    sb.style.opacity='1'; sb.style.pointerEvents='auto';
+    document.getElementById('zoom-hint').classList.add('visible');
+    _zoomUIRevealed=true;
+    _chromeElsShown=true;
+    _heroChromeFirstRevealDone=true;
+    applyZoomToParticles();
+}
+
+// Reverses activateHeroZoomOverride() — used when the person zooms back out to
+// 1x without ever having scrolled for real, so the hero simply comes back.
+function exitHeroZoomOverride(){
+    if(!heroZoomOverrideActive) return;
+    heroZoomOverrideActive=false;
+    _heroZoomAutoTriggered=false;
+
+    const heroEl=document.getElementById('hero-text');
+    heroEl.style.transition='opacity 0.4s ease';
+    heroEl.style.opacity='1';
+    heroEl.style.pointerEvents='';
+
+    const hintEl=document.getElementById('hero-scroll-hint');
+    if(hintEl){ hintEl.style.transition='opacity 0.3s ease'; hintEl.style.opacity='0.4'; }
+
+    const gradEl=document.getElementById('hero-map-gradient');
+    if(gradEl){ gradEl.style.transition='opacity 0.4s ease'; gradEl.style.opacity='1'; }
+
+    document.body.classList.add('is-hero');
+
+    _chromeElsShown=false;
+    deactivateMapZoomUI();
 }
 const MAP_ZOOM_MIN=1, MAP_ZOOM_MAX=12;
 
@@ -1231,13 +1309,23 @@ function initViz(){
                             selectedParticle=null;
                             selectedCountry=name;
                             selectedCountryParticles.clear();
+                            let countryCode='';
                             particles.forEach(pt=>{
-                                if(countryMatchesGeo(parseCountryName(pt.data.Country),name))
+                                if(countryMatchesGeo(parseCountryName(pt.data.Country),name)){
                                     selectedCountryParticles.add(pt);
+                                    if(!countryCode){
+                                        const raw=(pt.data.Country||'').trim();
+                                        const pipe=raw.indexOf('|');
+                                        if(pipe>0) countryCode=raw.slice(0,pipe).trim().toLowerCase();
+                                    }
+                                }
                             });
                             document.getElementById('pinned-tooltip').style.display='none';
                             const nd=document.getElementById('country-name-display');
-                            document.getElementById('cnd-text').innerHTML=`<strong>${name}</strong> ${n} initiative${n!==1?'s':''}`;
+                            const nameHtml=countryCode
+                                ? `<a class="cnd-link" href="https://ecojurisprudence.org/?post_type=ejm_initiative&_ejm_country=${countryCode}" target="_blank" rel="noopener">${name}</a>`
+                                : `<strong>${name}</strong>`;
+                            document.getElementById('cnd-text').innerHTML=`${nameHtml} ${n} initiative${n!==1?'s':''}`;
                             nd.style.left=p.mouseX+'px';
                             nd.style.top=(p.mouseY+canvasOffsetPx-48)+'px';
                             nd.style.opacity='1';
@@ -1312,6 +1400,9 @@ function initViz(){
         mapZoom.tx=cx-(cx-mapZoom.tx)*(mapZoom.k/k0);
         mapZoom.ty=cy-(cy-mapZoom.ty)*(mapZoom.k/k0);
         clampZoom(); applyZoomToParticles();
+        if(heroZoomOverrideActive && currentSection==='s0-hero' && mapZoom.k<=1.001){
+            exitHeroZoomOverride();
+        }
     }
     document.getElementById('zoom-in-btn').addEventListener('click', ()=>zoomButtonStep(1.4));
     document.getElementById('zoom-out-btn').addEventListener('click', ()=>zoomButtonStep(1/1.4));
@@ -1397,9 +1488,8 @@ function initViz(){
         worldGeoJson.features.forEach(feat=>{
             const name=feat.properties.name;
             const resolved=resolveGeoName(name);
-            const isHighlighted=countryCounts[resolved]>0;
             ctx.beginPath(); pathGen(feat);
-            ctx.fillStyle=isHighlighted?'rgba(61,61,49,0.20)':'rgba(61,61,49,0.07)';
+            ctx.fillStyle=`rgba(61,61,49,${countryBinAlpha(countryCounts[resolved]||0)})`;
             ctx.fill();
         });
 
@@ -1791,6 +1881,30 @@ function initViz(){
 
     // ── HERO + early s1-stats scroll animation ──
     window.addEventListener('scroll', ()=>{
+        // If the person starts scrolling for real while the hero zoom preview is
+        // showing (canvas full-screen, hero faded out, chrome up), hand off into
+        // the normal scroll-driven flow: jump scrollY straight to the settled
+        // overview position — invisible, since the preview is already showing
+        // that exact state — then let the rest of this handler drive everything
+        // from here on, exactly as if the person had scrolled here normally.
+        if(heroZoomOverrideActive){
+            heroZoomOverrideActive=false;
+            const canvasEl=document.getElementById('p5-canvas');
+            canvasEl.style.transition='none';
+            document.getElementById('hero-text').style.transition='none';
+            const hgEl=document.getElementById('hero-map-gradient');
+            if(hgEl) hgEl.style.transition='none';
+            const hintElOff=document.getElementById('hero-scroll-hint');
+            if(hintElOff) hintElOff.style.transition='none';
+            const heroSectionEl=document.querySelector('.scroll-section[data-section="s0-hero"]');
+            const heroHpx=heroSectionEl?heroSectionEl.offsetHeight:window.innerHeight;
+            const targetScroll=heroHpx*0.5+2;
+            if(window.scrollY<targetScroll){
+                window.scrollTo(0, targetScroll);
+                return;
+            }
+        }
+
         const vh = window.innerHeight;
         const scrolled = window.scrollY;
 
@@ -1841,15 +1955,38 @@ function initViz(){
             }
         }
 
-        // Map button chrome (globe, print, skip, nav, zoom controls): reveal it
-        // the instant the map finishes sliding into its centered position —
-        // i.e. exactly when the zoom-tip popup above disappears — rather than
-        // on a separate, later scroll trigger that could leave a gap where the
-        // popup is gone but no chrome has appeared yet. Runs on every scroll
-        // tick regardless of which section is active, so it can't get stuck
-        // behind a section-specific gate.
+        // Map button chrome (globe, print, skip, nav, zoom controls): the very
+        // first time the hero settles into the overview, fade it in gradually in
+        // step with the same slide progress as the map/hero above, rather than
+        // popping in all at once — so scrolling normally through the hero the
+        // first time feels like one continuous motion. (The "jump straight into
+        // zoom" path in activateHeroZoomOverride() deliberately reveals it all
+        // at once instead, since there's no scroll motion there to fade
+        // alongside.) Once that first reveal has happened, this hands off
+        // permanently to the original instant show/hide below — so any later
+        // back-and-forth scrolling right at the hero boundary behaves exactly as
+        // it always did, with the two systems never fighting over opacity.
         {
             const chromeVisible = (slideT>=1);
+            if(!heroZoomOverrideActive && !_heroChromeFirstRevealDone && slideT>0){
+                if(!_chromeElsShown){
+                    _chromeElsShown=true;
+                    document.getElementById('zoom-controls').classList.add('visible');
+                    document.getElementById('map-proj-btn').style.display='flex';
+                    document.getElementById('data-source-label').style.display='flex';
+                    document.getElementById('print-btn').classList.add('btn-visible');
+                }
+                const ct=slideT;
+                const zc=document.getElementById('zoom-controls');
+                zc.style.opacity=String(ct); zc.style.pointerEvents = ct>=0.99?'auto':'none';
+                const mpb=document.getElementById('map-proj-btn');
+                mpb.style.opacity=String(ct); mpb.style.pointerEvents = ct>=0.99?'auto':'none';
+                document.getElementById('print-btn').style.opacity=String(ct);
+                const sn=document.getElementById('section-nav');
+                sn.style.opacity=String(ct); sn.style.pointerEvents = ct>=0.99?'auto':'none';
+                const sb=document.getElementById('skip-btn');
+                sb.style.opacity=String(ct); sb.style.pointerEvents = ct>=0.99?'auto':'none';
+            }
             if(chromeVisible){
                 if(!_zoomUIRevealed){
                     _zoomUIRevealed=true;
@@ -1857,25 +1994,40 @@ function initViz(){
                     document.getElementById('zoom-controls').classList.add('visible');
                     document.getElementById('map-proj-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
                     document.getElementById('print-btn').classList.add('btn-visible');
-                    document.getElementById('section-nav').style.opacity='';
-                    document.getElementById('section-nav').style.pointerEvents='';
-                    document.getElementById('skip-btn').style.opacity='';
-                    document.getElementById('skip-btn').style.pointerEvents='';
+                    document.getElementById('section-nav').style.opacity='1';
+                    document.getElementById('section-nav').style.pointerEvents='auto';
+                    document.getElementById('skip-btn').style.opacity='1';
+                    document.getElementById('skip-btn').style.pointerEvents='auto';
+                    // Release the gradual-fade inline overrides now that full opacity is
+                    // reached, and permanently disable that system — from here on this
+                    // element set is governed solely by the classList/opacity('') toggles
+                    // below, exactly as before the gradual fade-in existed.
+                    document.getElementById('zoom-controls').style.opacity='';
+                    document.getElementById('zoom-controls').style.pointerEvents='';
+                    document.getElementById('map-proj-btn').style.opacity='';
+                    document.getElementById('map-proj-btn').style.pointerEvents='';
+                    document.getElementById('print-btn').style.opacity='';
+                    _heroChromeFirstRevealDone=true;
                     applyZoomToParticles();
                 }
             } else {
                 if(_zoomUIRevealed && !zoomOutTransitionPending){
+                    // Hide the icons/nav/skip right away — don't leave them sitting on
+                    // screen for however long the zoom-out animation below takes.
+                    hideMapChrome();
                     if(mapZoomActive && mapZoom.k>1.01){
                         // Zoomed in and scrolling normally back out of the map area —
-                        // ease the zoom back to 1 first, then hide the map UI, instead
-                        // of snapping instantly.
+                        // ease the zoom back to 1 visually, then finish resetting state,
+                        // instead of snapping instantly. Chrome is already hidden above.
                         zoomOutTransitionPending=true;
                         gentleZoomOut(()=>{
                             zoomOutTransitionPending=false;
-                            deactivateMapZoomUI();
+                            resetMapZoom();
+                            if(p5Instance&&particleMapPos.length) placeParticlesOnMap();
                         }, 500);
                     } else {
-                        deactivateMapZoomUI();
+                        resetMapZoom();
+                        if(p5Instance&&particleMapPos.length) placeParticlesOnMap();
                     }
                 }
             }
@@ -2036,11 +2188,14 @@ function initViz(){
         // otherwise do nothing at all, as if the scroll never happened.
         if(!mapZoomActive) return;
         if(e.target && e.target.closest && e.target.closest('#map-proj-btn, #print-btn, #skip-btn, #info-btn, #zoom-controls, #section-nav, #map-proj-popup, #pinned-tooltip, #country-name-display')) return;
-        if(currentSection==='s0-hero' && !_heroZoomAutoTriggered){
-            _heroZoomAutoTriggered=true;
-            triggerHeroToOverview();
+        if(currentSection==='s0-hero' && !heroZoomOverrideActive && !_zoomUIRevealed){
+            activateHeroZoomOverride();
         }
-        const cx=e.clientX, cy=e.clientY;
+        // The canvas draws in its own local coordinate space, which starts at
+        // whatever screen Y it's currently offset to (canvasOffsetPx, from the
+        // hero slide). Subtract that off so the zoom always lands exactly under
+        // the cursor, at any slide position, without moving the canvas itself.
+        const cx=e.clientX, cy=e.clientY-canvasOffsetPx;
         const k0=mapZoom.k;
         // Clamp deltaY so a single large trackpad/mouse tick can't cause a huge jump
         const dy=Math.max(-100, Math.min(100, e.deltaY));
@@ -2049,6 +2204,12 @@ function initViz(){
         mapZoom.tx=cx-(cx-mapZoom.tx)*(mapZoom.k/k0);
         mapZoom.ty=cy-(cy-mapZoom.ty)*(mapZoom.k/k0);
         clampZoom(); applyZoomToParticles();
+        // Zoomed back out to 1x without ever having scrolled for real — return
+        // straight to the normal hero section instead of staying parked in the
+        // full-screen preview state.
+        if(heroZoomOverrideActive && currentSection==='s0-hero' && mapZoom.k<=1.001){
+            exitHeroZoomOverride();
+        }
     }, {passive:false});
 
     const canvasWrap=document.getElementById('p5-canvas');
@@ -2077,9 +2238,8 @@ function initViz(){
             const dy=e.touches[1].clientY-e.touches[0].clientY;
             _pinch={active:true,dist:Math.hypot(dx,dy),k0:mapZoom.k,tx0:mapZoom.tx,ty0:mapZoom.ty};
             _drag.down=false;
-            if(currentSection==='s0-hero' && !_heroZoomAutoTriggered){
-                _heroZoomAutoTriggered=true;
-                triggerHeroToOverview();
+            if(currentSection==='s0-hero' && !heroZoomOverrideActive && !_zoomUIRevealed){
+                activateHeroZoomOverride();
             }
         }
         e.preventDefault();
@@ -2092,12 +2252,15 @@ function initViz(){
             const newDist=Math.hypot(dx,dy);
             const scale=newDist/_pinch.dist;
             const cx=(e.touches[0].clientX+e.touches[1].clientX)/2;
-            const cy=(e.touches[0].clientY+e.touches[1].clientY)/2;
+            const cy=(e.touches[0].clientY+e.touches[1].clientY)/2-canvasOffsetPx;
             const k0=_pinch.k0;
             mapZoom.k=Math.max(MAP_ZOOM_MIN,Math.min(MAP_ZOOM_MAX,k0*scale));
             mapZoom.tx=cx-(cx-_pinch.tx0)*(mapZoom.k/k0);
             mapZoom.ty=cy-(cy-_pinch.ty0)*(mapZoom.k/k0);
             clampZoom(); syncSlider(); applyZoomToParticles();
+            if(heroZoomOverrideActive && currentSection==='s0-hero' && mapZoom.k<=1.001){
+                exitHeroZoomOverride();
+            }
         } else if(_drag.down&&e.touches.length===1){
             mapZoom.tx=_drag.tx+(e.touches[0].clientX-_drag.x);
             mapZoom.ty=_drag.ty+(e.touches[0].clientY-_drag.y);
@@ -2113,6 +2276,16 @@ function initViz(){
 /* ════════════════════════════════════════════════════
    MAP DRAWING (fills only, no outlines when showCountryFills)
 ════════════════════════════════════════════════════ */
+/* Choropleth bins for country fills, based on initiative count:
+   0 → lightest gray, 1-5 → light-medium, 6-15 → medium-dark, 16+ → darkest.
+   The fully solid off-black (#3D3D31, alpha 1) is reserved for hover/selected
+   states only — it is never used as a resting choropleth shade. */
+function countryBinAlpha(count){
+    if(count>=16) return 0.45;
+    if(count>=6) return 0.32;
+    if(count>=1) return 0.20;
+    return 0.07;
+}
 function drawMap(p, alpha){
     const a=(alpha===undefined?1:Math.max(0,Math.min(1,alpha)));
     const ctx=p.drawingContext;
@@ -2130,17 +2303,10 @@ function drawMap(p, alpha){
         const effectiveHovered=hoveredCountry?resolveGeoName(hoveredCountry):null;
         const isSelected=selectedCountry&&resolvedName===selectedCountry;
         const isHovered=!isSelected&&resolvedName===effectiveHovered;
-        const isHighlighted=highlightCountries.has(name)||highlightCountries.has(resolvedName);
-        if(isSelected){
+        if(isSelected||isHovered){
             ctx.fillStyle=`rgba(61,61,49,${a})`;
-        } else if(isHovered&&isHighlighted){
-            ctx.fillStyle=`rgba(61,61,49,${0.38*a})`;
-        } else if(isHovered){
-            ctx.fillStyle=`rgba(61,61,49,${0.18*a})`;
-        } else if(isHighlighted){
-            ctx.fillStyle=`rgba(61,61,49,${0.20*a})`;
         } else {
-            ctx.fillStyle=`rgba(61,61,49,${0.07*a})`;
+            ctx.fillStyle=`rgba(61,61,49,${countryBinAlpha(countryCounts[resolvedName]||0)*a})`;
         }
         ctx.fill();
         // As the map zooms in, fade in a faint white outline around each country
@@ -2220,19 +2386,49 @@ function lockScroll(ms){
     }, ms);
 }
 
+/* Hides the map UI chrome (globe/print/nav/skip) immediately — no waiting on
+   any in-progress zoom-out animation. Split out of deactivateMapZoomUI() so
+   the icons can disappear the instant we leave the zoomed/hero-visible state,
+   even while the map itself is still gently easing back to 1x underneath. */
+function hideMapChrome(){
+    _zoomUIRevealed=false;
+    document.getElementById('zoom-hint').classList.remove('visible');
+    const zc=document.getElementById('zoom-controls');
+    zc.classList.remove('visible'); zc.style.opacity='0'; zc.style.pointerEvents='none';
+    const mpb=document.getElementById('map-proj-btn');
+    mpb.style.display='none'; mpb.style.opacity='0'; mpb.style.pointerEvents='none';
+    document.getElementById('data-source-label').style.display='none';
+    const pb=document.getElementById('print-btn');
+    pb.classList.remove('btn-visible'); pb.style.opacity='0';
+    // #section-nav and #skip-btn normally cross-fade over 0.2–0.3s between
+    // sections (nice for e.g. leaving one chart for the next), but that same
+    // fade meant a faint trace of them was still visible for a moment when
+    // landing all the way back at the hero, which should show zero trace.
+    // Force the hide to be instant here — set transition:none, apply the
+    // change, force a layout flush, then release the override so any later
+    // reveal (or a real inter-section fade) goes back to its normal easing.
+    const sn=document.getElementById('section-nav');
+    sn.style.transition='none';
+    sn.style.opacity='0'; sn.style.pointerEvents='none';
+    void sn.offsetWidth;
+    sn.style.transition='';
+    const sb=document.getElementById('skip-btn');
+    sb.style.transition='none';
+    sb.style.opacity='0'; sb.style.pointerEvents='none';
+    void sb.offsetWidth;
+    sb.style.transition='';
+    mpb.style.transition='none';
+    mpb.style.opacity='0';
+    void mpb.offsetWidth;
+    mpb.style.transition='';
+}
+
 /* Turns off the map UI (globe/print/nav/skip) and resets zoom back to 1.
    Shared by every place that leaves the zoomed map view, so the end state is
    always identical whether or not it was reached via a gentle zoom-out. */
 function deactivateMapZoomUI(){
-    _zoomUIRevealed=false; resetMapZoom();
-    document.getElementById('zoom-hint').classList.remove('visible');
-    document.getElementById('zoom-controls').classList.remove('visible');
-    document.getElementById('map-proj-btn').style.display='none'; document.getElementById('data-source-label').style.display='none';
-    document.getElementById('print-btn').classList.remove('btn-visible');
-    document.getElementById('section-nav').style.opacity='0';
-    document.getElementById('section-nav').style.pointerEvents='none';
-    document.getElementById('skip-btn').style.opacity='0';
-    document.getElementById('skip-btn').style.pointerEvents='none';
+    hideMapChrome();
+    resetMapZoom();
     if(p5Instance&&particleMapPos.length) placeParticlesOnMap();
 }
 
@@ -2256,8 +2452,18 @@ function clampZoom(){
     // from -w*(k-1) up to 0 — so a symmetric ±maxTx clamp (the old bug) always
     // let you reach the left/top edges easily but cut the range short before you
     // could reach the right/bottom edges. Same logic for ty.
-    const minTx=-w*(mapZoom.k-1), maxTx=0;
-    const minTy=-h*(mapZoom.k-1), maxTy=0;
+    //
+    // A strict "map always fully covers canvas" clamp with zero slack means
+    // anything actually AT the true edge of the world map (Alaska, the top of
+    // Russia/Canada, the southern tip of Chile/NZ) can never be panned away
+    // from the canvas boundary — it always butts right up against the edge
+    // and reads as clipped when zoomed in. A fixed-pixel margin, independent
+    // of zoom level, gives that edge content some breathing room to sit fully
+    // in view instead of hugging the frame — without changing anything about
+    // how the zoom itself behaves or snapping/re-centering the map.
+    const margin=Math.min(w,h)*0.15;
+    const minTx=-w*(mapZoom.k-1)-margin, maxTx=margin;
+    const minTy=-h*(mapZoom.k-1)-margin, maxTy=margin;
     mapZoom.tx=Math.max(minTx,Math.min(maxTx,mapZoom.tx));
     mapZoom.ty=Math.max(minTy,Math.min(maxTy,mapZoom.ty));
 }
@@ -2729,10 +2935,18 @@ function onSectionEnter(sec){
     // don't fight it here.
     const isEnd = (sec==='s9-end');
     const isHero = (sec==='s0-hero');
-    document.getElementById('section-nav').style.opacity = (isHero || isEnd) ? '0' : '';
-    document.getElementById('section-nav').style.pointerEvents = (isHero || isEnd) ? 'none' : '';
-    document.getElementById('skip-btn').style.opacity = (isEnd || isHero) ? '0' : '';
-    document.getElementById('skip-btn').style.pointerEvents = (isEnd || isHero) ? 'none' : '';
+    const snEl=document.getElementById('section-nav');
+    const skEl=document.getElementById('skip-btn');
+    if(isHero || isEnd){
+        // Instant hide (no fade trace) when landing back on the hero specifically.
+        snEl.style.transition='none'; snEl.style.opacity='0'; snEl.style.pointerEvents='none';
+        void snEl.offsetWidth; snEl.style.transition='';
+        skEl.style.transition='none'; skEl.style.opacity='0'; skEl.style.pointerEvents='none';
+        void skEl.offsetWidth; skEl.style.transition='';
+    } else {
+        snEl.style.opacity='1'; snEl.style.pointerEvents='auto';
+        skEl.style.opacity='1'; skEl.style.pointerEvents='auto';
+    }
     // Show/hide hero elements
     const heroEl = document.getElementById('hero-text');
     const hintEl = document.getElementById('hero-scroll-hint');
@@ -2765,6 +2979,10 @@ function onSectionEnter(sec){
     switch(sec){
         case 's0-hero':
             _heroZoomAutoTriggered=false;
+            heroZoomOverrideActive=false;
+            _heroChromeFirstRevealDone=false;
+            _chromeElsShown=false;
+            heroSlideT=0;
             fadeInMap(); showCountryFills=true; overviewFade=false;
             clearLabels(); hidePinned();
             selectedCountry=null; selectedCountryParticles.clear();
@@ -2774,7 +2992,15 @@ function onSectionEnter(sec){
             resetStats(); statsScrollTriggered=false;
             // Reset map offset to initial pushed-down state
             canvasOffsetPx = 0.30 * window.innerHeight;
-            document.getElementById('p5-canvas').style.transform='translateY(30vh)';
+            const heroCanvasEl=document.getElementById('p5-canvas');
+            heroCanvasEl.style.transition='none';
+            heroCanvasEl.style.transform='translateY(30vh)';
+            const heroTextResetEl=document.getElementById('hero-text');
+            heroTextResetEl.style.transition='';
+            heroTextResetEl.style.opacity='1';
+            heroTextResetEl.style.pointerEvents='';
+            const heroGradResetEl=document.getElementById('hero-map-gradient');
+            if(heroGradResetEl){ heroGradResetEl.style.transition='none'; heroGradResetEl.style.opacity='1'; }
             // The map is already partially visible here (behind the hero) — let
             // Cmd/Ctrl+scroll zoom it right away, well before the rest of the map
             // UI (globe icon, print button, etc.) reveals itself later on scroll.
@@ -3368,6 +3594,7 @@ function showExploreScreen() {
         buildCarousel(data);
         carouselBuilt = true;
     }
+    playCarouselEntrance();
 }
 
 function hideExploreScreen() {
@@ -3385,12 +3612,20 @@ function buildCarousel(allData) {
     const extra  = ccRows.filter(r => !r['Cover Image']);
     while (extra.length) sample.push(extra.shift());
     if (!sample.length) { container.innerHTML = '<p style="padding:20px;font-family:Geist,sans-serif;color:#757559;">No featured initiatives found.</p>'; return; }
+    const half = Math.ceil(sample.length / 2);
     container.innerHTML = sample.map((d, i) => {
         const img = (d['Cover Image'] || '').trim();
         const bgStyle = img ? `background-image:url('${img}')` : `background:#C8C8B8`;
         const preload = img && i === 0 ? `<img src="${img}" style="display:none" fetchpriority="high" alt="">` : '';
         const url = (d.Permalink || '').trim();
-        const panelOpen  = url ? `<a class="init-panel" href="${url}" target="_blank" rel="noopener">` : `<div class="init-panel">`;
+        // Left half of panels slide in from the left, right half from the right.
+        const dir = i < half ? 'from-left' : 'from-right';
+        // Stagger outward from the center so the reveal feels like it's unfolding.
+        const distFromCenter = i < half ? (half - i) : (i - half + 1);
+        const delay = (distFromCenter * 0.06).toFixed(2);
+        const panelOpen  = url
+            ? `<a class="init-panel slide-pre ${dir}" style="transition-delay:${delay}s" href="${url}" target="_blank" rel="noopener">`
+            : `<div class="init-panel slide-pre ${dir}" style="transition-delay:${delay}s">`;
         const panelClose = url ? `</a>` : `</div>`;
         return `
         ${panelOpen}
@@ -3407,6 +3642,19 @@ function buildCarousel(allData) {
             </div>
         ${panelClose}`;
     }).join('');
+}
+
+function playCarouselEntrance() {
+    const panels = document.querySelectorAll('#initiative-carousel .init-panel');
+    if (!panels.length) return;
+    // Force panels back to their pre-entrance (off-screen) state instantly...
+    panels.forEach(p => p.classList.add('slide-pre'));
+    // ...then, next frame, release them so the transition (defined on .init-panel) animates them in.
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            panels.forEach(p => p.classList.remove('slide-pre'));
+        });
+    });
 }
 </script>
 </html>
