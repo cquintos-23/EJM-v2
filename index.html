@@ -1,15 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script>
+    // Must run before anything else on the page — this has to win the race against
+    // the browser's own automatic scroll restoration on refresh, which otherwise
+    // silently jumps scrollY back to wherever it was BEFORE any of our own JS (which
+    // lives at the bottom of the page, after big library downloads) gets a chance to
+    // run. We take over that restoration ourselves, later, once the map/data/canvas
+    // are actually ready — see restoreScrollPosition() near the top of the main
+    // script and its call in initViz().
+    if('scrollRestoration' in history){ history.scrollRestoration='manual'; }
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ecological Jurisprudence Initiatives</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600;700&family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
-    <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <!-- p5/papaparse/d3 are loaded just before the main script (end of body) instead of
+         here, so the browser can parse and paint the page markup/CSS immediately instead
+         of blocking on ~1MB of library downloads before it even sees the <body>. -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://unpkg.com">
     <style>
     @font-face {
         font-family: 'Herbik';
@@ -562,7 +574,13 @@
         position:absolute;
         left:50%;
         transform:translateX(-50%);
+        /* Hidden until layoutHeroButtons() sets a real `top` — otherwise, before that JS
+           runs, these are absolutely-positioned with no `top`, so they render at their
+           in-flow static position (directly under the h1, i.e. behind/overlapping it). */
+        opacity:0;
+        transition:opacity 0.25s ease;
     }
+    #hero-text .hero-btns.positioned { opacity:1; }
     @media (max-width: 768px) {
         #hero-text { padding:3vh 6vw 0; }
         #hero-text h1 { font-size:clamp(26px, 8.4vw, 43px); }
@@ -688,7 +706,41 @@
 </div>
 
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+<script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <script>
+/* ════════════════════════════════════════════════════
+   SCROLL POSITION ACROSS REFRESH
+   history.scrollRestoration is already set to 'manual' in a tiny <script> at the
+   very top of <head> — it has to happen there, before anything else, to reliably
+   win the race against the browser's own automatic restoration. What's left here
+   is just saving the position on the way out, and restoring it ourselves once
+   the map/data/canvas are actually ready (see restoreScrollPosition(), called at
+   the end of initViz()) — jumping any earlier would run the scroll-driven layout
+   math before there was anything to lay out, which is what caused the "glitched
+   map" on reload.
+════════════════════════════════════════════════════ */
+const SCROLL_SAVE_KEY='ejm_scrollY';
+function saveScrollPosition(){
+    try{ sessionStorage.setItem(SCROLL_SAVE_KEY, String(window.scrollY)); }catch(e){}
+}
+window.addEventListener('pagehide', saveScrollPosition);
+window.addEventListener('beforeunload', saveScrollPosition);
+function restoreScrollPosition(){
+    let savedY=0;
+    try{ savedY=parseInt(sessionStorage.getItem(SCROLL_SAVE_KEY)||'0',10)||0; }catch(e){}
+    if(savedY>0){
+        window.scrollTo({top:savedY, left:0, behavior:'instant'});
+        // Belt-and-suspenders: the scroll-driven layout handlers below normally run
+        // off a real native 'scroll' event. Dispatch one explicitly too, in case this
+        // scrollTo() ever turns out to be a no-op in some browser/edge-case (e.g. the
+        // requested position matching where the page already was) and so never fires
+        // one on its own — every handler here is safe to run redundantly.
+        window.dispatchEvent(new Event('scroll'));
+    }
+}
+
 /* ════════════════════════════════════════════════════
    EASING
 ════════════════════════════════════════════════════ */
@@ -716,6 +768,14 @@ function isLandmarkTitle(title){
     return t.includes('ecuador constitution of 2008')||t.includes('new zealand whanganui river')||t.includes('spain national mar menor');
 }
 let p5Instance, worldGeoJson=null, mapProjection=null;
+// True once particles have been placed at their real map-projected positions. The CSV
+// data and the world.geojson file load independently (two separate network requests
+// racing each other), so whichever finishes first must NOT draw particles yet if the
+// other isn't ready — otherwise every dot briefly clumps at a fallback corner position
+// and then visibly snaps/teleports to its correct spot once the second request lands.
+// Gating on this flag instead means nothing is drawn until both are ready, so there's
+// no clump and no snap — just a clean first appearance in the right place.
+let particlesPlaced=false;
 let canvasOffsetPx=0; // current translateY offset (px) applied to #p5-canvas — tooltips/popups must add this back in to align with the visually-shifted dots
 let heroSlideT=1; // 0 → 1 progress of the hero map sliding into its centered position; 1 once settled
 let heroExitDistanceVh=45; // how far (in vh) the hero text/buttons must translate up to fully leave the viewport — recomputed by layoutHeroButtons()
@@ -954,6 +1014,7 @@ fetch('https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/wor
         if (p5Instance){
             mapProjection=buildProjection(p5Instance.width,p5Instance.height);
             cacheMapPositions(); placeParticlesOnMap();
+            particlesPlaced=true;
         }
     });
 
@@ -1031,6 +1092,16 @@ function buildProjection(w,h){
 }
 
 /* ════════════════════════════════════════════════════
+   HERO BUTTON POSITIONING — runs immediately, independent of data load
+   (previously this only ran after the CSV fetch below finished, so on a slow
+   connection the "Get the Charts"/"Get the Data" buttons would sit unstyled,
+   stacked directly under the heading, until the network call resolved.)
+════════════════════════════════════════════════════ */
+layoutHeroButtons();
+window.addEventListener('resize', layoutHeroButtons);
+if(document.fonts && document.fonts.ready){ document.fonts.ready.then(layoutHeroButtons); }
+
+/* ════════════════════════════════════════════════════
    DATA
 ════════════════════════════════════════════════════ */
 Papa.parse('https://docs.google.com/spreadsheets/d/e/2PACX-1vSKgeCFRWhEydDOm3JMjw-F9MI8bNvgWYkXSA-_3S8Mo9Ehxs3WrB07UbNfrFdfDiOLqHc67BR6kyaG/pub?gid=600477657&single=true&output=csv',{
@@ -1047,6 +1118,10 @@ Papa.parse('https://docs.google.com/spreadsheets/d/e/2PACX-1vSKgeCFRWhEydDOm3JMj
         // Store rawCounts for now; resolveCountryCounts() will run after GeoJSON loads
         window._rawCountryCounts=rawCounts;
         initViz();
+        // Start fetching the "Explore" carousel's cover images now, in the background,
+        // rather than only when the user finally scrolls all the way to that screen —
+        // by then they're usually already cached, so the carousel appears instantly.
+        preloadCarouselImages(data);
     },
     error(){ console.error('Data load failed'); }
 });
@@ -1148,6 +1223,7 @@ function layoutHeroButtons(){
     // to the heading than the cushion allows either.
     const top=Math.max(mapTopPx - btnHeight - CUSHION, h1Bottom + CUSHION);
     btns.style.top=top + 'px';
+    btns.classList.add('positioned');
     heroEl.style.transform=prevTransform;
     // Distance needed to move the buttons' bottom edge above the top of the
     // viewport, plus a small buffer.
@@ -1167,7 +1243,13 @@ function initViz(){
             if(worldGeoJson) mapProjection=buildProjection(p.width,p.height);
             resolveCountryCounts();
             data.forEach((d,i)=>particles.push(new Particle(d,i)));
-            cacheMapPositions(); placeParticlesOnMap();
+            if(mapProjection){
+                cacheMapPositions(); placeParticlesOnMap();
+                particlesPlaced=true;
+            }
+            // else: world.geojson hasn't loaded yet — leave particles unplaced/undrawn
+            // (see p.draw() below) until its fetch callback places them for real,
+            // instead of showing them piled at a fallback position first.
             onSectionEnter('s0-hero');
         };
         p.draw=function(){
@@ -1182,7 +1264,7 @@ function initViz(){
                 drawMap(p, baseAlpha*mapAlpha);
             }
             if(overviewFade) ctx.globalAlpha=overviewAlpha;
-            particles.forEach(pt=>{pt.update();pt.display();});
+            if(particlesPlaced) particles.forEach(pt=>{pt.update();pt.display();});
             if(overviewFade) ctx.globalAlpha=1.0;
             if(frameworkBrackets.length) drawFrameworkBrackets(p);
             if(selectedParticle) positionPinnedTooltip();
@@ -1358,11 +1440,17 @@ function initViz(){
     // init dot nav — no dot active on hero
     document.querySelectorAll('.section-nav-item').forEach(el=>el.classList.remove('active'));
     onSectionEnter('s0-hero');
-    // Position the hero CTA buttons vertically centered between the hero text and
-    // the top of the map, and keep them centered as the viewport/text reflows.
+    // (Hero CTA button positioning runs independently, as soon as the script starts —
+    // see layoutHeroButtons() call near the top of the file — so it isn't stuck waiting
+    // on the spreadsheet fetch below. Re-run once more here in case fonts/layout shifted
+    // while the data was loading.)
     layoutHeroButtons();
-    window.addEventListener('resize', layoutHeroButtons);
-    if(document.fonts && document.fonts.ready){ document.fonts.ready.then(layoutHeroButtons); }
+    // Restore the scroll position from before a refresh now — not any earlier — since
+    // this is the first point where particles, the map canvas, and the section
+    // observer are all actually ready. Jumping here (rather than letting the browser's
+    // own automatic scroll restoration do it before any of that existed) is what makes
+    // a refresh land back in a correctly-laid-out view instead of a "glitched map".
+    restoreScrollPosition();
     // dot nav click: instant jump (no scrollytelling transitions)
     function jumpToSection(sec){
         // Respect the brief scroll lock shown alongside the zoom-tip popup —
@@ -3602,6 +3690,22 @@ function hideExploreScreen() {
     if (el) el.classList.remove('visible');
     const axEl = document.getElementById('axis-labels-container');
     if (axEl) axEl.style.pointerEvents = '';
+}
+
+// Warms the browser cache for the carousel's cover images well before the user
+// reaches the Explore screen, using the same row-selection logic as buildCarousel().
+// Uses plain Image() fetches (no DOM insertion) so it can't affect layout/paint —
+// it just means the network requests have a head start instead of only beginning
+// once buildCarousel() runs.
+let _carouselImagesPreloaded = false;
+function preloadCarouselImages(allData) {
+    if (_carouselImagesPreloaded) return;
+    _carouselImagesPreloaded = true;
+    const ccRows = allData.filter(r => r.Title && (r["Carmen's "] || '').trim().toLowerCase() === 'cc');
+    ccRows.filter(r => r['Cover Image']).forEach(r => {
+        const img = new Image();
+        img.src = r['Cover Image'].trim();
+    });
 }
 
 function buildCarousel(allData) {
