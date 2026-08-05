@@ -19,9 +19,22 @@
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600;700&family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- p5/papaparse/d3 are loaded just before the main script (end of body) instead of
          here, so the browser can parse and paint the page markup/CSS immediately instead
-         of blocking on ~1MB of library downloads before it even sees the <body>. -->
+         of blocking on ~1MB of library downloads before it even sees the <body>. Preload
+         hints below still let the browser START fetching those library files, the geojson,
+         and the initiative data CSV right away, in parallel with everything else — so by
+         the time the bottom-of-body <script> tags (and the fetch()/Papa.parse() calls
+         inside the main script) actually run, the responses are already in the browser's
+         cache instead of only starting to download at that point. This doesn't change
+         execution order or behavior, just when the network requests start. -->
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link rel="preconnect" href="https://unpkg.com">
+    <link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
+    <link rel="preconnect" href="https://docs.google.com" crossorigin>
+    <link rel="preload" as="script" href="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js">
+    <link rel="preload" as="script" href="https://unpkg.com/papaparse@5.4.1/papaparse.min.js">
+    <link rel="preload" as="script" href="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js">
+    <link rel="preload" as="fetch" crossorigin href="https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson">
+    <link rel="preload" as="fetch" crossorigin href="https://docs.google.com/spreadsheets/d/e/2PACX-1vSKgeCFRWhEydDOm3JMjw-F9MI8bNvgWYkXSA-_3S8Mo9Ehxs3WrB07UbNfrFdfDiOLqHc67BR6kyaG/pub?gid=600477657&single=true&output=csv">
     <style>
     @font-face {
         font-family: 'Herbik';
@@ -257,10 +270,10 @@
     #zoom-tip-popup {
         position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
         background:#FBFBEE; color:#757559;
-        padding:10px 18px; border-radius:6px; font-family:'Geist',sans-serif;
+        padding:16px 26px; border-radius:8px; font-family:'Geist',sans-serif;
         font-weight:400;
-        font-size:var(--sz-ui); pointer-events:none; z-index:2500;
-        max-width:280px; width:auto; text-align:center;
+        font-size:var(--sz-narrative); pointer-events:none; z-index:2500;
+        max-width:360px; width:auto; text-align:center;
         line-height:1.5; box-shadow:0 4px 16px rgba(0,0,0,.18);
         opacity:0; transition:opacity 0.6s ease;
     }
@@ -518,6 +531,13 @@
     .init-panel.slide-pre { transition:none; opacity:0; }
     .init-panel.slide-pre.from-left  { transform:translateX(-90px); }
     .init-panel.slide-pre.from-right { transform:translateX(90px); }
+    /* ── Exit (scrolling back up out of the Explore screen): left-half panels
+       slide back out to the left, right-half back out to the right — the same
+       motion as the entrance, just reversed. Unlike .slide-pre this keeps the
+       normal transform/opacity transitions active so it actually animates. ── */
+    .init-panel.slide-out { opacity:0; }
+    .init-panel.slide-out.from-left  { transform:translateX(-90px); }
+    .init-panel.slide-out.from-right { transform:translateX(90px); }
     .init-panel-bg {
         position:absolute; inset:0;
         background-size:cover; background-position:center;
@@ -2026,19 +2046,33 @@ function initViz(){
                 if(scrolled<=0){
                     // Back at the very top of the hero — always hide, regardless of
                     // whether the map had finished sliding into place.
+                    clearTimeout(_zoomTipLingerTimer);
+                    _zoomTipLingerScheduled=false;
                     if(tipEl.classList.contains('visible')){
                         tipEl.classList.remove('visible');
                         _zoomTipPopupVisible=false;
                     }
                 } else if(scrolled>0 && slideT<1){
+                    // Still sliding — cancel any pending linger-hide from a previous
+                    // pass (e.g. the person scrolled back up right as it was about to
+                    // disappear) and keep the popup tracking the map's center.
+                    clearTimeout(_zoomTipLingerTimer);
+                    _zoomTipLingerScheduled=false;
                     tipEl.style.top=(canvasOffsetPx + vh/2)+'px';
                     if(!tipEl.classList.contains('visible')){
                         tipEl.classList.add('visible');
                         _zoomTipPopupVisible=true;
                     }
-                } else if(slideT>=1 && tipEl.classList.contains('visible')){
-                    tipEl.classList.remove('visible');
-                    _zoomTipPopupVisible=false;
+                } else if(slideT>=1 && tipEl.classList.contains('visible') && !_zoomTipLingerScheduled){
+                    // Map has just settled into its centered spot — let the popup
+                    // linger an extra second before fading it out, instead of
+                    // disappearing the instant the map stops moving.
+                    _zoomTipLingerScheduled=true;
+                    _zoomTipLingerTimer=setTimeout(()=>{
+                        tipEl.classList.remove('visible');
+                        _zoomTipPopupVisible=false;
+                        _zoomTipLingerScheduled=false;
+                    }, 1000);
                 }
             }
         }
@@ -2056,6 +2090,14 @@ function initViz(){
         // it always did, with the two systems never fighting over opacity.
         {
             const chromeVisible = (slideT>=1);
+            // Chrome (icons/zoom/nav dots/skip) must stay fully invisible until the
+            // person has scrolled a little way in — it only starts fading in past
+            // 10vh of scroll, never right at the very top of the hero. From 10vh up
+            // to the point the map finishes sliding into place (heroH*0.5), it fades
+            // in linearly; below 10vh this stays pinned at 0.
+            const chromeStartPx = 0.10 * vh;
+            const chromeRangePx = Math.max(1, (heroH * 0.5) - chromeStartPx);
+            const chromeT = Math.max(0, Math.min(1, (scrolled - chromeStartPx) / chromeRangePx));
             if(!heroZoomOverrideActive && !_heroChromeFirstRevealDone && slideT>0){
                 if(!_chromeElsShown){
                     _chromeElsShown=true;
@@ -2064,7 +2106,7 @@ function initViz(){
                     document.getElementById('data-source-label').style.display='flex';
                     document.getElementById('print-btn').classList.add('btn-visible');
                 }
-                const ct=slideT;
+                const ct=chromeT;
                 const zc=document.getElementById('zoom-controls');
                 zc.style.opacity=String(ct); zc.style.pointerEvents = ct>=0.99?'auto':'none';
                 const mpb=document.getElementById('map-proj-btn');
@@ -2444,6 +2486,8 @@ function applyZoomToParticles(){
    hero/s1-stats scroll handler above) — it tracks the map's visual center
    while sliding into view and disappears once the map is fully settled. */
 let _zoomTipPopupVisible=false;
+let _zoomTipLingerTimer=null;   // delays hiding the zoom-tip popup for 1s after the map centers
+let _zoomTipLingerScheduled=false;
 let _zoomUIRevealed=false; // globe icon / print button / etc. — separate from mapZoomActive (zoom itself works from the hero onward)
 
 /* Briefly prevent the page from scrolling (wheel, touch, and keyboard) without
@@ -2910,8 +2954,8 @@ function positionLandmarkPopups(show){
 /* ════════════════════════════════════════════════════
    MAP ALPHA TWEEN
 ════════════════════════════════════════════════════ */
-const MAP_FADE_IN_MS=1800;  // smooth, gradual tempo for the map fading in
-const MAP_FADE_OUT_MS=1200; // 1.5x faster than fade-in, same eased shape
+const MAP_FADE_IN_MS=900;   // smooth, gradual tempo for the map fading in (halved)
+const MAP_FADE_OUT_MS=600;  // 1.5x faster than fade-in, same eased shape (halved)
 function fadeOutMap(onComplete){
     if(_mapAlphaTween) cancelAnimationFrame(_mapAlphaTween);
     const start=performance.now();
@@ -3145,7 +3189,7 @@ function onSectionEnter(sec){
         case 's5-year':
             fadeOutMap(()=>highlightCountries.clear()); showCountryFills=false; hoveredCountry=null;
             document.getElementById('info-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
-            typewrite('The origin of modern rights of nature is often traced to the early 1970s. The legal movement started to gain traction in the mid-2000s, though some initiatives predate this moment.');
+            typewrite('The origin of modern rights of nature is often traced to the early 1970s. The legal movement started to gain traction in the mid-2000s, though some initiatives predate this moment.', null, true);
             _pendingLayout={fn:layoutByYear, triggered:false};
             break;
 
@@ -3155,7 +3199,7 @@ function onSectionEnter(sec){
             typewrite('Several landmark initiatives helped shape its global expansion.', ()=>{
                 // After text fades in, show landmark highlights
                 setTimeout(showLandmarkPopups, 300);
-            });
+            }, true);
             _pendingLayout={fn:layoutByYear, triggered:false};
             break;
 
@@ -3690,6 +3734,7 @@ function hideExploreScreen() {
     if (el) el.classList.remove('visible');
     const axEl = document.getElementById('axis-labels-container');
     if (axEl) axEl.style.pointerEvents = '';
+    playCarouselExit();
 }
 
 // Warms the browser cache for the carousel's cover images well before the user
@@ -3752,12 +3797,25 @@ function playCarouselEntrance() {
     const panels = document.querySelectorAll('#initiative-carousel .init-panel');
     if (!panels.length) return;
     // Force panels back to their pre-entrance (off-screen) state instantly...
+    panels.forEach(p => p.classList.remove('slide-out'));
     panels.forEach(p => p.classList.add('slide-pre'));
     // ...then, next frame, release them so the transition (defined on .init-panel) animates them in.
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
             panels.forEach(p => p.classList.remove('slide-pre'));
         });
+    });
+}
+
+// Mirrors playCarouselEntrance() for scrolling back up out of the Explore
+// screen: left-half panels slide back out to the left, right-half back out
+// to the right — same directions and stagger as the entrance, just reversed.
+function playCarouselExit() {
+    const panels = document.querySelectorAll('#initiative-carousel .init-panel');
+    if (!panels.length) return;
+    panels.forEach(p => {
+        p.classList.remove('slide-pre');
+        p.classList.add('slide-out');
     });
 }
 </script>
