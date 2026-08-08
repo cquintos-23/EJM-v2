@@ -184,6 +184,19 @@
     }
     #skip-btn:hover { background-color:#3D3D31; color:#fff; }
 
+    /* scroll-down arrow — a plain visual signal in the bottom-left corner
+       (same margin skip-btn uses on the right), not an interactive control:
+       no box, no hover state, no click target. */
+    #scroll-down-btn {
+        position:fixed; bottom:36px; left:36px; z-index:50; display:flex;
+        align-items:center; justify-content:center;
+        box-sizing:border-box; padding:0; height:36px; width:36px;
+        background:transparent; border:none;
+        pointer-events:none; cursor:default; box-shadow:none;
+        opacity:0; transition:opacity 0.3s ease;
+    }
+    #scroll-down-btn svg { width:20px; height:20px; display:block; }
+
     /* print/download button */
     #print-btn {
         position:fixed; top:36px; right:calc(32px + 36px + 4px); z-index:55;
@@ -395,6 +408,7 @@
         #initiative-carousel { width: calc(100% - 10px) !important; }
 
         #skip-btn { bottom: 20px; right: 16px; padding: 8px 16px; height: 36px; }
+        #scroll-down-btn { bottom: 20px; left: 16px; height: 36px; width: 36px; }
         #print-btn { top: 16px; right: calc(16px + 32px + 4px); width: 32px; height: 32px; }
 
         #section-nav { right: 12px; gap: 8px; }
@@ -649,6 +663,11 @@
 <!-- (narrative boxes are injected into each scroll section by JS) -->
 <button id="print-btn"><img src="Print.svg" alt="Download PNG"></button>
 <button id="skip-btn">Skip</button>
+<button id="scroll-down-btn" aria-hidden="true">
+    <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M8 2.5V13.5M8 13.5L3.5 9M8 13.5L12.5 9" stroke="#B5B5B1" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+</button>
 <button id="map-proj-btn"><img src="Globe.svg" alt="Map Projection"></button>
 <div id="map-proj-popup"><span class="tt-title2">This map serves illustrative purposes only. The boundaries, denominations, and, more generally, all eco jurisprudence-unrelated information shown on this map do not imply any judgment on the part of the creators concerning the legal status of any territory or the endorsement or acceptance of such boundaries, denominations, or the like.</span></div>
 <a id="info-btn" href="https://ecojurisprudence.org/codebook/" target="_blank"><img src="Info.svg" alt="Codebook"></a>
@@ -685,8 +704,8 @@
 <div id="hero-text">
     <h1>Explore the definitive tracker for<br>ecocentric laws around the world</h1>
     <div class="hero-btns" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
-        <a href="https://ecojurisprudence.org/data/" target="_blank" class="hero-btn" style="background-color:transparent;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;height:40px;width:160px;border:1px solid #D1D1BF;border-radius:8px;font-family:'Geist',sans-serif;font-weight:500;font-size:16px;line-height:20px;color:#757559;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none;text-transform:none;">Get the Charts</a>
-        <a href="https://ecojurisprudence.org/data-request/" target="_blank" class="hero-btn" style="background-color:transparent;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;height:40px;width:160px;border:1px solid #D1D1BF;border-radius:8px;font-family:'Geist',sans-serif;font-weight:500;font-size:16px;line-height:20px;color:#757559;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none;text-transform:none;">Get the Data</a>
+        <a href="https://ecojurisprudence.org/data/" target="_blank" class="hero-btn" style="background-color:transparent;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;height:40px;width:auto;min-width:160px;border:1px solid #D1D1BF;border-radius:8px;font-family:'Geist',sans-serif;font-weight:500;font-size:16px;line-height:20px;color:#757559;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none;text-transform:none;">Go to More Charts</a>
+        <a href="https://ecojurisprudence.org/data-request/" target="_blank" class="hero-btn" style="background-color:transparent;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;height:40px;width:auto;min-width:160px;border:1px solid #D1D1BF;border-radius:8px;font-family:'Geist',sans-serif;font-weight:500;font-size:16px;line-height:20px;color:#757559;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none;text-transform:none;">Go to Initiative Index</a>
     </div>
 </div>
 <div id="hero-scroll-hint">scroll to explore</div>
@@ -876,6 +895,8 @@ function activateHeroZoomOverride(){
     sn.style.opacity='1'; sn.style.pointerEvents='auto';
     const sb=document.getElementById('skip-btn');
     sb.style.opacity='1'; sb.style.pointerEvents='auto';
+    const sdb=document.getElementById('scroll-down-btn');
+    sdb.style.opacity='1';
     document.getElementById('zoom-hint').classList.add('visible');
     _zoomUIRevealed=true;
     _chromeElsShown=true;
@@ -2116,6 +2137,8 @@ function initViz(){
                 sn.style.opacity=String(ct); sn.style.pointerEvents = ct>=0.99?'auto':'none';
                 const sb=document.getElementById('skip-btn');
                 sb.style.opacity=String(ct); sb.style.pointerEvents = ct>=0.99?'auto':'none';
+                const sdb=document.getElementById('scroll-down-btn');
+                sdb.style.opacity=String(ct);
             }
             if(chromeVisible){
                 if(!_zoomUIRevealed){
@@ -2128,6 +2151,7 @@ function initViz(){
                     document.getElementById('section-nav').style.pointerEvents='auto';
                     document.getElementById('skip-btn').style.opacity='1';
                     document.getElementById('skip-btn').style.pointerEvents='auto';
+                    document.getElementById('scroll-down-btn').style.opacity='1';
                     // Release the gradual-fade inline overrides now that full opacity is
                     // reached, and permanently disable that system — from here on this
                     // element set is governed solely by the classList/opacity('') toggles
@@ -2406,13 +2430,11 @@ function initViz(){
 /* ════════════════════════════════════════════════════
    MAP DRAWING (fills only, no outlines when showCountryFills)
 ════════════════════════════════════════════════════ */
-/* Choropleth bins for country fills, based on initiative count:
-   0 → lightest gray, 1-5 → light-medium, 6-15 → medium-dark, 16+ → darkest.
-   The fully solid off-black (#3D3D31, alpha 1) is reserved for hover/selected
-   states only — it is never used as a resting choropleth shade. */
+/* Two-tone country fills: lightest gray for countries with no initiatives,
+   second-lightest gray for countries with one or more initiatives. The fully
+   solid off-black (#3D3D31, alpha 1) is reserved for hover/selected states
+   only — it is never used as a resting shade. */
 function countryBinAlpha(count){
-    if(count>=16) return 0.45;
-    if(count>=6) return 0.32;
     if(count>=1) return 0.20;
     return 0.07;
 }
@@ -2439,14 +2461,15 @@ function drawMap(p, alpha){
             ctx.fillStyle=`rgba(61,61,49,${countryBinAlpha(countryCounts[resolvedName]||0)*a})`;
         }
         ctx.fill();
-        // As the map zooms in, fade in a faint white outline around each country
-        // so borders read a bit more clearly without cluttering the default view.
-        if(mapZoomActive && mapZoom.k>1.01){
-            const outlineAlpha=Math.min(0.7,(mapZoom.k-1)/11*0.7)*a;
-            ctx.strokeStyle=`rgba(61,61,49,${outlineAlpha})`;
-            ctx.lineWidth=1.6/mapZoom.k; // counteract ctx.scale so the line reads a consistent width on screen
-            ctx.stroke();
-        }
+        // Country borders stay visible at all times (very subtle at rest so they
+        // don't clutter the default view), and fade in a bit more as the map
+        // zooms in so borders read more clearly up close.
+        const restOutlineAlpha=0.02*a;
+        const zoomOutlineAlpha=(mapZoomActive && mapZoom.k>1.01)?Math.min(0.7,(mapZoom.k-1)/11*0.7)*a:0;
+        const outlineAlpha=Math.max(restOutlineAlpha, zoomOutlineAlpha);
+        ctx.strokeStyle=`rgba(61,61,49,${outlineAlpha})`;
+        ctx.lineWidth=(mapZoomActive?1.6/mapZoom.k:0.5); // sub-1px widths don't render any thinner (canvas anti-aliasing floors at ~1 device px), so keep this at a clean minimum and use alpha above to control how faint it reads
+        ctx.stroke();
     });
     ctx.restore();
 }
@@ -2549,6 +2572,11 @@ function hideMapChrome(){
     sb.style.opacity='0'; sb.style.pointerEvents='none';
     void sb.offsetWidth;
     sb.style.transition='';
+    const sdb=document.getElementById('scroll-down-btn');
+    sdb.style.transition='none';
+    sdb.style.opacity='0'; sdb.style.pointerEvents='none';
+    void sdb.offsetWidth;
+    sdb.style.transition='';
     mpb.style.transition='none';
     mpb.style.opacity='0';
     void mpb.offsetWidth;
@@ -3069,15 +3097,19 @@ function onSectionEnter(sec){
     const isHero = (sec==='s0-hero');
     const snEl=document.getElementById('section-nav');
     const skEl=document.getElementById('skip-btn');
+    const sdEl=document.getElementById('scroll-down-btn');
     if(isHero || isEnd){
         // Instant hide (no fade trace) when landing back on the hero specifically.
         snEl.style.transition='none'; snEl.style.opacity='0'; snEl.style.pointerEvents='none';
         void snEl.offsetWidth; snEl.style.transition='';
         skEl.style.transition='none'; skEl.style.opacity='0'; skEl.style.pointerEvents='none';
         void skEl.offsetWidth; skEl.style.transition='';
+        sdEl.style.transition='none'; sdEl.style.opacity='0'; sdEl.style.pointerEvents='none';
+        void sdEl.offsetWidth; sdEl.style.transition='';
     } else {
         snEl.style.opacity='1'; snEl.style.pointerEvents='auto';
         skEl.style.opacity='1'; skEl.style.pointerEvents='auto';
+        sdEl.style.opacity='1';
     }
     // Show/hide hero elements
     const heroEl = document.getElementById('hero-text');
@@ -3380,8 +3412,17 @@ function layoutAllRegions(){
     const barSp=Math.max(w<700?8:20, Math.min(42, rawBarSp));
     const totalW=REGION_ORDER.length*barW+(REGION_ORDER.length-1)*barSp;
     const startX=(w-totalW)/2;
+    // Match region names leniently (trimmed, case-insensitive) against
+    // REGION_ORDER so stray whitespace/casing in the source data doesn't
+    // silently drop an initiative from every bucket below.
+    function matchRegion(raw){
+        const r=(raw||'').trim();
+        if(!r) return null;
+        const hit=REGION_ORDER.find(reg=>reg.toLowerCase()===r.toLowerCase());
+        return hit||null;
+    }
     const regions={};
-    particles.forEach(p=>{ const r=p.data.Region||'Unknown'; if(!regions[r])regions[r]=[]; regions[r].push(p); });
+    particles.forEach(p=>{ const r=matchRegion(p.data.Region); if(!r) return; if(!regions[r])regions[r]=[]; regions[r].push(p); });
     REGION_ORDER.forEach((region,i)=>{
         const cx=startX+i*(barW+barSp), rp=regions[region]||[];
         if(!rp.length) return;
@@ -3392,6 +3433,11 @@ function layoutAllRegions(){
         const dotStartX=labelCx-(colsUsed-1)*dotSp/2;
         rp.forEach((p,j)=>{ p.frozen=false; p.setTarget(dotStartX+(j%maxCols)*dotSp,bY()-Math.floor(j/maxCols)*dotSp,true); });
     });
+    // Any initiative whose Region doesn't cleanly match one of the seven
+    // buckets above (missing/garbled data) should still leave the map like
+    // everything else in this section, instead of silently staying put —
+    // mirrors the "hide unmatched" fallback used in the other chart sections.
+    particles.forEach(p=>{ if(!matchRegion(p.data.Region)){ p.frozen=false; p.setTarget(-100,-100,false); } });
 }
 
 function layoutByYear(){
