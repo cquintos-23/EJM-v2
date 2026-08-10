@@ -2,13 +2,6 @@
 <html lang="en">
 <head>
     <script>
-    // Must run before anything else on the page — this has to win the race against
-    // the browser's own automatic scroll restoration on refresh, which otherwise
-    // silently jumps scrollY back to wherever it was BEFORE any of our own JS (which
-    // lives at the bottom of the page, after big library downloads) gets a chance to
-    // run. We take over that restoration ourselves, later, once the map/data/canvas
-    // are actually ready — see restoreScrollPosition() near the top of the main
-    // script and its call in initViz().
     if('scrollRestoration' in history){ history.scrollRestoration='manual'; }
     </script>
     <meta charset="UTF-8">
@@ -17,15 +10,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600;700&family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- p5/papaparse/d3 are loaded just before the main script (end of body) instead of
-         here, so the browser can parse and paint the page markup/CSS immediately instead
-         of blocking on ~1MB of library downloads before it even sees the <body>. Preload
-         hints below still let the browser START fetching those library files, the geojson,
-         and the initiative data CSV right away, in parallel with everything else — so by
-         the time the bottom-of-body <script> tags (and the fetch()/Papa.parse() calls
-         inside the main script) actually run, the responses are already in the browser's
-         cache instead of only starting to download at that point. This doesn't change
-         execution order or behavior, just when the network requests start. -->
+    <!-- Preload libraries/data early; scripts load at end of body -->
+
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link rel="preconnect" href="https://unpkg.com">
     <link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
@@ -47,7 +33,6 @@
         --color-white: #ffffff;
         --color-sand: #B8B8A0;
         --color-dark-sand: #5A5A48;
-        /* Three type sizes (excluding stats counter) */
         --sz-narrative: 18px;
         --sz-ui:        12px;
         --sz-small:     11px;
@@ -55,16 +40,13 @@
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family:'Geist',sans-serif; background:#fff; color:#3D3D31; overflow-x:hidden; }
 
-    /* ── SCROLLYTELLING VIEWPORT ── */
     #scroll-container { pointer-events:none; }
     .scroll-section { height:200vh; width:100%; pointer-events:none; position:relative; }
     .scroll-section[data-section="s1-stats"] { height:250vh; }
 
-    /* ── FIXED CANVAS ── */
     #p5-canvas { position:fixed; top:0; left:0; width:100%; height:100vh; z-index:1; cursor:default; will-change:transform; touch-action:none; transform:translateY(30vh); transition:none; }
     #p5-canvas canvas { touch-action:none; }
 
-    /* ── FIXED OVERLAYS ── */
     #fixed-overlays {
         position:fixed; top:0; left:0; width:100%; height:100vh;
         z-index:30; pointer-events:none;
@@ -82,9 +64,6 @@
     }
     #stats-display .sep { font-weight:400; margin:0 0.4rem; }
 
-    /* ── INTRO TEXT BOX (s1-stats phase 2) ── */
-    /* Same box treatment as the in-section narrative boxes (.narrative-scroll-box):
-       white card, left-aligned, anchored to the left edge instead of centered. */
     #intro-textbox {
         position:fixed; left:36px; z-index:30; pointer-events:none;
         width:fit-content; max-width:352px;
@@ -98,10 +77,8 @@
     }
     #intro-textbox .narrative-inner p { margin:0; }
 
-    /* narrative — scrolling in-flow boxes inside each section */
     .narrative-scroll-box {
         position:absolute; left:36px;
-        /* sits closer to the top of its 200vh section so it appears sooner while scrolling */
         top:calc(40vh + (100vh - var(--box-h, 160px)) / 2);
         width:fit-content; max-width:352px; z-index:2100; pointer-events:auto;
         background:#ffffff; border-radius:4px;
@@ -116,9 +93,6 @@
     .narrative-inner p { margin:0; }
     .narrative-inner a { color:var(--color-off-black); text-decoration:underline; }
     .narrative-inner a:hover { opacity:0.7; }
-    /* zoom controls — pill with +/- buttons, styled like #skip-btn, sitting below
-       the print and globe icons. Width spans from the print icon's left edge to
-       the globe icon's right edge (72+36=108px left edge; 32px right edge). */
     #zoom-controls {
         position:fixed; top:80px; right:32px; width:76px; height:28px;
         z-index:50; display:none; flex-direction:row; align-items:stretch;
@@ -138,8 +112,6 @@
     #zoom-out-btn { border-radius:7px 0 0 7px; }
     #zoom-in-btn { border-radius:0 7px 7px 0; }
     #zoom-controls .zoom-divider { flex:0 0 1px; width:1px; background-color:rgba(255,255,255,0.4); }
-    /* tooltips on hover, below the buttons — matches the print/globe tooltip style,
-       just anchored under each button instead of above it */
     #zoom-controls button::after {
         position:absolute; top:calc(100% + 6px); left:50%; transform:translateX(-50%);
         font-family:'Geist',sans-serif; font-size:var(--sz-small); white-space:nowrap;
@@ -151,7 +123,6 @@
     #zoom-out-btn::after { content:'Zoom Out'; }
     #zoom-in-btn::after { content:'Zoom In'; }
     #zoom-controls button:hover::after { opacity:1; }
-    /* vertical line-by-line fade-in for narrative text */
     .narrative-scroll-box .fade-line {
         display:block;
         opacity:0;
@@ -163,7 +134,6 @@
         transform:translateY(0);
     }
 
-    /* hero CTA buttons */
     .hero-btn {
         transition: border-color 0.2s ease, color 0.2s ease;
     }
@@ -172,7 +142,6 @@
         color: var(--color-off-black) !important;
     }
 
-    /* skip */
     #skip-btn {
         position:fixed; bottom:36px; right:36px; z-index:50; display:block;
         box-sizing:border-box; padding:8px 16px; height:36px; width:auto;
@@ -184,9 +153,6 @@
     }
     #skip-btn:hover { background-color:#3D3D31; color:#fff; }
 
-    /* scroll-down arrow — a plain visual signal in the bottom-left corner
-       (same margin skip-btn uses on the right), not an interactive control:
-       no box, no hover state, no click target. */
     #scroll-down-btn {
         position:fixed; bottom:36px; left:36px; z-index:50; display:flex;
         align-items:center; justify-content:center;
@@ -197,7 +163,6 @@
     }
     #scroll-down-btn svg { width:20px; height:20px; display:block; }
 
-    /* print/download button */
     #print-btn {
         position:fixed; top:36px; right:calc(32px + 36px + 4px); z-index:55;
         display:flex; align-items:center; justify-content:center;
@@ -220,7 +185,6 @@
     }
     #print-btn:hover::after { opacity:1; }
 
-    /* map projection icon button */
     #map-proj-btn {
         position:fixed; top:36px; right:32px; z-index:55; display:none;
         width:36px; height:36px; padding:0;
@@ -231,7 +195,6 @@
     }
     #map-proj-btn:hover img { filter: brightness(0) saturate(100%) invert(18%) sepia(9%) saturate(450%) hue-rotate(20deg); }
     #map-proj-btn img { width:28px; height:28px; display:block; }
-    /* tooltip on hover */
     #map-proj-btn::after {
         content:'Map Projection';
         position:absolute; bottom:calc(100% + 6px); right:0;
@@ -244,7 +207,6 @@
     #map-proj-btn:hover::after { opacity:1; }
     #map-proj-btn.popup-open::after { opacity:0 !important; }
 
-    /* map projection popup */
     #map-proj-popup {
         position:fixed; top:82px; right:32px; z-index:2000;
         background:#FBFBEE; color:#3D3D31;
@@ -255,7 +217,6 @@
         display:none; pointer-events:auto;
     }
 
-    /* chart labels */
     #axis-labels-container { position:fixed; top:calc(73vh + 10px); left:0; width:100%; height:100px; pointer-events:none; z-index:50; }
     #main-labels-container  { position:fixed; top:calc(83vh + 10px); left:0; width:100%; height:30px; pointer-events:none; z-index:15; }
     .chart-label { position:absolute; font-family:'Geist',sans-serif; font-size:var(--sz-ui); font-weight:500; color:#666; white-space:nowrap; line-height:1.3; pointer-events:none; top:0; text-decoration:none; }
@@ -264,8 +225,6 @@
     .chart-label.axis.clickable { cursor:pointer; color:#3D3D31; }
     .chart-label.axis.clickable:hover { text-decoration:underline; }
 
-
-    /* tooltips */
     #tooltip {
         position:fixed; background:#FBFBEE; color:#3D3D31;
         padding:10px 14px; border-radius:4px; font-family:'Geist',sans-serif;
@@ -291,6 +250,7 @@
         opacity:0; transition:opacity 0.6s ease;
     }
     #zoom-tip-popup.visible { opacity:1; }
+    #zoom-tip-popup.idle-faded { opacity:0 !important; }
     #label-tooltip {
         position:fixed; background:#3D3D31; color:#fff;
         padding:8px 12px; border-radius:4px; font-family:'Geist',sans-serif;
@@ -317,7 +277,6 @@
     #pt-close { position:absolute; top:5px; right:7px; cursor:pointer; color:#888; font-size:var(--sz-ui); background:none; border:none; padding:0; }
     #pt-close:hover { color:#3D3D31; }
 
-    /* country name display — popup positioned over country centroid */
     #country-name-display {
         position:fixed; z-index:60; pointer-events:none; opacity:0; transition:opacity 0.3s ease;
         font-family:'Geist',sans-serif; font-size:var(--sz-ui); font-weight:400;
@@ -339,12 +298,8 @@
     }
     #cnd-text a.cnd-link:hover { text-decoration:underline; }
 
-    /* zoom hint — hidden */
     #zoom-hint { display:none !important; }
 
-
-
-    /* ── LANDMARK POPUPS (year chart highlight) ── */
     .landmark-popup {
         position:fixed; z-index:2000; pointer-events:auto; cursor:pointer;
         background:#FBFBEE; color:#3D3D31;
@@ -363,7 +318,6 @@
     .landmark-popup .lm-link a:hover { text-decoration:underline; }
     .landmark-popup.visible { opacity:1; }
 
-    /* ── ORIENTATION POPUP ── */
     #orientation-popup {
         display: none;
         position: fixed; inset: 0; z-index: 9999;
@@ -385,12 +339,10 @@
     #orientation-popup .orient-sub {
         font-size: 13px; color: var(--color-dark-sand); line-height: 1.5;
     }
-    /* Show only on mobile portrait */
     @media (max-width: 768px) and (orientation: portrait) {
         #orientation-popup { display: flex; }
     }
 
-    /* ── MOBILE RESPONSIVE ── */
     @media (max-width: 768px) {
         #stats-display {
             font-size: 20px !important;
@@ -433,7 +385,6 @@
 
     }
 
-    /* ── SECTION DOT NAV ── */
     #section-nav {
         position:fixed; right:36px; top:30vh;
         z-index:100; display:flex; flex-direction:column; align-items:flex-end;
@@ -472,7 +423,6 @@
         background:var(--color-dark-sand);
     }
 
-    /* info/codebook icon button */
     #info-btn {
         position:fixed; top:36px; right:32px; z-index:55; display:none;
         width:36px; height:36px; padding:0;
@@ -494,7 +444,6 @@
     }
     #info-btn:hover::after { opacity:1; }
 
-    /* data source label — hidden from UI, only used in PNG exports */
     #data-source-label {
         position:fixed; top:36px; right:84px; z-index:-1;
         align-items:center; height:36px;
@@ -502,7 +451,6 @@
         opacity:0 !important; user-select:none; white-space:nowrap; pointer-events:none !important;
     }
 
-    /* ── EXPLORE / STATIC CONTENT ── */
     #static-content {
         position:fixed; inset:0; z-index:20;
         background:#fff; overflow-y:auto;
@@ -541,14 +489,9 @@
         position:relative;
         display:block; text-decoration:none; color:inherit;
     }
-    /* ── Entrance: left-half panels slide in from the left, right-half from the right ── */
     .init-panel.slide-pre { transition:none; opacity:0; }
     .init-panel.slide-pre.from-left  { transform:translateX(-90px); }
     .init-panel.slide-pre.from-right { transform:translateX(90px); }
-    /* ── Exit (scrolling back up out of the Explore screen): left-half panels
-       slide back out to the left, right-half back out to the right — the same
-       motion as the entrance, just reversed. Unlike .slide-pre this keeps the
-       normal transform/opacity transitions active so it actually animates. ── */
     .init-panel.slide-out { opacity:0; }
     .init-panel.slide-out.from-left  { transform:translateX(-90px); }
     .init-panel.slide-out.from-right { transform:translateX(90px); }
@@ -577,7 +520,6 @@
     .init-card-link  { display:inline-block; margin-top:8px; font-family:'Geist',sans-serif; font-size:7.5pt; font-weight:600; color:#8ECBF0; text-decoration:none; }
     .init-card-link:hover { text-decoration:underline; }
 
-    /* ── HERO MAP GRADIENT ── */
     #hero-map-gradient {
         position:fixed; top:0; left:0; width:100%; height:100vh;
         z-index:0; pointer-events:none;
@@ -587,7 +529,6 @@
     }
     body.is-hero #hero-map-gradient { opacity:1; }
 
-    /* ── HERO SECTION ── */
     #hero-text {
         position:fixed; top:0; left:0; width:100%; height:100vh;
         z-index:25; pointer-events:none;
@@ -608,9 +549,6 @@
         position:absolute;
         left:50%;
         transform:translateX(-50%);
-        /* Hidden until layoutHeroButtons() sets a real `top` — otherwise, before that JS
-           runs, these are absolutely-positioned with no `top`, so they render at their
-           in-flow static position (directly under the h1, i.e. behind/overlapping it). */
         opacity:0;
         transition:opacity 0.25s ease;
     }
@@ -624,7 +562,6 @@
     </style>
 </head>
 <body class="is-hero">
-
 
 <!-- Orientation popup (mobile portrait only) -->
 <div id="orientation-popup">
@@ -704,8 +641,8 @@
 <div id="hero-text">
     <h1>Explore the definitive tracker for<br>ecocentric laws around the world</h1>
     <div class="hero-btns" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
-        <a href="https://ecojurisprudence.org/data/" target="_blank" class="hero-btn" style="background-color:transparent;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;height:40px;width:auto;min-width:160px;border:1px solid #D1D1BF;border-radius:8px;font-family:'Geist',sans-serif;font-weight:500;font-size:16px;line-height:20px;color:#757559;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none;text-transform:none;">Go to More Charts</a>
-        <a href="https://ecojurisprudence.org/data-request/" target="_blank" class="hero-btn" style="background-color:transparent;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;height:40px;width:auto;min-width:160px;border:1px solid #D1D1BF;border-radius:8px;font-family:'Geist',sans-serif;font-weight:500;font-size:16px;line-height:20px;color:#757559;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none;text-transform:none;">Go to Initiative Index</a>
+        <a href="https://ecojurisprudence.org/?post_type=ejm_initiative" target="_blank" class="hero-btn" style="background-color:transparent;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;height:40px;width:auto;min-width:160px;border:1px solid #D1D1BF;border-radius:8px;font-family:'Geist',sans-serif;font-weight:500;font-size:16px;line-height:20px;color:#757559;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none;text-transform:none;">Go to More Charts</a>
+        <a href="https://ecojurisprudence.org/?post_type=ejm_initiative" target="_blank" class="hero-btn" style="background-color:transparent;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;height:40px;width:auto;min-width:160px;border:1px solid #D1D1BF;border-radius:8px;font-family:'Geist',sans-serif;font-weight:500;font-size:16px;line-height:20px;color:#757559;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none;text-transform:none;">Go to Initiative Index</a>
     </div>
 </div>
 <div id="hero-scroll-hint">scroll to explore</div>
@@ -744,22 +681,11 @@
     </div>
 </div>
 
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
 <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <script>
-/* ════════════════════════════════════════════════════
-   SCROLL POSITION ACROSS REFRESH
-   history.scrollRestoration is already set to 'manual' in a tiny <script> at the
-   very top of <head> — it has to happen there, before anything else, to reliably
-   win the race against the browser's own automatic restoration. What's left here
-   is just saving the position on the way out, and restoring it ourselves once
-   the map/data/canvas are actually ready (see restoreScrollPosition(), called at
-   the end of initViz()) — jumping any earlier would run the scroll-driven layout
-   math before there was anything to lay out, which is what caused the "glitched
-   map" on reload.
-════════════════════════════════════════════════════ */
+/* SCROLL POSITION ACROSS REFRESH */
 const SCROLL_SAVE_KEY='ejm_scrollY';
 function saveScrollPosition(){
     try{ sessionStorage.setItem(SCROLL_SAVE_KEY, String(window.scrollY)); }catch(e){}
@@ -771,28 +697,19 @@ function restoreScrollPosition(){
     try{ savedY=parseInt(sessionStorage.getItem(SCROLL_SAVE_KEY)||'0',10)||0; }catch(e){}
     if(savedY>0){
         window.scrollTo({top:savedY, left:0, behavior:'instant'});
-        // Belt-and-suspenders: the scroll-driven layout handlers below normally run
-        // off a real native 'scroll' event. Dispatch one explicitly too, in case this
-        // scrollTo() ever turns out to be a no-op in some browser/edge-case (e.g. the
-        // requested position matching where the page already was) and so never fires
-        // one on its own — every handler here is safe to run redundantly.
         window.dispatchEvent(new Event('scroll'));
     }
 }
 
-/* ════════════════════════════════════════════════════
-   EASING
-════════════════════════════════════════════════════ */
+/* EASING */
 function easeOut(t){ return 1-Math.pow(1-t,3); }
 function easeIn(t){ return t*t*t; }
 
-/* ════════════════════════════════════════════════════
-   STATE
-════════════════════════════════════════════════════ */
+/* STATE */
 let data=[], particles=[];
 let currentSection='s0-hero';
-let landmarkMode=false; // true while s5-year-b is active
-let _pendingLayout=null; // {fn, triggered} — deferred chart layout waiting for narrative scroll threshold
+let landmarkMode=false;
+let _pendingLayout=null;
 
 /* Landmark initiative titles for the s5-year-b highlight sequence */
 const LANDMARK_TITLES=new Set([
@@ -800,24 +717,17 @@ const LANDMARK_TITLES=new Set([
     'New Zealand Te Awa Tupua (Whanganui River Claims Settlement) Act 2017',
     'Spain Mar Menor Law of 2022',
 ]);
-// Partial-match fallback: check if a title *contains* one of these strings
 function isLandmarkTitle(title){
     if(LANDMARK_TITLES.has(title)) return true;
     const t=(title||'').toLowerCase();
     return t.includes('ecuador constitution of 2008')||t.includes('new zealand whanganui river')||t.includes('spain national mar menor');
 }
 let p5Instance, worldGeoJson=null, mapProjection=null;
-// True once particles have been placed at their real map-projected positions. The CSV
-// data and the world.geojson file load independently (two separate network requests
-// racing each other), so whichever finishes first must NOT draw particles yet if the
-// other isn't ready — otherwise every dot briefly clumps at a fallback corner position
-// and then visibly snaps/teleports to its correct spot once the second request lands.
-// Gating on this flag instead means nothing is drawn until both are ready, so there's
-// no clump and no snap — just a clean first appearance in the right place.
 let particlesPlaced=false;
-let canvasOffsetPx=0; // current translateY offset (px) applied to #p5-canvas — tooltips/popups must add this back in to align with the visually-shifted dots
-let heroSlideT=1; // 0 → 1 progress of the hero map sliding into its centered position; 1 once settled
-let heroExitDistanceVh=45; // how far (in vh) the hero text/buttons must translate up to fully leave the viewport — recomputed by layoutHeroButtons()
+let particlesBuilt=false;
+let canvasOffsetPx=0;
+let heroSlideT=1;
+let heroExitDistanceVh=45;
 let selectedParticle=null;
 let showMap=true;
 let showCountryFills=true;
@@ -827,42 +737,27 @@ let statsAnimated=false;
 let statsScrollTriggered=false;
 let particleMapPos=[];
 let hoveredCountry=null;
-// The map canvas is repositioned with a CSS transform as the page scrolls (see
-// canvasOffsetPx below), which shifts the canvas underneath a stationary cursor.
-// p5 recomputes mouseX/mouseY relative to the canvas every frame, so that shift
-// alone is enough to spuriously fire mouseMoved mid-scroll (in either direction)
-// and re-show a tooltip right after we hide it. isUserScrolling suppresses that.
 let isUserScrolling=false;
 let scrollEndTimer=null;
 let selectedCountry=null;
 let selectedCountryParticles=new Set();
 let countryCounts={};
-let overviewFade=false; // true during s1-stats: drives soft fade
-let overviewAlpha=1;   // 0–1 continuous fade value for map+dots during s1-stats
-let mapAlpha=1;          // 0–1, drives soft fade-out of the map
-let _mapAlphaTween=null; // requestAnimationFrame handle for the tween
+let overviewFade=false;
+let overviewAlpha=1;
+let mapAlpha=1;
+let _mapAlphaTween=null;
 
 /* ── MAP ZOOM (active in s2-narrate1) ── */
 let mapZoom={ k:1, tx:0, ty:0 };
 let mapZoomActive=false;
-let zoomOutTransitionPending=false; // true while easing zoom back to 1 before a section switch — other scroll logic should not fight this animation
+let zoomOutTransitionPending=false;
 let _drag={ down:false, x:0, y:0, tx:0, ty:0 };
 let _pinch={ active:false, dist:0, k0:1, tx0:0, ty0:0 };
-let _heroZoomAutoTriggered=false; // re-armed each time s0-hero is (re-)entered
-let heroZoomOverrideActive=false; // true while the hero is showing the "jumped straight into zoom" preview state
-let _chromeElsShown=false; // guards the one-time display/class flip that starts the chrome fade-in
-let _heroChromeFirstRevealDone=false; // once true, the gradual scroll-linked chrome fade never runs again — all
-                                       // later reveal/hide near the hero boundary reverts to the original,
-                                       // instant classList-based toggle, so the two systems never fight each other
+let _heroZoomAutoTriggered=false;
+let heroZoomOverrideActive=false;
+let _chromeElsShown=false;
+let _heroChromeFirstRevealDone=false;
 
-// Starting to zoom the map while it's still only partially slid into place (top
-// part showing, behind the hero) means the person is done with the landing view
-// and wants to interact with the map directly. The canvas is left exactly where
-// it is — it never moves, snaps, or slides here — so whatever's under the
-// cursor stays under the cursor as the zoom happens. Only the hero text/chrome
-// fade out of the way; the wheel/pinch handlers account for the canvas's
-// current on-screen offset directly when computing the zoom target, so the
-// math is correct at any offset and nothing needs to move for it to work.
 function activateHeroZoomOverride(){
     if(heroZoomOverrideActive) return;
     heroZoomOverrideActive=true;
@@ -881,9 +776,6 @@ function activateHeroZoomOverride(){
 
     document.body.classList.remove('is-hero');
 
-    // Reveal all the map chrome together, instantly — this "jump straight into
-    // the interactive view" path is deliberately different from the gradual,
-    // scroll-linked fade used when arriving here by scrolling normally.
     const zc=document.getElementById('zoom-controls');
     zc.classList.add('visible'); zc.style.opacity='1'; zc.style.pointerEvents='auto';
     const mpb=document.getElementById('map-proj-btn');
@@ -904,8 +796,6 @@ function activateHeroZoomOverride(){
     applyZoomToParticles();
 }
 
-// Reverses activateHeroZoomOverride() — used when the person zooms back out to
-// 1x without ever having scrolled for real, so the hero simply comes back.
 function exitHeroZoomOverride(){
     if(!heroZoomOverrideActive) return;
     heroZoomOverrideActive=false;
@@ -929,27 +819,17 @@ function exitHeroZoomOverride(){
 }
 const MAP_ZOOM_MIN=1, MAP_ZOOM_MAX=12;
 
-/* ════════════════════════════════════════════════════
-   CONSTANTS
-════════════════════════════════════════════════════ */
+/* CONSTANTS */
 const NATURE_COLORS={
-    // All Nature (incl. Space, Urban)
     'All Nature':'#85854D','Space':'#85854D','Urban':'#85854D','General':'#85854D','Climate':'#85854D',
-    // Plant + Forest + Fungi
     'Plant':'#7A3F0F','Forest':'#7A3F0F','Fungi':'#7A3F0F',
-    // Animal
     'Animal':'#FF9B00','Species':'#FF9B00',
-    // Freshwater + Marine + Arctic
     'Freshwater Ecosystem':'#8ECBF0','Marine Ecosystem':'#8ECBF0','Arctic':'#8ECBF0',
     'Marine':'#8ECBF0','Freshwater':'#8ECBF0','Ocean':'#8ECBF0','River':'#8ECBF0',
     'Lake':'#8ECBF0','Wetland':'#8ECBF0',
-    // Mountain + Grassland + Desert
     'Mountain':'#DCC240','Grassland':'#DCC240','Desert':'#DCC240',
-    // Multiple / fallback
     'Multiple':'#985475','Ecosystem':'#985475'
 };
-
-/*I reordered the arrays based on the length of the labels */
 
 const FORMAL_LAW=['Constitution','Indigenous Law','Court Case','Policy','Legislation','Declaration'];
 const SOFT_LAW=['Civil Society Declaration', 'Private Sector Governance', 'Civil Society Tribunal','Indigenous Declaration','Position Statement'];
@@ -987,8 +867,6 @@ const FRAMEWORK_URLS={
     'Private Sector Governance':'https://ecojurisprudence.org/legal-provision/private_sector_governance/',
     'Position Statement':'https://ecojurisprudence.org/legal-provision/position_statement/',
 };
-// GeoJSON feature names that differ from how countries appear in the data.
-// Maps GeoJSON name → canonical name used in CSV (after pipe-parsing).
 const GEO_ALIASES={
     'England':'United Kingdom',
     'Wales':'United Kingdom',
@@ -1002,14 +880,11 @@ const GEO_ALIASES={
     'Fr. S. Antarctic Lands':'France',
 };
 
-// Data country name (lowercase) → canonical GeoJSON feature name, for cases
-// where bestGeoMatch can't find a match (e.g. GeoJSON splits UK into constituents).
 const DATA_TO_GEO_OVERRIDE={
     'united kingdom':'England',
     'uk':'England',
 };
 
-// Resolve a raw GeoJSON feature name to the canonical country name used in data
 function resolveGeoName(geoName){ return GEO_ALIASES[geoName]||geoName; }
 
 const GEO_TO_REGION={
@@ -1044,59 +919,57 @@ const GEO_TO_REGION={
     'Fiji':'Oceania','Solomon Is.':'Oceania','Vanuatu':'Oceania',
 };
 
-/* ════════════════════════════════════════════════════
-   GEO JSON
-════════════════════════════════════════════════════ */
+/* GEO JSON */
 fetch('https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson')
     .then(r=>r.json()).then(geo=>{
         geo.features=geo.features.filter(f=>f.properties.name!=='Antarctica');
         worldGeoJson=geo;
         resolveCountryCounts();
-        if (p5Instance){
+        if(p5Instance){
             mapProjection=buildProjection(p5Instance.width,p5Instance.height);
-            cacheMapPositions(); placeParticlesOnMap();
-            particlesPlaced=true;
         }
+        finalizeParticlesIfReady();
     });
 
-// Extract the full country name from "CODE|Full Name" format
+function buildParticlesFromData(){
+    if(particlesBuilt || !data || data.length===0) return;
+    particlesBuilt=true;
+    data.forEach((d,i)=>particles.push(new Particle(d,i)));
+}
+
+function finalizeParticlesIfReady(){
+    buildParticlesFromData();
+    if(particlesBuilt && mapProjection && p5Instance && !particlesPlaced){
+        cacheMapPositions(); placeParticlesOnMap();
+        particlesPlaced=true;
+    }
+}
+
 function parseCountryName(raw){
     if(!raw) return '';
     const pipe=raw.indexOf('|');
     return (pipe>=0 ? raw.slice(pipe+1) : raw).trim();
 }
 
-// Lookup table: parsed data country name (lowercase) → canonical GeoJSON feature name
-// Built once in resolveCountryCounts() after both data and GeoJSON are ready.
 const dataToGeoName={};
 
-// Find the best GeoJSON name for a data country string.
-// Priority: 1) exact (case-insensitive), 2) shortest GeoJSON name that wholly
-// contains the data name as a complete word (avoids Niger→Nigeria, Oman→Romania).
 function bestGeoMatch(dataName, geoNames){
     const dl=dataName.toLowerCase().trim();
     if(!dl) return null;
-    // 1. Exact
     const exact=geoNames.find(g=>g.toLowerCase()===dl);
     if(exact) return exact;
-    // 2. Word-boundary substring: data name must appear as a whole word inside geo name
-    //    e.g. "Niger" matches "Niger" (exact, caught above) but NOT "Nigeria"
-    //    Use \b word boundaries on the data name within the geo name.
     const re=new RegExp('(?:^|[^a-z])'+dl.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(?:[^a-z]|$)','i');
     const wordMatches=geoNames.filter(g=>re.test(g));
     if(wordMatches.length===1) return wordMatches[0];
     if(wordMatches.length>1){
-        // Prefer shortest (most specific) match
         return wordMatches.reduce((a,b)=>a.length<=b.length?a:b);
     }
-    // 3. Geo name wholly contained in data name (e.g. data="United States of America", geo="USA" — unlikely but safe)
     const contained=geoNames.filter(g=>dl.includes(g.toLowerCase()));
     if(contained.length===1) return contained[0];
-    if(contained.length>1) return contained.reduce((a,b)=>a.length>=b.length?a:b); // longest geo name wins
+    if(contained.length>1) return contained.reduce((a,b)=>a.length>=b.length?a:b);
     return null;
 }
 
-// Match each data Country string to a GeoJSON feature name, sum counts
 function resolveCountryCounts(){
     if(!worldGeoJson||!window._rawCountryCounts) return;
     const raw=window._rawCountryCounts;
@@ -1106,7 +979,6 @@ function resolveCountryCounts(){
         const match=bestGeoMatch(dataName, geoNames) || 
                      (DATA_TO_GEO_OVERRIDE[dl] && geoNames.includes(DATA_TO_GEO_OVERRIDE[dl]) ? DATA_TO_GEO_OVERRIDE[dl] : null);
         if(match){
-            // Store mapping from data name → resolved canonical name (alias-aware)
             const resolved=resolveGeoName(match);
             dataToGeoName[dataName.toLowerCase().trim()]=resolved;
             countryCounts[resolved]=(countryCounts[resolved]||0)+count;
@@ -1114,11 +986,9 @@ function resolveCountryCounts(){
     });
 }
 
-// Return true if a parsed particle country name corresponds to a given GeoJSON feature name
 function countryMatchesGeo(parsedName, geoName){
     if(!parsedName||!geoName) return false;
     const key=parsedName.toLowerCase().trim();
-    // Compare canonical (resolved) names on both sides
     const dataCanonical=dataToGeoName[key] || parsedName.trim();
     const geoCanonical=resolveGeoName(geoName);
     return dataCanonical===geoCanonical;
@@ -1126,50 +996,35 @@ function countryMatchesGeo(parsedName, geoName){
 function buildProjection(w,h){
     if (!worldGeoJson) return null;
     const proj=d3.geoNaturalEarth1().fitExtent([[30,10],[w-30,h-10]],worldGeoJson);
-    // Shift left by 10% of viewport width so the map looks visually centered
     const [tx,ty]=proj.translate();
     proj.translate([tx-w*0.05, ty]);
     return proj;
 }
 
-/* ════════════════════════════════════════════════════
-   HERO BUTTON POSITIONING — runs immediately, independent of data load
-   (previously this only ran after the CSV fetch below finished, so on a slow
-   connection the "Get the Charts"/"Get the Data" buttons would sit unstyled,
-   stacked directly under the heading, until the network call resolved.)
-════════════════════════════════════════════════════ */
+/* HERO BUTTON POSITIONING */
 layoutHeroButtons();
 window.addEventListener('resize', layoutHeroButtons);
 if(document.fonts && document.fonts.ready){ document.fonts.ready.then(layoutHeroButtons); }
 
-/* ════════════════════════════════════════════════════
-   DATA
-════════════════════════════════════════════════════ */
+/* DATA */
 Papa.parse('https://docs.google.com/spreadsheets/d/e/2PACX-1vSKgeCFRWhEydDOm3JMjw-F9MI8bNvgWYkXSA-_3S8Mo9Ehxs3WrB07UbNfrFdfDiOLqHc67BR6kyaG/pub?gid=600477657&single=true&output=csv',{
     download:true, header:true,
     complete(results){
         data=results.data.filter(r=>r.Region && ['aa','cc'].includes((r["Carmen's "]||'').trim().toLowerCase()));
-        // Build raw count keyed by data's Country string
         const rawCounts={};
         data.forEach(r=>{
             const c=parseCountryName(r.Country);
             if(c) rawCounts[c]=(rawCounts[c]||0)+1;
         });
-        // countryCounts will be keyed by GeoJSON feature name, built once GeoJSON is ready
-        // Store rawCounts for now; resolveCountryCounts() will run after GeoJSON loads
         window._rawCountryCounts=rawCounts;
-        initViz();
-        // Start fetching the "Explore" carousel's cover images now, in the background,
-        // rather than only when the user finally scrolls all the way to that screen —
-        // by then they're usually already cached, so the carousel appears instantly.
+        resolveCountryCounts();
+        finalizeParticlesIfReady();
         preloadCarouselImages(data);
     },
     error(){ console.error('Data load failed'); }
 });
 
-/* ════════════════════════════════════════════════════
-   PARTICLE
-════════════════════════════════════════════════════ */
+/* PARTICLE */
 class Particle {
     constructor(d,i){
         this.data=d; this.index=i;
@@ -1200,19 +1055,15 @@ class Particle {
         const isCountrySel=selectedCountryParticles.has(this);
         const hasCountrySel=selectedCountry!==null;
         const isLandmark=landmarkMode&&isLandmarkTitle(this.title);
-        // Dots grow a bit as you zoom into the map so they stay easy to see and click.
         const zoomMult=(mapZoomActive&&mapZoom.k>1)?Math.sqrt(mapZoom.k):1;
-        // Always draw white stroke around every dot
         p5Instance.stroke(255); p5Instance.strokeWeight(0.5);
         if(landmarkMode){
             if(isLandmark){
-                // Highlight: ring + full color
                 p5Instance.noFill(); p5Instance.stroke(this.color); p5Instance.strokeWeight(1.5);
                 p5Instance.circle(this.x,this.y,(this.size+8)*zoomMult);
                 p5Instance.stroke(255); p5Instance.strokeWeight(0.5); p5Instance.fill(this.color);
                 p5Instance.circle(this.x,this.y,(this.size+2)*zoomMult); return;
             } else {
-                // Grey out
                 const c=p5Instance.color(this.color); c.setAlpha(35); p5Instance.fill(c);
                 p5Instance.circle(this.x,this.y,this.size*zoomMult); return;
             }
@@ -1237,37 +1088,23 @@ class Particle {
     snapTo(x,y,visible=true){ this.x=x; this.y=y; this.targetX=x; this.targetY=y; this.visible=visible; this.frozen=false; }
 }
 
-/* ════════════════════════════════════════════════════
-   P5 INIT
-════════════════════════════════════════════════════ */
-// Positions the "Get the Charts" / "Get the Data" buttons in the gap between
-// the hero heading and the top of the map canvas (the map sits at 30vh — see
-// #p5-canvas's initial translateY), sitting as close to the map as the cushion
-// allows instead of a fixed margin below the heading.
-// Also recomputes how far (in vh) the whole hero block needs to translate
-// upward to fully clear the viewport once the user starts scrolling.
+/* P5 INIT */
 function layoutHeroButtons(){
     const heroEl=document.getElementById('hero-text');
     const h1=heroEl && heroEl.querySelector('h1');
     const btns=heroEl && heroEl.querySelector('.hero-btns');
     if(!heroEl || !h1 || !btns) return;
-    // Measure with the hero block at rest (no scroll-driven transform applied)
-    // so the measurement reflects true on-screen position.
     const prevTransform=heroEl.style.transform;
     heroEl.style.transform='translateY(0)';
     const vh=window.innerHeight;
-    const mapTopPx=vh * 0.30; // matches #p5-canvas's initial transform:translateY(30vh)
+    const mapTopPx=vh * 0.30;
     const btnHeight=btns.offsetHeight;
     const h1Bottom=h1.getBoundingClientRect().bottom;
-    const CUSHION=16; // minimum gap (px) — both from the heading above and the map below, so the buttons never overlap either
-    // Sit as close to the map's top edge as the cushion allows, but never closer
-    // to the heading than the cushion allows either.
+    const CUSHION=16;
     const top=Math.max(mapTopPx - btnHeight - CUSHION, h1Bottom + CUSHION);
     btns.style.top=top + 'px';
     btns.classList.add('positioned');
     heroEl.style.transform=prevTransform;
-    // Distance needed to move the buttons' bottom edge above the top of the
-    // viewport, plus a small buffer.
     heroExitDistanceVh=Math.max(35, ((top + btnHeight) / vh) * 100 + 5);
 }
 
@@ -1277,20 +1114,11 @@ function initViz(){
         p.setup=function(){
             p.pixelDensity(window.devicePixelRatio||2);
             const cnv=p.createCanvas(window.innerWidth,window.innerHeight).parent('p5-canvas');
-            // Allow zoom controls to receive events by not blocking them at canvas level
             cnv.elt.style.touchAction='none';
-            // Prevent p5 from calling preventDefault on wheel — keeps native scroll working
             cnv.elt.removeEventListener('wheel', cnv.elt._wheelHandler, {passive:false});
             if(worldGeoJson) mapProjection=buildProjection(p.width,p.height);
             resolveCountryCounts();
-            data.forEach((d,i)=>particles.push(new Particle(d,i)));
-            if(mapProjection){
-                cacheMapPositions(); placeParticlesOnMap();
-                particlesPlaced=true;
-            }
-            // else: world.geojson hasn't loaded yet — leave particles unplaced/undrawn
-            // (see p.draw() below) until its fetch callback places them for real,
-            // instead of showing them piled at a fallback position first.
+            finalizeParticlesIfReady();
             onSectionEnter('s0-hero');
         };
         p.draw=function(){
@@ -1316,13 +1144,10 @@ function initViz(){
             p.resizeCanvas(window.innerWidth,window.innerHeight);
             mapProjection=buildProjection(p.width,p.height);
             cacheMapPositions();
-            // Capture whether a chart layout is currently active BEFORE onSectionEnter
-            // wipes _pendingLayout, so we can immediately recompute it at the new size
-            // instead of waiting for the next scroll event to fire the deferred trigger.
             const priorFn = (_pendingLayout && _pendingLayout.triggered) ? _pendingLayout.fn : null;
+            const wasTriggered = !!(_pendingLayout && _pendingLayout.triggered);
             onSectionEnter(currentSection);
             if(priorFn){
-                // A chart was already on screen — re-run its layout now, at the new dimensions.
                 if(_pendingLayout) _pendingLayout.triggered = true;
                 priorFn();
                 if(currentSection==='s4-regions'){
@@ -1331,9 +1156,8 @@ function initViz(){
                     document.getElementById('info-btn').style.display='flex';
                     document.getElementById('data-source-label').style.display='flex';
                 }
-            } else if(currentSection!=='s9-end'){
-                // Still showing the map (chart not yet triggered, or a map-only section) —
-                // reposition dots to match the freshly rebuilt map projection right away.
+            } else if(currentSection==='s0-hero' || currentSection==='s1-stats' ||
+                      (currentSection==='s4-regions' && !wasTriggered)){
                 if(p5Instance&&particleMapPos.length) placeParticlesOnMap(true);
             }
         };
@@ -1363,10 +1187,9 @@ function initViz(){
                 document.getElementById('tt-link').innerHTML=found.permalink?`<a href="${found.permalink}" target="_blank">more info ↗</a>`:'';
                 ttEl.style.setProperty('--tt-accent', found.color);
                 ttEl.style.display='block';
-                // Position centered above the dot, clamped to viewport
                 requestAnimationFrame(()=>{
                     const ttW=ttEl.offsetWidth||260, ttH=ttEl.offsetHeight||100;
-                    const dotY=found.y+canvasOffsetPx; // convert canvas-local y to viewport space
+                    const dotY=found.y+canvasOffsetPx;
                     let ttLeft=found.x-ttW/2;
                     let ttTop=dotY-ttH-16;
                     if(ttLeft<8) ttLeft=8;
@@ -1379,9 +1202,7 @@ function initViz(){
                 ctEl.style.display='none'; hoveredCountry=null;
             } else {
                 ttEl.style.display='none';
-                // Country hit-test (only when map visible)
                 if(showMap&&worldGeoJson&&mapProjection){
-                    // Unproject mouse through zoom transform to get map-space coords
                     const mx=(p.mouseX-mapZoom.tx)/mapZoom.k;
                     const my=(p.mouseY-mapZoom.ty)/mapZoom.k;
                     const inv=mapProjection.invert&&mapProjection.invert([mx,my]);
@@ -1413,7 +1234,6 @@ function initViz(){
             if(found && !landmarkMode){ selectedParticle===found?hidePinned():showPinned(found); return; }
             if(found && landmarkMode){ return; }
             hidePinned();
-            // Country click (only when map is visible)
             if(showMap&&worldGeoJson&&mapProjection){
                 const mx=(p.mouseX-mapZoom.tx)/mapZoom.k;
                 const my=(p.mouseY-mapZoom.ty)/mapZoom.k;
@@ -1425,7 +1245,6 @@ function initViz(){
                     const n=countryCounts[name]||0;
                     if(n>0){
                         if(selectedCountry===name){
-                            // Second click on same country — deselect
                             selectedCountry=null; selectedCountryParticles.clear();
                             document.getElementById('country-name-display').style.opacity='0';
                         } else {
@@ -1454,7 +1273,6 @@ function initViz(){
                             nd.style.opacity='1';
                         }
                     } else {
-                        // No initiatives — show label transiently, don't lock selection
                         const nd=document.getElementById('country-name-display');
                         document.getElementById('cnd-text').innerHTML='<strong>'+name+'</strong> no initiatives in our dataset';
                         nd.style.left=p.mouseX+'px';
@@ -1463,13 +1281,11 @@ function initViz(){
                         setTimeout(()=>{ if(!selectedCountry) nd.style.opacity='0'; }, 2000);
                     }
                 }
-                // clicking empty map area deselects country
                 if(!hit){
                     selectedCountry=null; selectedCountryParticles.clear();
                     document.getElementById('country-name-display').style.opacity='0';
                 }
             } else {
-                // not on map — deselect country if any
                 if(selectedCountry){
                     selectedCountry=null; selectedCountryParticles.clear();
                     document.getElementById('country-name-display').style.opacity='0';
@@ -1478,31 +1294,16 @@ function initViz(){
         };
     });
     setupObserver();
-    // init dot nav — no dot active on hero
     document.querySelectorAll('.section-nav-item').forEach(el=>el.classList.remove('active'));
     onSectionEnter('s0-hero');
-    // (Hero CTA button positioning runs independently, as soon as the script starts —
-    // see layoutHeroButtons() call near the top of the file — so it isn't stuck waiting
-    // on the spreadsheet fetch below. Re-run once more here in case fonts/layout shifted
-    // while the data was loading.)
     layoutHeroButtons();
-    // Restore the scroll position from before a refresh now — not any earlier — since
-    // this is the first point where particles, the map canvas, and the section
-    // observer are all actually ready. Jumping here (rather than letting the browser's
-    // own automatic scroll restoration do it before any of that existed) is what makes
-    // a refresh land back in a correctly-laid-out view instead of a "glitched map".
     restoreScrollPosition();
-    // dot nav click: instant jump (no scrollytelling transitions)
     function jumpToSection(sec){
-        // Respect the brief scroll lock shown alongside the zoom-tip popup —
-        // nothing should move the page while it's on screen, not just wheel/touch/keys.
         if(_scrollLockActive) return;
         const el=document.querySelector(`.scroll-section[data-section="${sec}"]`);
         if(!el) return;
-        // Scroll to the midpoint of the section so the observer picks it up cleanly
         const mid=el.offsetTop + el.offsetHeight * 0.55;
         window.scrollTo({top: mid, behavior:'instant'});
-        // For jumps, fire any pending layout immediately (no scroll threshold needed)
         setTimeout(()=>{
             if(_pendingLayout && !_pendingLayout.triggered){
                 _pendingLayout.triggered=true;
@@ -1516,11 +1317,8 @@ function initViz(){
     document.getElementById('skip-btn').addEventListener('click',()=>jumpToSection('s9-end'));
     document.getElementById('pt-close').addEventListener('click',hidePinned);
 
-    // ── PRINT / DOWNLOAD PNG ──
     document.getElementById('print-btn').addEventListener('click', downloadCurrentView);
 
-    // +/- zoom buttons — step the zoom toward the center of the viewport, using
-    // the same clamp/particle-sync logic as wheel and pinch zoom.
     function zoomButtonStep(factor){
         if(!mapZoomActive) return;
         const cx=window.innerWidth/2, cy=window.innerHeight/2;
@@ -1537,10 +1335,6 @@ function initViz(){
     document.getElementById('zoom-out-btn').addEventListener('click', ()=>zoomButtonStep(1/1.4));
 
     function downloadCurrentView(){
-        // Determine mode: whenever the zoom slider is visible, the user is still
-        // looking at the map (globe view, or s4-regions before its bar-chart morph
-        // triggers) — not the section name, which can already read "s4-regions"
-        // while the map is still what's on screen.
         const isMap = document.getElementById('zoom-controls').classList.contains('visible');
         if(isMap){
             downloadMapView();
@@ -1549,7 +1343,6 @@ function initViz(){
         }
     }
 
-    // Lazily load + cache the EJM logo image used in the bottom-right corner of map downloads
     let ejmLogoImgPromise = null;
     function loadEjmLogo(){
         if(ejmLogoImgPromise) return ejmLogoImgPromise;
@@ -1562,7 +1355,6 @@ function initViz(){
         return ejmLogoImgPromise;
     }
 
-    // ─ Map: render a clean default map snapshot ─
     async function downloadMapView(){
         if(!p5Instance||!worldGeoJson||!mapProjection) return;
         const W=p5Instance.width, H=p5Instance.height;
@@ -1573,12 +1365,10 @@ function initViz(){
         const ctx=out.getContext('2d');
         ctx.scale(dpr,dpr);
 
-        // White background — full 16:9 canvas
         ctx.fillStyle='#FFFFFF'; ctx.fillRect(0,0,finalW,finalH);
 
         const MARGIN = 40;
 
-        // ── TITLE + CAPTION — top-left corner, same format as the chart downloads ──
         const titleText = `Eco Jurisprudence Worldwide`;
         ctx.font = "700 15px 'Geist',sans-serif";
         const titleAscent = ctx.measureText(titleText).actualBoundingBoxAscent || 11;
@@ -1597,8 +1387,6 @@ function initViz(){
         let capY = TITLE_Y + 26;
         captionLines.forEach(l=>{ ctx.fillText(l, MARGIN, capY); capY += CAPTION_LINE_H; });
 
-        // Reserve the vertical space used by the title/caption block (plus a little
-        // breathing room) and shrink the map to fit below it, so the two never overlap.
         const titleBlockBottom = capY + 12;
         const availH = finalH - titleBlockBottom - MARGIN;
         const mapScale = Math.max(0.5, Math.min(1, availH / H));
@@ -1606,12 +1394,10 @@ function initViz(){
         const mapOffsetX = (finalW - scaledW) / 2;
         const mapOffsetY = titleBlockBottom + (finalH - MARGIN - titleBlockBottom - scaledH) / 2;
 
-        // Map + particles are drawn centered within the space below the title block
         ctx.save();
         ctx.translate(mapOffsetX, mapOffsetY);
         ctx.scale(mapScale, mapScale);
 
-        // Draw map fills at full alpha (default view: no zoom)
         const pathGen=d3.geoPath().context(ctx);
         pathGen.projection(mapProjection);
         worldGeoJson.features.forEach(feat=>{
@@ -1622,7 +1408,6 @@ function initViz(){
             ctx.fill();
         });
 
-        // Draw all particles at their map positions (default, no zoom)
         particles.forEach((pt,i)=>{
             const pos=particleMapPos[i];
             if(!pos) return;
@@ -1633,9 +1418,8 @@ function initViz(){
             ctx.fill(); ctx.stroke();
         });
 
-        ctx.restore(); // end map transform — corner elements below are pinned to the true canvas edges
+        ctx.restore();
 
-        // ── Legend — top-right corner (same baseline as the title, same as chart downloads) ──
         const LEGEND_ENTRIES = [
             { color:'#85854D', label:'All Nature / Urban / Climate' },
             { color:'#FF9B00', label:'Animal' },
@@ -1664,12 +1448,8 @@ function initViz(){
             ctx.fillText(entry.label, legendX + LEG_DOT + 6, ly);
         });
 
-        // Data source label — pinned to the true bottom-left corner of the 16:9 canvas
         drawDataSourceTag(ctx, finalW, finalH);
 
-        // Logo — bottom-right corner, bottom-aligned with the data source tag's text
-        // (drawDataSourceTag draws its text baseline at finalH - pad - 4, where pad=20 —
-        // aligning to the rect's own background edge instead sat a few px too low)
         const logoImg = await loadEjmLogo();
         if(logoImg){
             const LOGO_H = 70;
@@ -1682,11 +1462,9 @@ function initViz(){
         triggerDownload(out, downloadFilename('map'));
     }
 
-    // ─ Chart: capture current p5 canvas + re-draw axis labels + data source tag ─
     function downloadChartView(){
         if(!p5Instance) return;
 
-        // Section → human-readable category label
         const SECTION_CATEGORY={
             's4-regions':   { label:'Region',           caption:'the geographic region of the initiative' },
             's5-year':      { label:'Year',             caption:'the year it was initiated' },
@@ -1698,7 +1476,6 @@ function initViz(){
         };
         const catInfo = SECTION_CATEGORY[currentSection] || { label:'Category', caption:'the category' };
 
-        // Export at 3× for crisp retina output
         const EXPORT_SCALE = 3;
         const logW = window.innerWidth;
         const logH = window.innerHeight;
@@ -1710,18 +1487,12 @@ function initViz(){
         const ctx = out.getContext('2d');
         ctx.scale(EXPORT_SCALE, EXPORT_SCALE);
 
-        // White background — full 16:9 canvas
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(0, 0, finalW, finalH);
 
-        // Uniform corner margin — title/caption/legend/note/source all sit this same
-        // distance from the PNG's TRUE edges (finalW/finalH), independent of where the
-        // chart content itself lands once centered within the 16:9 frame.
         const MARGIN = 40;
-        // Nudge the chart itself up just slightly from its live on-screen position
         const CHART_LIFT = 24;
 
-        // ── Nature legend config ──
         const LEGEND_ENTRIES = [
             { color:'#85854D', label:'All Nature / Urban / Climate' },
             { color:'#FF9B00', label:'Animal' },
@@ -1733,28 +1504,22 @@ function initViz(){
         const LEG_LINE_H = 18;
         ctx.font = "400 9px 'Geist',sans-serif";
         const LEG_TEXT_W = Math.max(...LEGEND_ENTRIES.map(e=>ctx.measureText(e.label).width));
-        const LEG_BLOCK_W = LEG_DOT + 8 + LEG_TEXT_W; // dot + gap + text
+        const LEG_BLOCK_W = LEG_DOT + 8 + LEG_TEXT_W;
 
-        // Title baseline y — measured so the title glyphs' visual top sits exactly
-        // MARGIN below the canvas top edge, same as the MARGIN used for left/right.
         const titleText = `Eco Jurisprudence by ${catInfo.label}`;
         ctx.font = "700 15px 'Geist',sans-serif";
         const titleAscent = ctx.measureText(titleText).actualBoundingBoxAscent || 11;
         const TITLE_Y = MARGIN + titleAscent;
 
-        // Legend: top-right corner
         const legendX = finalW - MARGIN - LEG_BLOCK_W;
 
-        // ── TITLE — top-left corner ──
         ctx.fillStyle = '#3D3D31';
         ctx.textAlign = 'left';
         ctx.fillText(titleText, MARGIN, TITLE_Y);
 
-        // ── Chart itself (particles, axis labels, brackets, count labels) — lifted up slightly ──
         ctx.save();
         ctx.translate(offsetX, offsetY - CHART_LIFT);
 
-        // Draw particles
         particles.forEach(pt=>{
             if(!pt.visible) return;
             ctx.beginPath();
@@ -1764,7 +1529,6 @@ function initViz(){
             ctx.fill(); ctx.stroke();
         });
 
-        // Axis labels from DOM
         const axisContainer = document.getElementById('axis-labels-container');
         axisContainer.querySelectorAll('.chart-label').forEach(el=>{
             const rect = el.getBoundingClientRect();
@@ -1779,7 +1543,6 @@ function initViz(){
             });
         });
 
-        // Main labels
         document.getElementById('main-labels-container').querySelectorAll('.chart-label').forEach(el=>{
             const rect = el.getBoundingClientRect();
             const text = el.innerText || el.textContent || '';
@@ -1789,7 +1552,6 @@ function initViz(){
             ctx.fillText(text.trim(), rect.left+rect.width/2, rect.top+12);
         });
 
-        // Framework bracket labels
         const bracketContainer = document.getElementById('framework-bracket-labels');
         if(bracketContainer){
             bracketContainer.querySelectorAll('.bracket-label').forEach(el=>{
@@ -1802,7 +1564,6 @@ function initViz(){
             });
         }
 
-        // Framework brackets (narrow rounded rectangles)
         if(frameworkBrackets.length){
             const bracketY = frameworkBracketY!=null ? frameworkBracketY : logH * 0.815;
             const barH = FRAMEWORK_BRACKET_BARH;
@@ -1815,7 +1576,6 @@ function initViz(){
             });
         }
 
-        // Count labels above each bar
         ctx.font = "400 9px 'Geist',sans-serif";
         ctx.fillStyle = 'rgba(61,61,49,0.65)';
         ctx.textAlign = 'center';
@@ -1840,9 +1600,8 @@ function initViz(){
             }
         });
 
-        ctx.restore(); // end chart-lift transform — title/legend/caption/note/source below are unaffected
+        ctx.restore();
 
-        // ── Legend — top-right corner ──
         ctx.textAlign = 'left';
         LEGEND_ENTRIES.forEach((entry, i)=>{
             const lx = legendX;
@@ -1857,11 +1616,9 @@ function initViz(){
             ctx.fillText(entry.label, lx + LEG_DOT + 6, ly);
         });
 
-        // ── Caption + Note + Data source — top-left / bottom-left corners, hard line breaks ──
         const CAPTION_LINE_H = 12.5;
         const CAPTION_PARA_GAP = CAPTION_LINE_H * 0.55;
 
-        // Hard-broken lines exactly as specified
         const captionLines = [
             `This chart represents the total number of ecological jurisprudence initiatives globally`,
             `categorized by ${catInfo.caption}. Each dot represents a single initiative.`,
@@ -1880,13 +1637,9 @@ function initViz(){
         ctx.textAlign = 'left';
         ctx.fillStyle = 'rgba(61,61,49,0.55)';
 
-        // Caption — below title, top-left corner
         let cy = TITLE_Y + 26;
         captionLines.forEach(l=>{ ctx.fillText(l, MARGIN, cy); cy += CAPTION_LINE_H; });
 
-        // Note + data source — bottom-left corner, positioned so the distance from the source
-        // line's visual bottom edge to the canvas bottom edge is exactly MARGIN — the same
-        // MARGIN used for the top, left, and right — independent of where the chart falls.
         const lastSourceLine = sourceLines[sourceLines.length - 1];
         const sourceDescent = ctx.measureText(lastSourceLine).actualBoundingBoxDescent || 2;
         const lastLineTargetY = finalH - MARGIN - sourceDescent;
@@ -1899,7 +1652,6 @@ function initViz(){
         triggerDownload(out, downloadFilename(SECTION_TO_FILENAME_CATEGORY[currentSection] || 'chart'));
     }
 
-    // Used only by downloadMapView; chart view embeds source in caption block
     function drawDataSourceTag(ctx, W, H){
         ctx.save();
         const pad=20, tagH=26;
@@ -1940,13 +1692,6 @@ function initViz(){
         const yyyy=d.getFullYear();
         return `${dd} ${month} ${yyyy}`;
     }
-    // Compose a rendered canvas onto a 16:9 canvas (white letterbox/pillarbox, centered)
-    // so every downloaded PNG always has a 16:9 aspect ratio, regardless of window size.
-    // Compute the 16:9 canvas size needed to contain a logW×logH render without cropping,
-    // plus the (offsetX, offsetY) needed to center that content within it. Letting callers
-    // draw title/legend/note/etc. against finalW/finalH directly (not offset) means those
-    // elements are pinned to the PNG's true edges, while the chart content itself is
-    // translated by (offsetX, offsetY) to sit centered.
     function get16x9Layout(logW, logH){
         const TARGET_RATIO = 16/9;
         const srcRatio = logW / logH;
@@ -1986,13 +1731,11 @@ function initViz(){
         },'image/png');
     }
 
-    // Country name display close button — hides popup only, selection stays
     document.getElementById('cnd-close').addEventListener('click', e => {
         e.stopPropagation();
         document.getElementById('country-name-display').style.opacity = '0';
     });
 
-    // Map projection popup toggle
     const mapProjBtn=document.getElementById('map-proj-btn');
     const mapProjPopup=document.getElementById('map-proj-popup');
     mapProjBtn.addEventListener('click',e=>{
@@ -2004,18 +1747,10 @@ function initViz(){
     document.addEventListener('click',()=>{
         mapProjPopup.style.display='none';
         mapProjBtn.classList.remove('popup-open');
-        // Clicking anywhere on screen dismisses the landmark initiative popups
         if(landmarkMode) hideLandmarkPopups();
     });
 
-    // ── HERO + early s1-stats scroll animation ──
     window.addEventListener('scroll', ()=>{
-        // If the person starts scrolling for real while the hero zoom preview is
-        // showing (canvas full-screen, hero faded out, chrome up), hand off into
-        // the normal scroll-driven flow: jump scrollY straight to the settled
-        // overview position — invisible, since the preview is already showing
-        // that exact state — then let the rest of this handler drive everything
-        // from here on, exactly as if the person had scrolled here normally.
         if(heroZoomOverrideActive){
             heroZoomOverrideActive=false;
             const canvasEl=document.getElementById('p5-canvas');
@@ -2037,11 +1772,6 @@ function initViz(){
         const vh = window.innerHeight;
         const scrolled = window.scrollY;
 
-        // Map canvas slide-up: runs from scroll=0 to scroll=heroH/2 — the same point
-        // where the "Get the Charts" / "Get the Data" hero buttons finish fading out
-        // (see the t*2 opacity formula below) — so the map is fully centered right
-        // as the hero buttons disappear, instead of continuing to slide for the rest
-        // of the hero section after they're already gone.
         const heroSection = document.querySelector('.scroll-section[data-section="s0-hero"]');
         const heroH = heroSection ? heroSection.offsetHeight : vh;
         const slideT = Math.min(1, scrolled / (heroH * 0.5));
@@ -2050,72 +1780,32 @@ function initViz(){
         canvasOffsetPx = mapOffset / 100 * vh;
         document.getElementById('p5-canvas').style.transform = `translateY(${mapOffset}vh)`;
 
-        // Sand gradient behind the map: fade it out continuously in step with the
-        // same slide progress (rather than snapping off via the is-hero class at
-        // the section boundary) so it never lingers as a leftover rectangle once
-        // the map has already visually settled into place.
         const gradEl = document.getElementById('hero-map-gradient');
         if(gradEl) gradEl.style.opacity = String(Math.max(0, 1 - slideT));
 
-        // Zoom-tip popup: rather than a fixed screen-centered popup on a timer, it
-        // tracks the map's own visual center while the map is sliding into view —
-        // appearing every time scrolling brings the map into view, moving with the
-        // map, and fading out once the map settles into its fully-centered spot.
         {
             const tipEl=document.getElementById('zoom-tip-popup');
             if(tipEl){
                 if(scrolled<=0){
-                    // Back at the very top of the hero — always hide, regardless of
-                    // whether the map had finished sliding into place.
-                    clearTimeout(_zoomTipLingerTimer);
-                    _zoomTipLingerScheduled=false;
-                    if(tipEl.classList.contains('visible')){
-                        tipEl.classList.remove('visible');
-                        _zoomTipPopupVisible=false;
-                    }
+                    clearTimeout(_zoomTipIdleTimer);
+                    tipEl.classList.remove('visible','idle-faded');
+                    _zoomTipPopupVisible=false;
                 } else if(scrolled>0 && slideT<1){
-                    // Still sliding — cancel any pending linger-hide from a previous
-                    // pass (e.g. the person scrolled back up right as it was about to
-                    // disappear) and keep the popup tracking the map's center.
-                    clearTimeout(_zoomTipLingerTimer);
-                    _zoomTipLingerScheduled=false;
+                    tipEl.classList.remove('idle-faded');
                     tipEl.style.top=(canvasOffsetPx + vh/2)+'px';
                     if(!tipEl.classList.contains('visible')){
                         tipEl.classList.add('visible');
                         _zoomTipPopupVisible=true;
                     }
-                } else if(slideT>=1 && tipEl.classList.contains('visible') && !_zoomTipLingerScheduled){
-                    // Map has just settled into its centered spot — let the popup
-                    // linger an extra second before fading it out, instead of
-                    // disappearing the instant the map stops moving.
-                    _zoomTipLingerScheduled=true;
-                    _zoomTipLingerTimer=setTimeout(()=>{
-                        tipEl.classList.remove('visible');
-                        _zoomTipPopupVisible=false;
-                        _zoomTipLingerScheduled=false;
-                    }, 1000);
+                } else if(slideT>=1){
+                    if(!tipEl.classList.contains('visible')) tipEl.classList.add('visible');
+                    updateZoomTipVisibility();
                 }
             }
         }
 
-        // Map button chrome (globe, print, skip, nav, zoom controls): the very
-        // first time the hero settles into the overview, fade it in gradually in
-        // step with the same slide progress as the map/hero above, rather than
-        // popping in all at once — so scrolling normally through the hero the
-        // first time feels like one continuous motion. (The "jump straight into
-        // zoom" path in activateHeroZoomOverride() deliberately reveals it all
-        // at once instead, since there's no scroll motion there to fade
-        // alongside.) Once that first reveal has happened, this hands off
-        // permanently to the original instant show/hide below — so any later
-        // back-and-forth scrolling right at the hero boundary behaves exactly as
-        // it always did, with the two systems never fighting over opacity.
         {
             const chromeVisible = (slideT>=1);
-            // Chrome (icons/zoom/nav dots/skip) must stay fully invisible until the
-            // person has scrolled a little way in — it only starts fading in past
-            // 10vh of scroll, never right at the very top of the hero. From 10vh up
-            // to the point the map finishes sliding into place (heroH*0.5), it fades
-            // in linearly; below 10vh this stays pinned at 0.
             const chromeStartPx = 0.10 * vh;
             const chromeRangePx = Math.max(1, (heroH * 0.5) - chromeStartPx);
             const chromeT = Math.max(0, Math.min(1, (scrolled - chromeStartPx) / chromeRangePx));
@@ -2152,10 +1842,6 @@ function initViz(){
                     document.getElementById('skip-btn').style.opacity='1';
                     document.getElementById('skip-btn').style.pointerEvents='auto';
                     document.getElementById('scroll-down-btn').style.opacity='1';
-                    // Release the gradual-fade inline overrides now that full opacity is
-                    // reached, and permanently disable that system — from here on this
-                    // element set is governed solely by the classList/opacity('') toggles
-                    // below, exactly as before the gradual fade-in existed.
                     document.getElementById('zoom-controls').style.opacity='';
                     document.getElementById('zoom-controls').style.pointerEvents='';
                     document.getElementById('map-proj-btn').style.opacity='';
@@ -2166,13 +1852,8 @@ function initViz(){
                 }
             } else {
                 if(_zoomUIRevealed && !zoomOutTransitionPending){
-                    // Hide the icons/nav/skip right away — don't leave them sitting on
-                    // screen for however long the zoom-out animation below takes.
                     hideMapChrome();
                     if(mapZoomActive && mapZoom.k>1.01){
-                        // Zoomed in and scrolling normally back out of the map area —
-                        // ease the zoom back to 1 visually, then finish resetting state,
-                        // instead of snapping instantly. Chrome is already hidden above.
                         zoomOutTransitionPending=true;
                         gentleZoomOut(()=>{
                             zoomOutTransitionPending=false;
@@ -2190,10 +1871,6 @@ function initViz(){
         if(currentSection === 's0-hero'){
             const heroEl = document.getElementById('hero-text');
             const hintEl = document.getElementById('hero-scroll-hint');
-            // Move at the exact same speed the map slides into place (30vh over the
-            // same heroH*0.5 scroll range as slideT/mapOffset above), continuing at
-            // that same rate past the point the map settles so the hero content keeps
-            // moving — rather than stopping — until it's fully scrolled out of frame.
             const heroTranslateVh = Math.min(heroExitDistanceVh, (scrolled / (heroH * 0.5)) * 30);
             heroEl.style.transform = `translateY(${-heroTranslateVh}vh)`;
             const hintT = Math.min(1, scrolled / vh);
@@ -2201,7 +1878,6 @@ function initViz(){
         }
     }, {passive:true});
 
-    // Trigger stats counter on first scroll + drive intro textbox
     window.addEventListener('scroll',()=>{
         if(currentSection==='s1-stats'){
             const sec=document.querySelector('.scroll-section[data-section="s1-stats"]');
@@ -2212,25 +1888,19 @@ function initViz(){
             const statsEl=document.getElementById('stats-display');
             const introEl=document.getElementById('intro-textbox');
 
-            // Trigger counter animation once scrolling starts
             if(!statsScrollTriggered && scrolled>10){
                 statsScrollTriggered=true;
                 animateStats();
             }
 
-            // Map/dot dim envelope: a smooth, symmetric, eased ramp down to 50% as the
-            // counter approaches screen-center, then back up to full as it leaves —
-            // the exact same tempo on both sides, so it grays back in exactly as
-            // gradually as it grays out (no hard snap back to full opacity).
-            const dimCenter = vh * 0.6;    // scroll position where the counter sits at screen-center
-            const dimHalfRange = vh * 0.6; // ramp width on each side of center
-            const dimDist = Math.min(1, Math.abs(scrolled - dimCenter) / dimHalfRange); // 0 at center → 1 at/after the edges
-            const dimRaw = 1 - dimDist; // 1 at center → 0 at the edges (linear)
-            const dimProximity = dimRaw * dimRaw * (3 - 2 * dimRaw); // smoothstep ease
+            const dimCenter = vh * 0.6;
+            const dimHalfRange = vh * 0.6;
+            const dimDist = Math.min(1, Math.abs(scrolled - dimCenter) / dimHalfRange);
+            const dimRaw = 1 - dimDist;
+            const dimProximity = dimRaw * dimRaw * (3 - 2 * dimRaw);
             overviewFade = true;
             overviewAlpha = 1 - 0.5 * dimProximity;
 
-            // Close any open popups while counter is on screen
             if(scrolled < vh * 1.1){
                 if(selectedParticle){ hidePinned(); }
                 if(selectedCountry){
@@ -2239,69 +1909,48 @@ function initViz(){
                 }
             }
 
-            // Counter scrolls linearly: starts below viewport, passes through center, scrolls off top.
-            // At scrolled=0 -> counterTop = vh*1.1 (below). At scrolled = vh*1.6 -> counterTop = -vh*0.5 (gone).
-            // No fade — it's just always fully opaque and enters/exits purely by position
-            // (fixed positioning means it's naturally invisible once it's outside the
-            // viewport), except it's held hidden while the zoom-tip popup is up so the
-            // two never overlap.
+            _counterOnScreen = (scrolled >= vh * 0.2 && scrolled < vh * 1.0);
+            updateZoomTipVisibility();
+
             const counterTop = vh * 1.1 - scrolled;
             statsEl.style.top = counterTop + 'px';
             statsEl.style.transform = 'translate(-50%, -50%)';
-            statsEl.style.opacity = _zoomTipPopupVisible ? '0' : '1';
+            statsEl.style.opacity = '1';
 
-            // Intro text: same linear scroll behavior as the counter (enters from below,
-            // passes through center, exits top), delayed so it starts entering once the
-            // counter itself is 20% of the way down from the top of the screen
-            // (counterTop = vh*0.2, i.e. scrolled = vh*0.9) rather than waiting for the
-            // counter to have fully scrolled off the top. Same as the counter, it just
-            // scrolls — no fade — and is only hidden while the zoom-tip popup is up.
             const introTop = vh * 1.9 - scrolled;
             introEl.style.top = introTop + 'px';
             introEl.style.transform = 'translateY(-50%)';
-            introEl.style.opacity = _zoomTipPopupVisible ? '0' : '1';
+            introEl.style.opacity = '1';
 
-            // NOTE: the map's button chrome (globe, print, skip, nav, zoom
-            // controls) is revealed/hidden from the always-on hero/slide
-            // scroll listener above, in exact lockstep with the zoom-tip
-            // popup — see the "chromeVisible" block there. That keeps the
-            // two in sync regardless of which section is currently active.
+        } else if(_counterOnScreen){
+            _counterOnScreen = false;
+            updateZoomTipVisibility();
         }
         if(selectedParticle) positionPinnedTooltip();
         const staticEl=document.getElementById('static-content');
-        if(staticEl&&selectedCountry){
-            const rect=staticEl.getBoundingClientRect();
-            const nd=document.getElementById('country-name-display');
-            nd.style.opacity=(rect.top<=window.innerHeight)?'0':'1';
+        if(staticEl&&selectedCountry&&staticEl.classList.contains('visible')){
+            document.getElementById('country-name-display').style.opacity='0';
         }
-        // Deferred chart layout: trigger when narrative text is 1/3 up the viewport.
-        // Bidirectional: if a reverseFn is provided, scrolling back down past the same
-        // threshold (box re-entering view) un-triggers it and morphs back, so the
-        // transition looks identical whether scrolling forward or in reverse.
         if(_pendingLayout){
             const secEl=document.querySelector(`.scroll-section[data-section="${currentSection}"]`);
             if(secEl){
                 const box=secEl.querySelector('.narrative-scroll-box');
                 if(box){
                     const boxRect=box.getBoundingClientRect();
-                    // Trigger once the narrative box has fully scrolled into view (its bottom edge
-                    // has cleared the top of the viewport), not just partway up.
                     const shouldTrigger = boxRect.bottom <= window.innerHeight;
                     if(shouldTrigger && !_pendingLayout.triggered){
                         _pendingLayout.triggered=true;
                         const runMorph=()=>{
                             _pendingLayout.fn();
-                            // On s4-regions: swap globe→i and hide zoom at morph moment
                             if(currentSection==='s4-regions'){
                                 document.getElementById('zoom-controls').classList.remove('visible');
                                 document.getElementById('map-proj-btn').style.display='none';
                                 document.getElementById('info-btn').style.display='flex';
                                 document.getElementById('data-source-label').style.display='flex';
                                 mapZoomActive=false;
+                                updateZoomTipVisibility();
                             }
                         };
-                        // If zoomed in, ease the zoom back out first, then morph —
-                        // matching the same easing used when leaving the map section.
                         if(currentSection==='s4-regions' && mapZoomActive && mapZoom.k>1.01){
                             zoomOutTransitionPending=true;
                             gentleZoomOut(()=>{
@@ -2314,13 +1963,14 @@ function initViz(){
                     } else if(!shouldTrigger && _pendingLayout.triggered && _pendingLayout.reverseFn){
                         _pendingLayout.triggered=false;
                         _pendingLayout.reverseFn();
-                        // On s4-regions: swap back i→globe and restore zoom when un-morphing
                         if(currentSection==='s4-regions'){
                             document.getElementById('zoom-controls').classList.add('visible');
                             document.getElementById('map-proj-btn').style.display='flex';
                             document.getElementById('info-btn').style.display='none';
                             document.getElementById('data-source-label').style.display='flex';
                             mapZoomActive=true;
+                            document.getElementById('zoom-tip-popup').classList.add('visible');
+                            updateZoomTipVisibility();
                         }
                     }
                 }
@@ -2328,39 +1978,24 @@ function initViz(){
         }
     });
 
-    /* ── MAP ZOOM: Cmd (Mac) / Ctrl (Windows) + scroll wheel, zoomed toward the cursor ── */
-    // No-op stub kept because touch pinch-zoom below still calls it; there's no slider to sync anymore.
     function syncSlider(){}
 
     window.addEventListener('wheel', (e)=>{
-        // Cmd/Ctrl + scroll should never trigger the browser's own page-zoom,
-        // anywhere on the page — always swallow it first.
         if(!(e.metaKey || e.ctrlKey)) return;
         e.preventDefault();
-        // Only actually zoom the map while it's the active, interactive view
-        // (never during region charts or other scrollytelling sections) —
-        // otherwise do nothing at all, as if the scroll never happened.
         if(!mapZoomActive) return;
         if(e.target && e.target.closest && e.target.closest('#map-proj-btn, #print-btn, #skip-btn, #info-btn, #zoom-controls, #section-nav, #map-proj-popup, #pinned-tooltip, #country-name-display')) return;
         if(currentSection==='s0-hero' && !heroZoomOverrideActive && !_zoomUIRevealed){
             activateHeroZoomOverride();
         }
-        // The canvas draws in its own local coordinate space, which starts at
-        // whatever screen Y it's currently offset to (canvasOffsetPx, from the
-        // hero slide). Subtract that off so the zoom always lands exactly under
-        // the cursor, at any slide position, without moving the canvas itself.
         const cx=e.clientX, cy=e.clientY-canvasOffsetPx;
         const k0=mapZoom.k;
-        // Clamp deltaY so a single large trackpad/mouse tick can't cause a huge jump
         const dy=Math.max(-100, Math.min(100, e.deltaY));
         const factor=Math.exp(-dy*0.003);
         mapZoom.k=Math.max(MAP_ZOOM_MIN,Math.min(MAP_ZOOM_MAX,k0*factor));
         mapZoom.tx=cx-(cx-mapZoom.tx)*(mapZoom.k/k0);
         mapZoom.ty=cy-(cy-mapZoom.ty)*(mapZoom.k/k0);
         clampZoom(); applyZoomToParticles();
-        // Zoomed back out to 1x without ever having scrolled for real — return
-        // straight to the normal hero section instead of staying parked in the
-        // full-screen preview state.
         if(heroZoomOverrideActive && currentSection==='s0-hero' && mapZoom.k<=1.001){
             exitHeroZoomOverride();
         }
@@ -2382,7 +2017,6 @@ function initViz(){
         if(_drag.down){ _drag.down=false; canvasWrap.style.cursor=mapZoomActive?'grab':'default'; }
     });
 
-    /* ── TOUCH: drag and pinch-zoom ── */
     canvasWrap.addEventListener('touchstart',(e)=>{
         if(!mapZoomActive) return;
         if(e.touches.length===1){
@@ -2425,15 +2059,9 @@ function initViz(){
     window.addEventListener('touchend',()=>{
         _drag.down=false; _pinch.active=false;
     });
-}  // end initViz
+}
 
-/* ════════════════════════════════════════════════════
-   MAP DRAWING (fills only, no outlines when showCountryFills)
-════════════════════════════════════════════════════ */
-/* Two-tone country fills: lightest gray for countries with no initiatives,
-   second-lightest gray for countries with one or more initiatives. The fully
-   solid off-black (#3D3D31, alpha 1) is reserved for hover/selected states
-   only — it is never used as a resting shade. */
+/* MAP DRAWING */
 function countryBinAlpha(count){
     if(count>=1) return 0.20;
     return 0.07;
@@ -2461,22 +2089,17 @@ function drawMap(p, alpha){
             ctx.fillStyle=`rgba(61,61,49,${countryBinAlpha(countryCounts[resolvedName]||0)*a})`;
         }
         ctx.fill();
-        // Country borders stay visible at all times (very subtle at rest so they
-        // don't clutter the default view), and fade in a bit more as the map
-        // zooms in so borders read more clearly up close.
         const restOutlineAlpha=0.02*a;
         const zoomOutlineAlpha=(mapZoomActive && mapZoom.k>1.01)?Math.min(0.7,(mapZoom.k-1)/11*0.7)*a:0;
         const outlineAlpha=Math.max(restOutlineAlpha, zoomOutlineAlpha);
         ctx.strokeStyle=`rgba(61,61,49,${outlineAlpha})`;
-        ctx.lineWidth=(mapZoomActive?1.6/mapZoom.k:0.5); // sub-1px widths don't render any thinner (canvas anti-aliasing floors at ~1 device px), so keep this at a clean minimum and use alpha above to control how faint it reads
+        ctx.lineWidth=(mapZoomActive?1.6/mapZoom.k:0.5);
         ctx.stroke();
     });
     ctx.restore();
 }
 
-/* ════════════════════════════════════════════════════
-   MAP POSITIONS
-════════════════════════════════════════════════════ */
+/* MAP POSITIONS */
 function cacheMapPositions(){
     const w=p5Instance.width;
     particleMapPos=particles.map(p=>{
@@ -2505,17 +2128,31 @@ function applyZoomToParticles(){
     });
 }
 
-/* Zoom-tip popup show/hide is now driven entirely by scroll position (see the
-   hero/s1-stats scroll handler above) — it tracks the map's visual center
-   while sliding into view and disappears once the map is fully settled. */
 let _zoomTipPopupVisible=false;
-let _zoomTipLingerTimer=null;   // delays hiding the zoom-tip popup for 1s after the map centers
-let _zoomTipLingerScheduled=false;
-let _zoomUIRevealed=false; // globe icon / print button / etc. — separate from mapZoomActive (zoom itself works from the hero onward)
+let _zoomTipIdle=false;
+let _zoomTipIdleTimer=null;
+let _counterOnScreen=false;
+let _zoomUIRevealed=false;
 
-/* Briefly prevent the page from scrolling (wheel, touch, and keyboard) without
-   moving the current scroll position — used to hold the view still while the
-   zoom-tip popup is being read. */
+function updateZoomTipVisibility(){
+    const tipEl=document.getElementById('zoom-tip-popup');
+    const zc=document.getElementById('zoom-controls');
+    if(!tipEl||!zc) return;
+    if(!tipEl.classList.contains('visible')){
+        _zoomTipPopupVisible=false;
+        return;
+    }
+    if(!zc.classList.contains('visible')){
+        tipEl.classList.remove('visible','idle-faded');
+        clearTimeout(_zoomTipIdleTimer);
+        _zoomTipPopupVisible=false;
+        return;
+    }
+    const suppressed = _zoomTipIdle || _counterOnScreen;
+    tipEl.classList.toggle('idle-faded', suppressed);
+    _zoomTipPopupVisible = !suppressed;
+}
+
 let _scrollLockActive=false, _scrollLockTimer=null;
 function _blockScrollEvent(e){ e.preventDefault(); }
 function _blockScrollKeys(e){
@@ -2541,10 +2178,6 @@ function lockScroll(ms){
     }, ms);
 }
 
-/* Hides the map UI chrome (globe/print/nav/skip) immediately — no waiting on
-   any in-progress zoom-out animation. Split out of deactivateMapZoomUI() so
-   the icons can disappear the instant we leave the zoomed/hero-visible state,
-   even while the map itself is still gently easing back to 1x underneath. */
 function hideMapChrome(){
     _zoomUIRevealed=false;
     document.getElementById('zoom-hint').classList.remove('visible');
@@ -2555,13 +2188,6 @@ function hideMapChrome(){
     document.getElementById('data-source-label').style.display='none';
     const pb=document.getElementById('print-btn');
     pb.classList.remove('btn-visible'); pb.style.opacity='0';
-    // #section-nav and #skip-btn normally cross-fade over 0.2–0.3s between
-    // sections (nice for e.g. leaving one chart for the next), but that same
-    // fade meant a faint trace of them was still visible for a moment when
-    // landing all the way back at the hero, which should show zero trace.
-    // Force the hide to be instant here — set transition:none, apply the
-    // change, force a layout flush, then release the override so any later
-    // reveal (or a real inter-section fade) goes back to its normal easing.
     const sn=document.getElementById('section-nav');
     sn.style.transition='none';
     sn.style.opacity='0'; sn.style.pointerEvents='none';
@@ -2583,9 +2209,6 @@ function hideMapChrome(){
     mpb.style.transition='';
 }
 
-/* Turns off the map UI (globe/print/nav/skip) and resets zoom back to 1.
-   Shared by every place that leaves the zoomed map view, so the end state is
-   always identical whether or not it was reached via a gentle zoom-out. */
 function deactivateMapZoomUI(){
     hideMapChrome();
     resetMapZoom();
@@ -2602,25 +2225,7 @@ function resetMapZoom(){
 function clampZoom(){
     const w=p5Instance?p5Instance.width:window.innerWidth;
     const h=p5Instance?p5Instance.height:window.innerHeight;
-    // Clamp scale
     mapZoom.k=Math.max(MAP_ZOOM_MIN,Math.min(MAP_ZOOM_MAX,mapZoom.k));
-    // Clamp translate so the map always fully covers the canvas, but no farther.
-    // The map content spans roughly [0,w]x[0,h] before zoom (translate applied,
-    // then scale), so at zoom k: screen_x = tx + k*world_x. To keep the left edge
-    // covered, tx must stay <= 0; to keep the right edge covered, tx must stay
-    // >= w*(1-k) (i.e. -w*(k-1)). That range is NOT symmetric around 0 — it runs
-    // from -w*(k-1) up to 0 — so a symmetric ±maxTx clamp (the old bug) always
-    // let you reach the left/top edges easily but cut the range short before you
-    // could reach the right/bottom edges. Same logic for ty.
-    //
-    // A strict "map always fully covers canvas" clamp with zero slack means
-    // anything actually AT the true edge of the world map (Alaska, the top of
-    // Russia/Canada, the southern tip of Chile/NZ) can never be panned away
-    // from the canvas boundary — it always butts right up against the edge
-    // and reads as clipped when zoomed in. A fixed-pixel margin, independent
-    // of zoom level, gives that edge content some breathing room to sit fully
-    // in view instead of hugging the frame — without changing anything about
-    // how the zoom itself behaves or snapping/re-centering the map.
     const margin=Math.min(w,h)*0.15;
     const minTx=-w*(mapZoom.k-1)-margin, maxTx=margin;
     const minTy=-h*(mapZoom.k-1)-margin, maxTy=margin;
@@ -2628,9 +2233,7 @@ function clampZoom(){
     mapZoom.ty=Math.max(minTy,Math.min(maxTy,mapZoom.ty));
 }
 
-/* ════════════════════════════════════════════════════
-   UTILS
-════════════════════════════════════════════════════ */
+/* UTILS */
 function findParticle(mx,my,r){
     if(r===undefined) r=('ontouchstart' in window)?14:8;
     for(const pt of particles){ if(!pt.visible)continue; if((mx-pt.x)**2+(my-pt.y)**2<r*r)return pt; }
@@ -2639,21 +2242,19 @@ function findParticle(mx,my,r){
 function positionPinnedTooltip(){
     if(!selectedParticle) return;
     const el=document.getElementById('pinned-tooltip');
-    // Hide tooltip if particle is not visible (e.g. pre-2006 in year chart)
     if(!selectedParticle.visible){ el.style.display='none'; return; }
     el.style.display='block';
     const elH=el.offsetHeight||100, elW=el.offsetWidth||220;
-    const dotY=selectedParticle.y+canvasOffsetPx; // convert canvas-local y to viewport space
+    const dotY=selectedParticle.y+canvasOffsetPx;
     let left=selectedParticle.x-elW/2;
     let top=dotY-elH-16;
     if(left<10) left=10;
     if(left+elW>window.innerWidth-10) left=window.innerWidth-elW-10;
-    if(top<10) top=dotY+16; // flip below if no room above
+    if(top<10) top=dotY+16;
     el.style.left=left+'px'; el.style.top=top+'px';
 }
 let _pinnedShownAt=0;
 function showPinned(p){
-    // Close country name display and deselect country when opening initiative popup
     selectedCountry=null; selectedCountryParticles.clear();
     document.getElementById('country-name-display').style.opacity='0';
     selectedParticle=p;
@@ -2673,12 +2274,7 @@ function hidePinned(){
     document.getElementById('pinned-tooltip').style.display='none';
 }
 
-/* ════════════════════════════════════════════════════
-   NARRATIVE — per-section scrolling boxes
-════════════════════════════════════════════════════ */
-// Wrap a fixed set of key words/phrases in <strong> wherever they appear in
-// narrative copy. Matching is case-insensitive but the original casing in the
-// text is preserved (only the surrounding tags are added).
+/* NARRATIVE */
 const NARRATIVE_BOLD_PHRASES=[
     'early 1970s',
     'mid[- ]?2000s',
@@ -2699,19 +2295,15 @@ function boldKeyPhrases(str){
     return out;
 }
 
-// Inject a narrative box into the given section element (once per section, lazily)
 function typewrite(text, onDone, isHTML){
     typewriterTimers.forEach(t=>clearTimeout(t)); typewriterTimers=[];
 
-    // Find the current section's scroll-section element
     const secEl=document.querySelector(`.scroll-section[data-section="${currentSection}"]`);
     if(!secEl) return;
 
-    // Remove any existing box in this section (re-entering)
     const existing=secEl.querySelector('.narrative-scroll-box');
     if(existing) existing.remove();
 
-    // Build inner HTML
     let innerHtml;
     if(isHTML){
         innerHtml=text.replace(/(<span data-countup="[^"]*">[^<]*<\/span>)/g,'<strong>$1</strong>');
@@ -2726,13 +2318,11 @@ function typewrite(text, onDone, isHTML){
         }).join('');
     }
 
-    // Create and inject box
     const box=document.createElement('div');
     box.className='narrative-scroll-box';
     box.innerHTML=`<div class="narrative-inner"><p>${innerHtml}</p></div>`;
     secEl.appendChild(box);
 
-    // After render: binary-search for minimum box width that doesn't increase line-wrapping
     requestAnimationFrame(()=>{
         const origH = box.offsetHeight;
         let lo = 80, hi = box.offsetWidth;
@@ -2744,12 +2334,9 @@ function typewrite(text, onDone, isHTML){
             else hi = mid;
         }
         box.style.maxWidth = '';
-        box.style.width = (hi + 2) + 'px'; // +2px subpixel buffer
+        box.style.width = (hi + 2) + 'px';
         box.style.top = `calc(40vh + (100vh - ${box.offsetHeight}px) / 2)`;
 
-        // Tighten this section's scroll length to the box's actual height so the next
-        // section's narrative box starts scrolling in right as this one scrolls out,
-        // instead of leaving a long dead-scroll gap between them.
         const vhPx = window.innerHeight;
         const targetVh = 140 + 50 * (box.offsetHeight / vhPx);
         secEl.style.height = Math.max(130, Math.min(190, targetVh)) + 'vh';
@@ -2757,17 +2344,14 @@ function typewrite(text, onDone, isHTML){
 
     if(isHTML) animateNarrativeNumbers(200);
 
-    // Staggered fade-in of lines
     const lines=box.querySelectorAll('.fade-line');
-    const FADE_DURATION=450; // must match .fade-line transition duration in CSS
+    const FADE_DURATION=450;
     lines.forEach((line,i)=>{
         const t=setTimeout(()=>{
             line.classList.add('revealed');
         }, 120+i*160);
         typewriterTimers.push(t);
     });
-    // Fire onDone only once the LAST line has fully finished fading in (not just started),
-    // so anything gated on "narrative fully visible" (e.g. landmark popups) waits long enough.
     if(onDone){
         const lastLineDelay=120+(lines.length-1)*160;
         const t=setTimeout(onDone, lastLineDelay+FADE_DURATION);
@@ -2776,12 +2360,9 @@ function typewrite(text, onDone, isHTML){
 }
 function clearNarrative(){
     typewriterTimers.forEach(t=>clearTimeout(t)); typewriterTimers=[];
-    // clearNarrative is a no-op now — boxes live inside their sections and scroll away naturally
 }
 
-/* ════════════════════════════════════════════════════
-   COUNT-UP ANIMATION FOR NARRATIVE NUMBERS
-════════════════════════════════════════════════════ */
+/* COUNT-UP ANIMATION FOR NARRATIVE NUMBERS */
 function animateNarrativeNumbers(delay){
     setTimeout(()=>{
         const secEl=document.querySelector(`.scroll-section[data-section="${currentSection}"]`);
@@ -2818,9 +2399,7 @@ function resetStats(){
     document.getElementById('stat-countries').textContent='0';
 }
 
-/* ════════════════════════════════════════════════════
-   LABELS
-════════════════════════════════════════════════════ */
+/* LABELS */
 function clearLabels(){
     document.getElementById('axis-labels-container').innerHTML='';
     document.getElementById('main-labels-container').innerHTML='';
@@ -2860,14 +2439,11 @@ function addMainLabel(text,x){
 function show(id){document.getElementById(id).style.opacity='1';}
 function hide(id){document.getElementById(id).style.opacity='0';}
 
-/* ════════════════════════════════════════════════════
-   LANDMARK HIGHLIGHT POPUPS
-════════════════════════════════════════════════════ */
-let _savedParticleDuringLandmark=null; // particle suspended during landmark callout
+/* LANDMARK HIGHLIGHT POPUPS */
+let _savedParticleDuringLandmark=null;
 
 function showLandmarkPopups(){
     landmarkMode=true;
-    // Temporarily suppress the selected particle highlight during landmark callout
     _savedParticleDuringLandmark=selectedParticle;
     if(selectedParticle){
         selectedParticle=null;
@@ -2875,7 +2451,6 @@ function showLandmarkPopups(){
     }
     const container=document.getElementById('lm-popups');
     container.innerHTML='';
-    // Find the three landmark particles
     const landmarks=particles.filter(p=>isLandmarkTitle(p.title));
     landmarks.forEach(lm=>{
         const el=document.createElement('div');
@@ -2887,17 +2462,12 @@ function showLandmarkPopups(){
         const linkHtml=lm.permalink?`<a href="${lm.permalink}" target="_blank">more info ↗</a>`:'';
         el.innerHTML=`<div class="lm-title">${lm.title}</div><div class="lm-meta">${metaHtml}</div>${linkHtml?`<div class="lm-link">${linkHtml}</div>`:''}`;
         el.addEventListener('click', (e)=>{
-            // Stop this from bubbling to the document-level click handler, which
-            // would immediately dismiss the landmark popups (and, via the pinned-
-            // tooltip restore logic, clobber the selection we're about to make).
             e.stopPropagation();
-            // Don't fire if the "more info" link itself was clicked
             if(e.target.tagName==='A') return;
             showPinned(lm);
         });
         container.appendChild(el);
     });
-    // Position them (and make visible) once layout has settled
     requestAnimationFrame(()=>{
         requestAnimationFrame(()=>positionLandmarkPopups(true));
     });
@@ -2907,7 +2477,6 @@ function hideLandmarkPopups(){
     document.querySelectorAll('.landmark-popup').forEach(el=>{
         el.classList.remove('visible');
     });
-    // Restore the previously selected particle after landmark animation ends
     setTimeout(()=>{
         document.getElementById('lm-popups').innerHTML='';
         if(_savedParticleDuringLandmark){
@@ -2917,7 +2486,6 @@ function hideLandmarkPopups(){
     },420);
 }
 function positionLandmarkPopups(show){
-    // Gather all popups with their target particles
     const entries=[];
     document.querySelectorAll('.landmark-popup').forEach(el=>{
         const title=el.dataset.particleTitle;
@@ -2930,21 +2498,17 @@ function positionLandmarkPopups(show){
     });
     if(!entries.length) return;
 
-    // Initial positions: centered above each dot
     const positions=entries.map(({lm, elH, elW})=>{
-        const dotY=lm.y+canvasOffsetPx; // convert canvas-local y to viewport space
+        const dotY=lm.y+canvasOffsetPx;
         let top=dotY - elH - 40;
         let left=lm.x;
-        // Clamp horizontally
         if(left - elW/2 < 8) left = 8 + elW/2;
         if(left + elW/2 > window.innerWidth - 8) left = window.innerWidth - 8 - elW/2;
-        // If would go off top, flip below
         if(top < 8) top = dotY + 10;
         return {top, left};
     });
 
-    // Resolve overlaps laterally: nudge left/right so popups don't stack
-    const gap=8; // px between popups
+    const gap=8;
     const MAX_PASSES=10;
     for(let pass=0;pass<MAX_PASSES;pass++){
         let anyOverlap=false;
@@ -2958,12 +2522,10 @@ function positionLandmarkPopups(show){
                 const hNeeded=eaW/2+ebW/2+gap;
                 const vNeeded=eaH/2+ebH/2+gap;
                 if(hDist<hNeeded && vDist<vNeeded){
-                    // Overlap — nudge horizontally
                     anyOverlap=true;
                     const push=(hNeeded-hDist)/2+1;
                     if(pa.left<=pb.left){ pa.left-=push; pb.left+=push; }
                     else                { pa.left+=push; pb.left-=push; }
-                    // Clamp to viewport
                     pa.left=Math.max(eaW/2+8, Math.min(window.innerWidth-eaW/2-8, pa.left));
                     pb.left=Math.max(ebW/2+8, Math.min(window.innerWidth-ebW/2-8, pb.left));
                 }
@@ -2979,20 +2541,15 @@ function positionLandmarkPopups(show){
     });
 }
 
-/* ════════════════════════════════════════════════════
-   MAP ALPHA TWEEN
-════════════════════════════════════════════════════ */
-const MAP_FADE_IN_MS=900;   // smooth, gradual tempo for the map fading in (halved)
-const MAP_FADE_OUT_MS=600;  // 1.5x faster than fade-in, same eased shape (halved)
+/* MAP ALPHA TWEEN */
+const MAP_FADE_IN_MS=900;
+const MAP_FADE_OUT_MS=600;
 function fadeOutMap(onComplete){
     if(_mapAlphaTween) cancelAnimationFrame(_mapAlphaTween);
     const start=performance.now();
     const from=mapAlpha;
     function step(now){
         const t=Math.min((now-start)/MAP_FADE_OUT_MS,1);
-        // easeInCubic — the exact time-mirror of fadeInMap's easeOutCubic curve, so
-        // the perceptible part of the fade (near full opacity) takes just as long to
-        // pass through as it does on the way in, instead of dropping off quickly.
         const ease=Math.pow(t,3);
         mapAlpha=from*(1-ease);
         if(t<1){ _mapAlphaTween=requestAnimationFrame(step); }
@@ -3007,7 +2564,7 @@ function fadeInMap(){
     const from=mapAlpha;
     function step(now){
         const t=Math.min((now-start)/MAP_FADE_IN_MS,1);
-        const ease=1-Math.pow(1-t,3); // easeOutCubic
+        const ease=1-Math.pow(1-t,3);
         mapAlpha=from+(1-from)*ease;
         if(t<1){ _mapAlphaTween=requestAnimationFrame(step); }
         else { mapAlpha=1; _mapAlphaTween=null; }
@@ -3042,43 +2599,30 @@ function gentleZoomOut(onComplete, duration){
     _zoomOutRaf=requestAnimationFrame(step);
 }
 
-/* ════════════════════════════════════════════════════
-   SECTION LOGIC — called on EVERY enter (up or down)
-════════════════════════════════════════════════════ */
-let _prevSectionForZoomReset=null; // tracks the section we're transitioning FROM, so the map-position-snap below only fires when it should
+/* SECTION LOGIC */
+let _prevSectionForZoomReset=null;
 
 function onSectionEnter(sec){
     const prevSec=_prevSectionForZoomReset;
     _prevSectionForZoomReset=sec;
-    // Reset all overlays
     hide('stats-display'); clearNarrative();
     overviewFade=false; overviewAlpha=1;
     _pendingLayout=null;
-    // Hide explore screen when leaving s9-end
     if(sec !== 's9-end') hideExploreScreen();
-    // Clear landmark highlights on every section transition
     hideLandmarkPopups();
-    // Hide country popup when changing sections (but keep dot highlighting)
     document.getElementById('country-name-display').style.opacity='0';
-    // Hide map projection button except on context section
     document.getElementById('map-proj-btn').style.display='none'; document.getElementById('data-source-label').style.display='none';
     document.getElementById('map-proj-popup').style.display='none';
     document.getElementById('info-btn').style.display='none'; document.getElementById('data-source-label').style.display='none';
-    // Deactivate zoom (narrate sections re-enable it below)
     if(mapZoomActive){
         mapZoomActive=false; resetMapZoom();
-        // Only snap particles back to their lat/long map positions when we're
-        // actually leaving a true map view (hero or overview) — the region chart
-        // also sets mapZoomActive (purely as an interaction-state flag, its dots
-        // are already in column formation, not geo positions), so leaving it
-        // shouldn't cause a jarring one-frame flash back to the map before the
-        // next chart's layout animates in.
         if(p5Instance&&particleMapPos.length && (prevSec==='s0-hero'||prevSec==='s1-stats')) placeParticlesOnMap();
     }
-    // selectedCountry persists through all sections until user explicitly clicks out
     document.getElementById('zoom-hint').classList.remove('visible');
     document.getElementById('zoom-controls').classList.remove('visible');
-    // Release an in-progress scroll lock if the section changes out from under it
+    document.getElementById('zoom-tip-popup').classList.remove('visible','idle-faded');
+    clearTimeout(_zoomTipIdleTimer);
+    _zoomTipPopupVisible=false;
     clearTimeout(_scrollLockTimer);
     if(_scrollLockActive){
         document.documentElement.style.overflowY='';
@@ -3089,17 +2633,12 @@ function onSectionEnter(sec){
         _scrollLockActive=false;
     }
 
-    // Hide skip + print on the hero and the explode/end section; on every other
-    // section (including s1-stats) they're governed by the slideT-synced chrome
-    // logic above, which already keeps them in lockstep with the zoom-tip popup —
-    // don't fight it here.
     const isEnd = (sec==='s9-end');
     const isHero = (sec==='s0-hero');
     const snEl=document.getElementById('section-nav');
     const skEl=document.getElementById('skip-btn');
     const sdEl=document.getElementById('scroll-down-btn');
     if(isHero || isEnd){
-        // Instant hide (no fade trace) when landing back on the hero specifically.
         snEl.style.transition='none'; snEl.style.opacity='0'; snEl.style.pointerEvents='none';
         void snEl.offsetWidth; snEl.style.transition='';
         skEl.style.transition='none'; skEl.style.opacity='0'; skEl.style.pointerEvents='none';
@@ -3111,7 +2650,6 @@ function onSectionEnter(sec){
         skEl.style.opacity='1'; skEl.style.pointerEvents='auto';
         sdEl.style.opacity='1';
     }
-    // Show/hide hero elements
     const heroEl = document.getElementById('hero-text');
     const hintEl = document.getElementById('hero-scroll-hint');
     if(isHero){
@@ -3123,8 +2661,6 @@ function onSectionEnter(sec){
         if(hintEl) hintEl.style.opacity='0';
         document.body.classList.remove('is-hero');
     }
-    // print-btn: hidden on hero/end entry; elsewhere governed by the slideT-synced
-    // chrome logic (see above) rather than forced here.
     const pb=document.getElementById('print-btn');
     if(isEnd || isHero){
         pb.classList.remove('btn-visible');
@@ -3132,7 +2668,6 @@ function onSectionEnter(sec){
         pb.classList.add('btn-visible');
     }
 
-    // Hide intro textbox whenever leaving s1-stats
     if(sec!=='s1-stats'){
         const introEl=document.getElementById('intro-textbox');
         if(introEl){ introEl.style.opacity='0'; }
@@ -3154,7 +2689,6 @@ function onSectionEnter(sec){
             if(worldGeoJson) worldGeoJson.features.forEach(f=>{ const r=resolveGeoName(f.properties.name); if(countryCounts[r]>0) highlightCountries.add(f.properties.name); });
             if(p5Instance&&particleMapPos.length) placeParticlesOnMap(false);
             resetStats(); statsScrollTriggered=false;
-            // Reset map offset to initial pushed-down state
             canvasOffsetPx = 0.30 * window.innerHeight;
             const heroCanvasEl=document.getElementById('p5-canvas');
             heroCanvasEl.style.transition='none';
@@ -3165,9 +2699,6 @@ function onSectionEnter(sec){
             heroTextResetEl.style.pointerEvents='';
             const heroGradResetEl=document.getElementById('hero-map-gradient');
             if(heroGradResetEl){ heroGradResetEl.style.transition='none'; heroGradResetEl.style.opacity='1'; }
-            // The map is already partially visible here (behind the hero) — let
-            // Cmd/Ctrl+scroll zoom it right away, well before the rest of the map
-            // UI (globe icon, print button, etc.) reveals itself later on scroll.
             mapZoomActive=true;
             break;
 
@@ -3178,34 +2709,27 @@ function onSectionEnter(sec){
             selectedCountry=null; selectedCountryParticles.clear();
             document.getElementById('country-name-display').style.opacity='0';
             if(worldGeoJson) worldGeoJson.features.forEach(f=>{ const r=resolveGeoName(f.properties.name); if(countryCounts[r]>0) highlightCountries.add(f.properties.name); });
-            // Smoothly morph dots back into map formation (mirrors the smooth chart-morph
-            // used when scrolling forward) instead of snapping instantly into place.
             if(p5Instance&&particleMapPos.length) placeParticlesOnMap(false);
             resetStats();
             statsScrollTriggered=false;
             mapZoomActive=true;
-            // The map is always fully centered and interactive by the time s1-stats
-            // is active, so its map-only chrome (zoom controls, globe icon, data
-            // source label) belongs on screen here too — re-assert it since the
-            // generic reset above unconditionally hides it on every section entry.
             document.getElementById('zoom-controls').classList.add('visible');
             document.getElementById('map-proj-btn').style.display='flex';
             document.getElementById('data-source-label').style.display='flex';
-            // Signal to parent (WordPress) that the story has reset to start
+            document.getElementById('zoom-tip-popup').classList.add('visible');
+            updateZoomTipVisibility();
             if(window.parent !== window) window.parent.postMessage('ejm:reset', '*');
             break;
 
         case 's2-narrate1':
-            // spacer section — no action, regions handles everything
             break;
         case 's4-regions':{
             fadeInMap(); showCountryFills=true; hoveredCountry=null;
             if(worldGeoJson) worldGeoJson.features.forEach(f=>{ const r=resolveGeoName(f.properties.name); if(countryCounts[r]>0) highlightCountries.add(f.properties.name); });
-            // Keep globe + zoom visible until morph fires (pendingLayout trigger swaps them)
             document.getElementById('map-proj-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
             document.getElementById('zoom-controls').classList.add('visible');
-            // The controls container is toggled visible here purely as a state flag
-            // (it renders nothing now) — zoom interaction itself is gated on mapZoomActive.
+            document.getElementById('zoom-tip-popup').classList.add('visible');
+            updateZoomTipVisibility();
             mapZoomActive=true;
             const total4=particles.length||1;
             const americas=particles.filter(p=>p.data.Region==='North America'||p.data.Region==='Latin America').length;
@@ -3229,7 +2753,6 @@ function onSectionEnter(sec){
             fadeOutMap(()=>highlightCountries.clear()); showCountryFills=false; hoveredCountry=null;
             document.getElementById('info-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
             typewrite('Several landmark initiatives helped shape its global expansion.', ()=>{
-                // After text fades in, show landmark highlights
                 setTimeout(showLandmarkPopups, 300);
             }, true);
             _pendingLayout={fn:layoutByYear, triggered:false};
@@ -3272,19 +2795,15 @@ function onSectionEnter(sec){
                 p.frozen=false;
                 const angle=Math.random()*Math.PI*2;
                 const dist=Math.max(window.innerWidth,window.innerHeight)*1.5;
-                // scatter from current target position so mid-animation particles don't snap
                 p.setTarget(p.targetX+Math.cos(angle)*dist, p.targetY+Math.sin(angle)*dist, true);
             });
             showExploreScreen();
-            // Signal to parent (WordPress) that the story is complete
             if(window.parent !== window) window.parent.postMessage('ejm:done', '*');
             break;
     }
 }
 
-/* ════════════════════════════════════════════════════
-   OBSERVER — scroll-position-based, works both directions
-════════════════════════════════════════════════════ */
+/* OBSERVER */
 function setupObserver(){
     const sections=[...document.querySelectorAll('.scroll-section')];
     let rafPending=false;
@@ -3293,8 +2812,6 @@ function setupObserver(){
     function applySectionChange(sec){
         currentSection=sec;
         onSectionEnter(sec);
-        // Nav dot is now set inside each layout function (at morph time).
-        // Only set immediately for sections with no chart morph.
         const _hasPending=['s4-regions','s2-narrate1','s5-year','s5-year-b','s6-framework','s7-status','s7-status-b','s8-nature'];
         if(!_hasPending.includes(sec)){
             const NAV_ALIAS={'s0-hero':null};
@@ -3319,17 +2836,11 @@ function setupObserver(){
         });
         if(best){
             const sec=best.dataset.section;
-            // A gentle zoom-out is already animating toward a section switch — just
-            // remember the latest target and let the animation finish before we act,
-            // rather than cutting it off with another jump.
             if(zoomOutTransitionPending){
                 pendingSec=sec;
                 return;
             }
             if(sec!==currentSection){
-                // If leaving the map section while zoomed in, ease the zoom back out
-                // first, then begin the section transition — instead of snapping the
-                // map back to normal and switching sections at the same instant.
                 if(currentSection==='s1-stats' && mapZoomActive && mapZoom.k>1.01){
                     zoomOutTransitionPending=true;
                     pendingSec=sec;
@@ -3351,11 +2862,6 @@ function setupObserver(){
     window.addEventListener('scroll', onScroll, {passive:true});
     setTimeout(update, 100);
 
-    // Hover tooltips are only valid for a static mouse position — as soon as the
-    // page scrolls, dismiss them immediately instead of letting them stick around,
-    // and keep them suppressed for the whole scroll gesture (isUserScrolling),
-    // since the canvas's own scroll-linked transform can spuriously re-trigger
-    // p5's mouseMoved mid-scroll in either direction otherwise.
     window.addEventListener('scroll', ()=>{
         isUserScrolling=true;
         const ttEl=document.getElementById('tooltip');
@@ -3367,25 +2873,22 @@ function setupObserver(){
         hoveredCountry=null;
         clearTimeout(scrollEndTimer);
         scrollEndTimer=setTimeout(()=>{ isUserScrolling=false; }, 150);
+
+        if(_zoomTipIdle){ _zoomTipIdle=false; }
+        updateZoomTipVisibility();
+        clearTimeout(_zoomTipIdleTimer);
+        _zoomTipIdleTimer=setTimeout(()=>{
+            _zoomTipIdle=true;
+            updateZoomTipVisibility();
+        }, 500);
     }, {passive:true});
 
-    // Note: the pinned (click-to-open) initiative popup intentionally does NOT
-    // dismiss on scroll or on mouse movement — once clicked, it stays open and
-    // the dot stays highlighted across scrolling, exactly like a real selection.
-    // It's only cleared by: leaving chart context entirely (hero/stats/end),
-    // the dots exploding on s9-end, the landmark section (which suspends and
-    // restores it), or an explicit click elsewhere / on another dot / the close
-    // button — all handled at those specific call sites.
 }
 
-/* ════════════════════════════════════════════════════
-   BOTTOM Y
-════════════════════════════════════════════════════ */
+/* BOTTOM Y */
 function bY(){ return p5Instance.height*0.70; }
 
-/* ════════════════════════════════════════════════════
-   LAYOUTS
-════════════════════════════════════════════════════ */
+/* LAYOUTS */
 /* ── Responsive helpers ── */
 function respDotSp(){ return window.innerWidth < 700 ? 6 : 8; }
 function respMaxCols(base){ return window.innerWidth < 700 ? Math.max(4, base-2) : base; }
@@ -3405,16 +2908,12 @@ function layoutAllRegions(){
     const w=window.innerWidth;
     const dotSp=respDotSp(), maxCols=respMaxCols(8);
     const barW=maxCols*dotSp;
-    // Fit groups to available width with a side margin
     const sideMargin=w<700?16:40;
     const availW=w-sideMargin*2;
     const rawBarSp=(availW-REGION_ORDER.length*barW)/(REGION_ORDER.length-1);
     const barSp=Math.max(w<700?8:20, Math.min(42, rawBarSp));
     const totalW=REGION_ORDER.length*barW+(REGION_ORDER.length-1)*barSp;
     const startX=(w-totalW)/2;
-    // Match region names leniently (trimmed, case-insensitive) against
-    // REGION_ORDER so stray whitespace/casing in the source data doesn't
-    // silently drop an initiative from every bucket below.
     function matchRegion(raw){
         const r=(raw||'').trim();
         if(!r) return null;
@@ -3433,10 +2932,6 @@ function layoutAllRegions(){
         const dotStartX=labelCx-(colsUsed-1)*dotSp/2;
         rp.forEach((p,j)=>{ p.frozen=false; p.setTarget(dotStartX+(j%maxCols)*dotSp,bY()-Math.floor(j/maxCols)*dotSp,true); });
     });
-    // Any initiative whose Region doesn't cleanly match one of the seven
-    // buckets above (missing/garbled data) should still leave the map like
-    // everything else in this section, instead of silently staying put —
-    // mirrors the "hide unmatched" fallback used in the other chart sections.
     particles.forEach(p=>{ if(!matchRegion(p.data.Region)){ p.frozen=false; p.setTarget(-100,-100,false); } });
 }
 
@@ -3454,7 +2949,6 @@ function layoutByYear(){
     const yearKeys=Array.from({length:21},(_,i)=>2006+i);
     const totalW=w-margin*2, barW=(totalW-barSpBase*(yearKeys.length-1))/yearKeys.length;
     let cx=margin;
-    // On mobile, only label every other year to avoid crowding
     yearKeys.forEach((year,idx)=>{
         const yp=years[year]||[]; sortByNature(yp);
         const cols=Math.min(maxCols,Math.max(1,Math.floor(barW/dotSp)));
@@ -3489,22 +2983,17 @@ function layoutByFramework(){
     const n=allKeys.length;
     if(!n) return;
 
-    // Match year chart outer width = w - 120, then reduce inter-label gap by 20%
     const margin=isMobile?16:60;
     const totalW=w-margin*2;
     const baseStep=totalW/(n-1||1);
     const step=isMobile ? baseStep*0.85 : baseStep*0.92*1.1*0.95;
-    // Center the whole group
     const groupW=(n-1)*step+colW;
     const startX=(w-groupW)/2;
 
-    // Smart 2-line wrap: split on word count
-    // 1 word → 1 line; 2 words → 1 line; 3 words → first 2 / last 1; stays on word boundaries
     function getLabelLines(text){
         const words=text.split(' ');
         if(words.length===1) return [words[0]];
         if(words.length===2) return text==='Indigenous Law' ? [words[0], words[1]] : [text];
-        // 3+ words: put first 2 on line 1, rest on line 2
         return [words.slice(0,2).join(' '), words.slice(2).join(' ')];
     }
 
@@ -3518,7 +3007,6 @@ function layoutByFramework(){
             const words=cat.split(' ');
             el.innerHTML=words.join('<br>');
         }
-        // x is already the label center
         el.style.left=x+'px';
         el.style.transform='translateX(-50%)';
         el.style.top='0';
@@ -3560,12 +3048,6 @@ function layoutByFramework(){
     particles.forEach(p=>{ if(!FORMAL_LAW.includes(p.data['Legal Provision'])&&!SOFT_LAW.includes(p.data['Legal Provision'])){p.frozen=false;p.setTarget(-100,-100,false);} });
 
     frameworkBrackets=[];
-    // The bracket bars' outer edges align with the same margin the icons/skip
-    // button sit at (36px desktop, 16px mobile) instead of hugging the dot
-    // columns tightly. The inner edge of each bar is then extended so the bar
-    // stays centered on that group's actual dots — Soft Law's right edge locks
-    // to the right margin (extending its left edge outward), and Formal Law
-    // mirrors this on the left margin (extending its right edge outward).
     const edgeMargin = isMobile ? 16 : 36;
     if(fKeys.length){
         const fCenter = startX + ((fKeys.length-1)*step+colW)/2;
@@ -3579,33 +3061,17 @@ function layoutByFramework(){
         frameworkBrackets.push({x:sLeft, w:sRight-sLeft, label:'Soft Law'});
     }
 
-    // Measure how far the category labels (e.g. "Constitution", "Court Case") actually
-    // extend down, so the gap above the bracket bar matches the gap below it exactly.
-    // The Formal/Soft Law label under the bar (.bracket-label) is styled with the same
-    // line-height and padding as these axis labels, so measuring box-edge to box-edge
-    // on both sides (using the same GAP) lands on the same visible whitespace on both
-    // sides of the bar.
     let labelsBottom=0;
     document.querySelectorAll('#axis-labels-container .chart-label.axis').forEach(el=>{
         const r=el.getBoundingClientRect();
         if(r.bottom>labelsBottom) labelsBottom=r.bottom;
     });
-    // labelsBottom is the bottom edge of the TALLEST axis label (e.g. a two-line
-    // category name); most category labels are only one line and end well above
-    // that, so measuring the gap from labelsBottom alone under-counts how far the
-    // bar visually sits from most of the labels above it, while the single-line
-    // Formal/Soft Law label below is always exactly FRAMEWORK_BRACKET_GAP away.
-    // Net effect: the bar reads as closer to the labels below than the ones above.
-    // FRAMEWORK_BRACKET_LIFT nudges the bar up to compensate and balance the two.
     frameworkBracketY = labelsBottom ? (labelsBottom+FRAMEWORK_BRACKET_GAP_ABOVE+FRAMEWORK_BRACKET_BARH/2-FRAMEWORK_BRACKET_LIFT) : null;
 
     initFrameworkBracketLabels();
 }
 
-// Drawn each frame in drawFrameworkBrackets(), called from p5 draw
 let frameworkBrackets=[];
-// Measured once per layout so the gap above the bracket bar (from the axis
-// category labels) and the gap below it (to the Formal/Soft Law label) match.
 let frameworkBracketY=null;
 const FRAMEWORK_BRACKET_GAP_ABOVE=24;
 const FRAMEWORK_BRACKET_GAP_BELOW=14;
@@ -3619,12 +3085,10 @@ function drawFrameworkBrackets(p){
     const barColor=p5Instance.color('#B5B5B1');
     p.noStroke(); p.fill(barColor);
     frameworkBrackets.forEach(b=>{
-        // narrow rounded rectangle instead of a line
         p.rect(b.x, bracketY-barH/2, b.w, barH, barH/2);
     });
     p.noFill();
     p.noStroke();
-    // DOM labels (positioned each frame) — same gap below the bar as above it
     const container=document.getElementById('framework-bracket-labels');
     if(container){
         const els=container.querySelectorAll('.bracket-label');
@@ -3713,9 +3177,7 @@ function layoutByNature(){
     });
 }
 
-/* ════════════════════════════════════════════════════
-   SORT HELPERS
-════════════════════════════════════════════════════ */
+/* SORT HELPERS */
 function sortByYear(arr){arr.sort((a,b)=>(parseInt(a.data['Primary Year'])||9999)-(parseInt(b.data['Primary Year'])||9999));}
 function sortByFramework(arr){arr.sort((a,b)=>{const ia=FRAMEWORK_ORDER.indexOf(a.data['Legal Provision']||''),ib=FRAMEWORK_ORDER.indexOf(b.data['Legal Provision']||'');return(ia<0?999:ia)-(ib<0?999:ib);});}
 function sortByStatus(arr){arr.sort((a,b)=>{const ia=['Approved','Draft','Failed','Submitted'].findIndex(s=>(a.data['Status']||'').toLowerCase().startsWith(s.toLowerCase())),ib=['Approved','Draft','Failed','Submitted'].findIndex(s=>(b.data['Status']||'').toLowerCase().startsWith(s.toLowerCase()));return(ia<0?999:ia)-(ib<0?999:ib);});}
@@ -3723,15 +3185,10 @@ function sortByNature(arr){arr.sort((a,b)=>{const ia=NATURE_ORDER.indexOf(getNat
 function getNatureCat(t){
     if(!t||t.includes('|'))return'Nature';
     const l=t.toLowerCase();
-    // Nature: All Nature, Space, Urban, General, Climate
     if(l.includes('all')||l.includes('general')||l.includes('space')||l.includes('urban')||l.includes('climate'))return'Nature';
-    // Plant + Forest + Fungi
     if(l.includes('plant')||l.includes('forest')||l.includes('fungi'))return'Plant';
-    // Animal
     if(l.includes('animal')||l.includes('species'))return'Animal';
-    // Freshwater + Marine + Arctic
     if(l.includes('freshwater')||l.includes('marine')||l.includes('arctic')||l.includes('ocean')||l.includes('river')||l.includes('lake')||l.includes('wetland'))return'Water';
-    // Mountain + Grassland + Desert
     if(l.includes('mountain')||l.includes('grass')||l.includes('desert'))return'Land';
     return'Nature';
 }
@@ -3756,16 +3213,12 @@ window.addEventListener('message', e => {
     }
 });
 
-/* ════════════════════════════════════════════════════
-   EXPLORE SCREEN — carousel built from CC-tagged rows
-════════════════════════════════════════════════════ */
+/* EXPLORE SCREEN */
 let carouselBuilt = false;
 
 function showExploreScreen() {
     const el = document.getElementById('static-content');
     if (el) el.classList.add('visible');
-    // Axis-labels container sits at z-index:50 above static-content (z-index:20)
-    // and intercepts pointer events over the carousel even when empty — disable it.
     const axEl = document.getElementById('axis-labels-container');
     if (axEl) axEl.style.pointerEvents = 'none';
     if (!carouselBuilt) {
@@ -3783,11 +3236,6 @@ function hideExploreScreen() {
     playCarouselExit();
 }
 
-// Warms the browser cache for the carousel's cover images well before the user
-// reaches the Explore screen, using the same row-selection logic as buildCarousel().
-// Uses plain Image() fetches (no DOM insertion) so it can't affect layout/paint —
-// it just means the network requests have a head start instead of only beginning
-// once buildCarousel() runs.
 let _carouselImagesPreloaded = false;
 function preloadCarouselImages(allData) {
     if (_carouselImagesPreloaded) return;
@@ -3813,9 +3261,7 @@ function buildCarousel(allData) {
         const bgStyle = img ? `background-image:url('${img}')` : `background:#C8C8B8`;
         const preload = img && i === 0 ? `<img src="${img}" style="display:none" fetchpriority="high" alt="">` : '';
         const url = (d.Permalink || '').trim();
-        // Left half of panels slide in from the left, right half from the right.
         const dir = i < half ? 'from-left' : 'from-right';
-        // Stagger outward from the center so the reveal feels like it's unfolding.
         const distFromCenter = i < half ? (half - i) : (i - half + 1);
         const delay = (distFromCenter * 0.06).toFixed(2);
         const panelOpen  = url
@@ -3842,10 +3288,8 @@ function buildCarousel(allData) {
 function playCarouselEntrance() {
     const panels = document.querySelectorAll('#initiative-carousel .init-panel');
     if (!panels.length) return;
-    // Force panels back to their pre-entrance (off-screen) state instantly...
     panels.forEach(p => p.classList.remove('slide-out'));
     panels.forEach(p => p.classList.add('slide-pre'));
-    // ...then, next frame, release them so the transition (defined on .init-panel) animates them in.
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
             panels.forEach(p => p.classList.remove('slide-pre'));
@@ -3853,9 +3297,6 @@ function playCarouselEntrance() {
     });
 }
 
-// Mirrors playCarouselEntrance() for scrolling back up out of the Explore
-// screen: left-half panels slide back out to the left, right-half back out
-// to the right — same directions and stagger as the entrance, just reversed.
 function playCarouselExit() {
     const panels = document.querySelectorAll('#initiative-carousel .init-panel');
     if (!panels.length) return;
@@ -3864,5 +3305,7 @@ function playCarouselExit() {
         p.classList.add('slide-out');
     });
 }
+
+initViz();
 </script>
 </html>
