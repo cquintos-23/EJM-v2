@@ -1750,7 +1750,20 @@ function initViz(){
         if(landmarkMode) hideLandmarkPopups();
     });
 
+    let _ejmParentNotifiedScrolling=false;
     window.addEventListener('scroll', ()=>{
+        // Notify the parent WordPress page whenever this iframe scrolls,
+        // so the site header can react (e.g. shrink/compact state).
+        if(window.parent !== window){
+            if(window.scrollY > 0 && !_ejmParentNotifiedScrolling){
+                _ejmParentNotifiedScrolling = true;
+                window.parent.postMessage('ejm:scrolling', '*');
+            } else if(window.scrollY <= 0 && _ejmParentNotifiedScrolling){
+                _ejmParentNotifiedScrolling = false;
+                window.parent.postMessage('ejm:top', '*');
+            }
+        }
+
         if(heroZoomOverrideActive){
             heroZoomOverrideActive=false;
             const canvasEl=document.getElementById('p5-canvas');
