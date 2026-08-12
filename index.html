@@ -156,12 +156,16 @@
     #scroll-down-btn {
         position:fixed; bottom:36px; left:36px; z-index:50; display:flex;
         align-items:center; justify-content:center;
-        box-sizing:border-box; padding:0; height:36px; width:36px;
+        box-sizing:border-box; padding:0; height:44px; width:44px;
         background:transparent; border:none;
         pointer-events:none; cursor:default; box-shadow:none;
         opacity:0; transition:opacity 0.3s ease;
     }
-    #scroll-down-btn svg { width:20px; height:20px; display:block; }
+    @keyframes scroll-down-pulse {
+        0%, 100% { transform:translateY(0); }
+        50% { transform:translateY(10px); }
+    }
+    #scroll-down-btn svg { width:28px; height:28px; display:block; animation:scroll-down-pulse 1.8s ease-in-out infinite; }
 
     #print-btn {
         position:fixed; top:36px; right:calc(32px + 36px + 4px); z-index:55;
@@ -360,7 +364,7 @@
         #initiative-carousel { width: calc(100% - 10px) !important; }
 
         #skip-btn { bottom: 20px; right: 16px; padding: 8px 16px; height: 36px; }
-        #scroll-down-btn { bottom: 20px; left: 16px; height: 36px; width: 36px; }
+        #scroll-down-btn { bottom: 20px; left: 16px; height: 40px; width: 40px; }
         #print-btn { top: 16px; right: calc(16px + 32px + 4px); width: 32px; height: 32px; }
 
         #section-nav { right: 12px; gap: 8px; }
@@ -480,6 +484,7 @@
         display:flex; gap:6px; width:calc(100% - 80px);
         height:380px; overflow:hidden; border-radius:12px;
     }
+
     .init-panel {
         flex:1 1 0; min-width:0; min-height:0; height:100%; border-radius:10px;
         overflow:hidden; cursor:pointer;
@@ -695,10 +700,47 @@ window.addEventListener('beforeunload', saveScrollPosition);
 function restoreScrollPosition(){
     let savedY=0;
     try{ savedY=parseInt(sessionStorage.getItem(SCROLL_SAVE_KEY)||'0',10)||0; }catch(e){}
-    if(savedY>0){
+    if(savedY<=0) return;
+
+    window.scrollTo({top:savedY, left:0, behavior:'instant'});
+    window.dispatchEvent(new Event('scroll'));
+
+    function finishRestore(){
+        // Re-assert the scroll position (in case anything shifted layout while we
+        // were waiting) and re-dispatch scroll now that all the scroll listeners
+        // (section detection + chart-layout trigger) are actually registered.
         window.scrollTo({top:savedY, left:0, behavior:'instant'});
         window.dispatchEvent(new Event('scroll'));
+        if(_pendingLayout && !_pendingLayout.triggered){
+            _pendingLayout.triggered=true;
+            _pendingLayout.fn();
+            if(currentSection==='s4-regions'){
+                document.getElementById('zoom-controls').classList.remove('visible');
+                document.getElementById('map-proj-btn').style.display='none';
+                document.getElementById('info-btn').style.display='flex';
+                document.getElementById('data-source-label').style.display='flex';
+                mapZoomActive=false;
+                updateZoomTipVisibility();
+            }
+        }
     }
+
+    // Particles only get their real data (and an initial map placement) once the
+    // CSV + world map have both loaded — which can easily take longer than a fixed
+    // timeout. If we force a chart layout before that finishes, the layout runs on
+    // an empty particle set, gets marked "done", and then the moment the data-load
+    // path finally runs placeParticlesOnMap() it silently overwrites everything
+    // back to raw map positions with nothing left to re-trigger the chart. So wait
+    // until particles are actually placed first, guaranteeing our layout call
+    // happens after that, not before it.
+    let attempts=0;
+    const waitForParticles=setInterval(()=>{
+        attempts++;
+        if(particlesPlaced || attempts>=150){ // ~30s safety cap
+            clearInterval(waitForParticles);
+            setTimeout(finishRestore, 150);
+        }
+    }, 200);
 }
 
 /* EASING */
@@ -757,6 +799,39 @@ let _heroZoomAutoTriggered=false;
 let heroZoomOverrideActive=false;
 let _chromeElsShown=false;
 let _heroChromeFirstRevealDone=false;
+let _heroCenteringActive=false;
+
+/* ── Smoothly center the hero map before the first zoom gesture is allowed to zoom at the cursor ── */
+function smoothlyCenterHeroMap(onComplete){
+    if(heroSlideT>=1){ if(onComplete) onComplete(); return; }
+    if(_heroCenteringActive) return;
+    _heroCenteringActive=true;
+    const canvasEl=document.getElementById('p5-canvas');
+    const gradEl=document.getElementById('hero-map-gradient');
+    canvasEl.style.transition='none';
+    if(gradEl) gradEl.style.transition='none';
+    const startT=heroSlideT;
+    const startTime=performance.now();
+    const duration=900;
+    function step(now){
+        const t=Math.min((now-startTime)/duration,1);
+        const ease=1-Math.pow(1-t,3);
+        const curT=startT+(1-startT)*ease;
+        heroSlideT=curT;
+        const mapOffset=30*(1-curT);
+        canvasOffsetPx=mapOffset/100*window.innerHeight;
+        canvasEl.style.transform=`translateY(${mapOffset}vh)`;
+        if(gradEl) gradEl.style.opacity=String(Math.max(0,1-curT));
+        if(t<1){
+            requestAnimationFrame(step);
+        } else {
+            heroSlideT=1;
+            _heroCenteringActive=false;
+            if(onComplete) onComplete();
+        }
+    }
+    requestAnimationFrame(step);
+}
 
 function activateHeroZoomOverride(){
     if(heroZoomOverrideActive) return;
@@ -1782,6 +1857,8 @@ function initViz(){
             }
         }
 
+        if(_heroCenteringActive) return;
+
         const vh = window.innerHeight;
         const scrolled = window.scrollY;
 
@@ -1822,15 +1899,15 @@ function initViz(){
             const chromeStartPx = 0.10 * vh;
             const chromeRangePx = Math.max(1, (heroH * 0.5) - chromeStartPx);
             const chromeT = Math.max(0, Math.min(1, (scrolled - chromeStartPx) / chromeRangePx));
-            if(!heroZoomOverrideActive && !_heroChromeFirstRevealDone && slideT>0){
-                if(!_chromeElsShown){
+            if(!heroZoomOverrideActive && !_heroChromeFirstRevealDone){
+                if(slideT>0 && !_chromeElsShown){
                     _chromeElsShown=true;
                     document.getElementById('zoom-controls').classList.add('visible');
                     document.getElementById('map-proj-btn').style.display='flex';
                     document.getElementById('data-source-label').style.display='flex';
                     document.getElementById('print-btn').classList.add('btn-visible');
                 }
-                const ct=chromeT;
+                const ct=slideT>0?chromeT:0;
                 const zc=document.getElementById('zoom-controls');
                 zc.style.opacity=String(ct); zc.style.pointerEvents = ct>=0.99?'auto':'none';
                 const mpb=document.getElementById('map-proj-btn');
@@ -1893,8 +1970,9 @@ function initViz(){
 
     window.addEventListener('scroll',()=>{
         if(currentSection==='s1-stats'){
-            const sec=document.querySelector('.scroll-section[data-section="s1-stats"]');
-            const secTop=sec ? sec.offsetTop : 0;
+            const heroSectionEl=document.querySelector('.scroll-section[data-section="s0-hero"]');
+            const heroHpx=heroSectionEl ? heroSectionEl.offsetHeight : window.innerHeight;
+            const secTop=heroHpx*0.5;
             const scrolled=window.scrollY - secTop;
             const vh=window.innerHeight;
 
@@ -1999,6 +2077,10 @@ function initViz(){
         if(!mapZoomActive) return;
         if(e.target && e.target.closest && e.target.closest('#map-proj-btn, #print-btn, #skip-btn, #info-btn, #zoom-controls, #section-nav, #map-proj-popup, #pinned-tooltip, #country-name-display')) return;
         if(currentSection==='s0-hero' && !heroZoomOverrideActive && !_zoomUIRevealed){
+            if(heroSlideT<1){
+                smoothlyCenterHeroMap(()=>{ activateHeroZoomOverride(); });
+                return;
+            }
             activateHeroZoomOverride();
         }
         const cx=e.clientX, cy=e.clientY-canvasOffsetPx;
@@ -2037,10 +2119,15 @@ function initViz(){
         } else if(e.touches.length===2){
             const dx=e.touches[1].clientX-e.touches[0].clientX;
             const dy=e.touches[1].clientY-e.touches[0].clientY;
-            _pinch={active:true,dist:Math.hypot(dx,dy),k0:mapZoom.k,tx0:mapZoom.tx,ty0:mapZoom.ty};
             _drag.down=false;
-            if(currentSection==='s0-hero' && !heroZoomOverrideActive && !_zoomUIRevealed){
-                activateHeroZoomOverride();
+            if(currentSection==='s0-hero' && !heroZoomOverrideActive && !_zoomUIRevealed && heroSlideT<1){
+                _pinch={active:false,dist:Math.hypot(dx,dy),k0:mapZoom.k,tx0:mapZoom.tx,ty0:mapZoom.ty};
+                smoothlyCenterHeroMap(()=>{ activateHeroZoomOverride(); });
+            } else {
+                _pinch={active:true,dist:Math.hypot(dx,dy),k0:mapZoom.k,tx0:mapZoom.tx,ty0:mapZoom.ty};
+                if(currentSection==='s0-hero' && !heroZoomOverrideActive && !_zoomUIRevealed){
+                    activateHeroZoomOverride();
+                }
             }
         }
         e.preventDefault();
@@ -2651,6 +2738,9 @@ function onSectionEnter(sec){
     const snEl=document.getElementById('section-nav');
     const skEl=document.getElementById('skip-btn');
     const sdEl=document.getElementById('scroll-down-btn');
+    const zcEl=document.getElementById('zoom-controls');
+    const mpbEl=document.getElementById('map-proj-btn');
+    const pbEl2=document.getElementById('print-btn');
     if(isHero || isEnd){
         snEl.style.transition='none'; snEl.style.opacity='0'; snEl.style.pointerEvents='none';
         void snEl.offsetWidth; snEl.style.transition='';
@@ -2658,10 +2748,18 @@ function onSectionEnter(sec){
         void skEl.offsetWidth; skEl.style.transition='';
         sdEl.style.transition='none'; sdEl.style.opacity='0'; sdEl.style.pointerEvents='none';
         void sdEl.offsetWidth; sdEl.style.transition='';
+        zcEl.classList.remove('visible');
+        zcEl.style.transition='none'; zcEl.style.opacity='0'; zcEl.style.pointerEvents='none';
+        void zcEl.offsetWidth; zcEl.style.transition='';
+        mpbEl.style.transition='none'; mpbEl.style.opacity='0'; mpbEl.style.pointerEvents='none'; mpbEl.style.display='none';
+        void mpbEl.offsetWidth; mpbEl.style.transition='';
+        pbEl2.classList.remove('btn-visible');
+        pbEl2.style.transition='none'; pbEl2.style.opacity='0'; pbEl2.style.pointerEvents='none';
+        void pbEl2.offsetWidth; pbEl2.style.transition='';
     } else {
         snEl.style.opacity='1'; snEl.style.pointerEvents='auto';
         skEl.style.opacity='1'; skEl.style.pointerEvents='auto';
-        sdEl.style.opacity='1';
+        sdEl.style.opacity=(sec==='s1-stats')?'1':'0';
     }
     const heroEl = document.getElementById('hero-text');
     const hintEl = document.getElementById('hero-scroll-hint');
