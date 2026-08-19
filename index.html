@@ -125,13 +125,6 @@
     #zoom-controls button:hover::after { opacity:1; }
     .narrative-scroll-box .fade-line {
         display:block;
-        opacity:0;
-        transform:translateY(6px);
-        transition:opacity 0.45s ease, transform 0.45s ease;
-    }
-    .narrative-scroll-box .fade-line.revealed {
-        opacity:1;
-        transform:translateY(0);
     }
 
     .hero-btn {
@@ -528,9 +521,14 @@
     #hero-map-gradient {
         position:fixed; top:0; left:0; width:100%; height:100vh;
         z-index:0; pointer-events:none;
-        background: linear-gradient(to bottom, #FBFBEE 0%, #ffffff 50%);
+        background-image: linear-gradient(to bottom, #FBFBEE 0%, #ffffff 50%);
+        background-repeat: no-repeat;
+        background-size: 100% 100%;
         opacity:0;
         transition:none;
+        will-change: opacity;
+        transform: translateZ(0);
+        backface-visibility: hidden;
     }
     body.is-hero #hero-map-gradient { opacity:1; }
 
@@ -783,6 +781,10 @@ let isUserScrolling=false;
 let scrollEndTimer=null;
 let selectedCountry=null;
 let selectedCountryParticles=new Set();
+/* Country darkened via hovering/clicking an initiative dot (kept separate from
+   selectedCountry so it only darkens the country polygon, without also
+   dimming/highlighting unrelated particles or opening the country popup). */
+let particleClickCountry=null;
 let countryCounts={};
 let overviewFade=false;
 let overviewAlpha=1;
@@ -801,31 +803,73 @@ let _chromeElsShown=false;
 let _heroChromeFirstRevealDone=false;
 let _heroCenteringActive=false;
 
-/* ── Smoothly center the hero map before the first zoom gesture is allowed to zoom at the cursor ── */
-function smoothlyCenterHeroMap(onComplete){
-    if(heroSlideT>=1){ if(onComplete) onComplete(); return; }
+/* ── Hero map "enter zoom" animation: centers the map (if needed), zooms it in a
+   little, and slides the hero text/buttons up — all driven by the same easing
+   curve over the same duration, so everything moves in lockstep. ── */
+const HERO_ZOOM_ANIM_MS = 900;
+const HERO_ZOOM_TARGET_K = 1.35;
+const HERO_TEXT_MOVE_VH = 120;
+
+/* The map's on-screen vertical center is at (canvasOffsetPx + viewport-height/2) —
+   canvasOffsetPx is only ever non-zero mid-way through the hero section's own
+   centering animation; everywhere else it's 0, i.e. dead-center. Keeping the zoom
+   tip popup pinned to this (rather than a fixed viewport-center) keeps it aligned
+   with the map regardless of section or how the hero got centered (scroll or zoom). */
+function updateZoomTipPosition(){
+    const tipEl=document.getElementById('zoom-tip-popup');
+    if(tipEl) tipEl.style.top=(canvasOffsetPx + window.innerHeight/2)+'px';
+}
+
+function animateHeroZoomEnter(onComplete){
     if(_heroCenteringActive) return;
     _heroCenteringActive=true;
     const canvasEl=document.getElementById('p5-canvas');
     const gradEl=document.getElementById('hero-map-gradient');
+    const heroEl=document.getElementById('hero-text');
+    const hintEl=document.getElementById('hero-scroll-hint');
     canvasEl.style.transition='none';
+    heroEl.style.transition='none';
     if(gradEl) gradEl.style.transition='none';
+    if(hintEl) hintEl.style.transition='none';
+
     const startT=heroSlideT;
+    const startK=mapZoom.k, startTx=mapZoom.tx, startTy=mapZoom.ty;
+    const cx=(p5Instance?p5Instance.width:window.innerWidth)/2;
+    const cy=(p5Instance?p5Instance.height:window.innerHeight)/2;
+    const targetK=HERO_ZOOM_TARGET_K;
+    const targetTx=cx*(1-targetK), targetTy=cy*(1-targetK);
     const startTime=performance.now();
-    const duration=900;
+
     function step(now){
-        const t=Math.min((now-startTime)/duration,1);
+        const t=Math.min((now-startTime)/HERO_ZOOM_ANIM_MS,1);
         const ease=1-Math.pow(1-t,3);
+
+        // Center (if this is the first zoom of the hero visit; a no-op once startT is already 1)
         const curT=startT+(1-startT)*ease;
         heroSlideT=curT;
         const mapOffset=30*(1-curT);
         canvasOffsetPx=mapOffset/100*window.innerHeight;
         canvasEl.style.transform=`translateY(${mapOffset}vh)`;
-        if(gradEl) gradEl.style.opacity=String(Math.max(0,1-curT));
+        updateZoomTipPosition();
+
+        // Zoom in a little, toward the center of the map
+        mapZoom.k=startK+(targetK-startK)*ease;
+        mapZoom.tx=startTx+(targetTx-startTx)*ease;
+        mapZoom.ty=startTy+(targetTy-startTy)*ease;
+        applyZoomToParticles();
+
+        // Slide hero text/buttons up + fade the gradient/scroll hint, all on the same clock
+        heroEl.style.transform=`translateY(-${HERO_TEXT_MOVE_VH*ease}vh)`;
+        if(gradEl) gradEl.style.opacity=String(Math.max(0,1-ease));
+        if(hintEl) hintEl.style.opacity=String(Math.max(0,0.4*(1-ease)));
+
         if(t<1){
             requestAnimationFrame(step);
         } else {
             heroSlideT=1;
+            mapZoom.k=targetK; mapZoom.tx=targetTx; mapZoom.ty=targetTy;
+            applyZoomToParticles();
+            updateZoomTipPosition();
             _heroCenteringActive=false;
             if(onComplete) onComplete();
         }
@@ -839,15 +883,7 @@ function activateHeroZoomOverride(){
     _heroZoomAutoTriggered=true;
 
     const heroEl=document.getElementById('hero-text');
-    heroEl.style.transition='opacity 0.35s ease';
-    heroEl.style.opacity='0';
     heroEl.style.pointerEvents='none';
-
-    const hintEl=document.getElementById('hero-scroll-hint');
-    if(hintEl){ hintEl.style.transition='opacity 0.25s ease'; hintEl.style.opacity='0'; }
-
-    const gradEl=document.getElementById('hero-map-gradient');
-    if(gradEl){ gradEl.style.transition='opacity 0.35s ease'; gradEl.style.opacity='0'; }
 
     document.body.classList.remove('is-hero');
 
@@ -871,26 +907,112 @@ function activateHeroZoomOverride(){
     applyZoomToParticles();
 }
 
+/* Smoothly tween the map's zoom/pan back toward a target (used to settle out any
+   residual pan when exiting hero zoom via wheel/pinch/buttons — jumping mapZoom.tx/ty
+   straight to 0 when they weren't already there is what caused the exit "glitch"). */
+let _mapZoomTweenRaf=null;
+function animateMapZoomTo(targetK, targetTx, targetTy, duration, onComplete){
+    if(_mapZoomTweenRaf) cancelAnimationFrame(_mapZoomTweenRaf);
+    duration = duration || 350;
+    const start = performance.now();
+    const k0=mapZoom.k, tx0=mapZoom.tx, ty0=mapZoom.ty;
+    if(Math.abs(k0-targetK)<0.001 && Math.abs(tx0-targetTx)<0.5 && Math.abs(ty0-targetTy)<0.5){
+        mapZoom.k=targetK; mapZoom.tx=targetTx; mapZoom.ty=targetTy;
+        applyZoomToParticles();
+        if(onComplete) onComplete();
+        return;
+    }
+    function step(now){
+        const t=Math.min((now-start)/duration,1);
+        const ease=1-Math.pow(1-t,3);
+        mapZoom.k=k0+(targetK-k0)*ease;
+        mapZoom.tx=tx0+(targetTx-tx0)*ease;
+        mapZoom.ty=ty0+(targetTy-ty0)*ease;
+        applyZoomToParticles();
+        if(t<1){
+            _mapZoomTweenRaf=requestAnimationFrame(step);
+        } else {
+            mapZoom.k=targetK; mapZoom.tx=targetTx; mapZoom.ty=targetTy;
+            _mapZoomTweenRaf=null;
+            applyZoomToParticles();
+            if(onComplete) onComplete();
+        }
+    }
+    _mapZoomTweenRaf=requestAnimationFrame(step);
+}
+
 function exitHeroZoomOverride(){
     if(!heroZoomOverrideActive) return;
     heroZoomOverrideActive=false;
     _heroZoomAutoTriggered=false;
 
+    document.body.classList.add('is-hero');
+    _chromeElsShown=false;
+    hideMapChrome();
+
+    animateHeroZoomExit(()=>{
+        resetMapZoom();
+        if(p5Instance&&particleMapPos.length) placeParticlesOnMap();
+    });
+}
+
+/* ── Reverse of animateHeroZoomEnter: un-zooms, un-centers the map back to the
+   partial "top half" hero view, and slides the hero text/buttons back down —
+   same duration/easing as the entry, so forward and reverse look symmetric. ── */
+function animateHeroZoomExit(onComplete){
+    if(_heroCenteringActive) return;
+    _heroCenteringActive=true;
+    const canvasEl=document.getElementById('p5-canvas');
+    const gradEl=document.getElementById('hero-map-gradient');
     const heroEl=document.getElementById('hero-text');
-    heroEl.style.transition='opacity 0.4s ease';
+    const hintEl=document.getElementById('hero-scroll-hint');
+    canvasEl.style.transition='none';
+    heroEl.style.transition='none';
+    if(gradEl) gradEl.style.transition='none';
+    if(hintEl) hintEl.style.transition='none';
     heroEl.style.opacity='1';
     heroEl.style.pointerEvents='';
 
-    const hintEl=document.getElementById('hero-scroll-hint');
-    if(hintEl){ hintEl.style.transition='opacity 0.3s ease'; hintEl.style.opacity='0.4'; }
+    const startT=heroSlideT;
+    const startK=mapZoom.k, startTx=mapZoom.tx, startTy=mapZoom.ty;
+    const startTime=performance.now();
 
-    const gradEl=document.getElementById('hero-map-gradient');
-    if(gradEl){ gradEl.style.transition='opacity 0.4s ease'; gradEl.style.opacity='1'; }
+    function step(now){
+        const t=Math.min((now-startTime)/HERO_ZOOM_ANIM_MS,1);
+        const ease=1-Math.pow(1-t,3);
 
-    document.body.classList.add('is-hero');
+        // Un-center back toward the partial, top-half view
+        const curT=startT*(1-ease);
+        heroSlideT=curT;
+        const mapOffset=30*(1-curT);
+        canvasOffsetPx=mapOffset/100*window.innerHeight;
+        canvasEl.style.transform=`translateY(${mapOffset}vh)`;
+        updateZoomTipPosition();
 
-    _chromeElsShown=false;
-    deactivateMapZoomUI();
+        // Zoom back out to 1, pan back to center
+        mapZoom.k=startK+(1-startK)*ease;
+        mapZoom.tx=startTx*(1-ease);
+        mapZoom.ty=startTy*(1-ease);
+        applyZoomToParticles();
+
+        // Slide hero text/buttons back down + fade gradient/scroll hint back in
+        heroEl.style.transform=`translateY(-${HERO_TEXT_MOVE_VH*(1-ease)}vh)`;
+        if(gradEl) gradEl.style.opacity=String(Math.min(1,ease));
+        if(hintEl) hintEl.style.opacity=String(Math.min(0.4,0.4*ease));
+
+        if(t<1){
+            requestAnimationFrame(step);
+        } else {
+            heroSlideT=0;
+            mapZoom.k=1; mapZoom.tx=0; mapZoom.ty=0;
+            canvasOffsetPx=0.30*window.innerHeight;
+            applyZoomToParticles();
+            updateZoomTipPosition();
+            _heroCenteringActive=false;
+            if(onComplete) onComplete();
+        }
+    }
+    requestAnimationFrame(step);
 }
 const MAP_ZOOM_MIN=1, MAP_ZOOM_MAX=12;
 
@@ -1015,8 +1137,19 @@ function buildParticlesFromData(){
 function finalizeParticlesIfReady(){
     buildParticlesFromData();
     if(particlesBuilt && mapProjection && p5Instance && !particlesPlaced){
-        cacheMapPositions(); placeParticlesOnMap();
+        cacheMapPositions();
         particlesPlaced=true;
+        // If the page loaded (e.g. on refresh, mid-scroll) into a section whose
+        // chart layout already tried to run against an empty particle set, that
+        // trigger flag is stuck "used up" and won't fire again on its own. Re-run
+        // that layout now that particles actually exist, instead of defaulting to
+        // raw map placement (which can leave dots positioned under a hidden/faded
+        // map and effectively invisible).
+        if(_pendingLayout && _pendingLayout.triggered){
+            _pendingLayout.fn();
+        } else {
+            placeParticlesOnMap();
+        }
     }
 }
 
@@ -1067,6 +1200,15 @@ function countryMatchesGeo(parsedName, geoName){
     const dataCanonical=dataToGeoName[key] || parsedName.trim();
     const geoCanonical=resolveGeoName(geoName);
     return dataCanonical===geoCanonical;
+}
+/* Resolved (canonical) geo name for the country an initiative dot belongs to,
+   for darkening that country the same way hovering/clicking it directly does. */
+function particleCountryGeoName(pt){
+    if(!pt||!pt.data) return null;
+    const parsed=parseCountryName(pt.data.Country);
+    if(!parsed) return null;
+    const key=parsed.toLowerCase().trim();
+    return dataToGeoName[key] || resolveGeoName(parsed);
 }
 function buildProjection(w,h){
     if (!worldGeoJson) return null;
@@ -1274,7 +1416,8 @@ function initViz(){
                     ttEl.style.top=ttTop+'px';
                 });
                 p.canvas.style.cursor='pointer';
-                ctEl.style.display='none'; hoveredCountry=null;
+                ctEl.style.display='none';
+                hoveredCountry = worldGeoJson ? particleCountryGeoName(found) : null;
             } else {
                 ttEl.style.display='none';
                 if(showMap&&worldGeoJson&&mapProjection){
@@ -1377,7 +1520,12 @@ function initViz(){
         if(_scrollLockActive) return;
         const el=document.querySelector(`.scroll-section[data-section="${sec}"]`);
         if(!el) return;
-        const mid=el.offsetTop + el.offsetHeight * 0.55;
+        // The narrative box (see typewrite()) is always vertically centered at
+        // exactly 40vh below its section's top, regardless of the section's total
+        // scroll height or the box's own height. Landing here — rather than at a
+        // fraction of the section's height — puts the narrative text dead-center
+        // on screen for every section instead of too high or too low.
+        const mid=el.offsetTop + window.innerHeight * 0.40;
         window.scrollTo({top: mid, behavior:'instant'});
         setTimeout(()=>{
             if(_pendingLayout && !_pendingLayout.triggered){
@@ -1402,6 +1550,7 @@ function initViz(){
         mapZoom.tx=cx-(cx-mapZoom.tx)*(mapZoom.k/k0);
         mapZoom.ty=cy-(cy-mapZoom.ty)*(mapZoom.k/k0);
         clampZoom(); applyZoomToParticles();
+        refreshStatsCounterForZoom();
         if(heroZoomOverrideActive && currentSection==='s0-hero' && mapZoom.k<=1.001){
             exitHeroZoomOverride();
         }
@@ -1473,21 +1622,41 @@ function initViz(){
         ctx.translate(mapOffsetX, mapOffsetY);
         ctx.scale(mapScale, mapScale);
 
+        // Match the current on-screen zoom/pan so the download reflects what the user sees.
+        const zoomOn = mapZoomActive && (mapZoom.k!==1 || mapZoom.tx!==0 || mapZoom.ty!==0);
+
+        ctx.save();
+        if(zoomOn){
+            ctx.translate(mapZoom.tx, mapZoom.ty);
+            ctx.scale(mapZoom.k, mapZoom.k);
+        }
         const pathGen=d3.geoPath().context(ctx);
         pathGen.projection(mapProjection);
+        const effectiveHovered=hoveredCountry?resolveGeoName(hoveredCountry):null;
         worldGeoJson.features.forEach(feat=>{
             const name=feat.properties.name;
             const resolved=resolveGeoName(name);
             ctx.beginPath(); pathGen(feat);
-            ctx.fillStyle=`rgba(61,61,49,${countryBinAlpha(countryCounts[resolved]||0)})`;
+            const isSelected=(selectedCountry&&resolved===selectedCountry)||(particleClickCountry&&resolved===particleClickCountry);
+            const isHovered=!isSelected&&resolved===effectiveHovered;
+            if(isSelected||isHovered){
+                ctx.fillStyle='rgba(61,61,49,1)';
+            } else {
+                ctx.fillStyle=`rgba(61,61,49,${countryBinAlpha(countryCounts[resolved]||0)})`;
+            }
             ctx.fill();
         });
+        ctx.restore();
 
+        // Particle dots scale by sqrt(zoom), matching the on-screen Particle.display() behavior.
+        const zoomMult = (mapZoomActive && mapZoom.k>1) ? Math.sqrt(mapZoom.k) : 1;
         particles.forEach((pt,i)=>{
             const pos=particleMapPos[i];
             if(!pos) return;
+            const px = zoomOn ? (pos.x*mapZoom.k+mapZoom.tx) : pos.x;
+            const py = zoomOn ? (pos.y*mapZoom.k+mapZoom.ty) : pos.y;
             ctx.beginPath();
-            ctx.arc(pos.x, pos.y, pt.size/2, 0, Math.PI*2);
+            ctx.arc(px, py, (pt.size*zoomMult)/2, 0, Math.PI*2);
             ctx.fillStyle=pt.color;
             ctx.strokeStyle='#fff'; ctx.lineWidth=0.5;
             ctx.fill(); ctx.stroke();
@@ -1840,14 +2009,32 @@ function initViz(){
         }
 
         if(heroZoomOverrideActive){
+            if(zoomOutTransitionPending) return;
             heroZoomOverrideActive=false;
+            _heroZoomAutoTriggered=false;
+            zoomOutTransitionPending=true;
+
             const canvasEl=document.getElementById('p5-canvas');
             canvasEl.style.transition='none';
-            document.getElementById('hero-text').style.transition='none';
+            const heroElOff=document.getElementById('hero-text');
+            heroElOff.style.transition=`transform ${HERO_ZOOM_ANIM_MS}ms cubic-bezier(0.33,1,0.68,1)`;
+            heroElOff.style.transform='translateY(0)';
+            heroElOff.style.opacity='1';
+            heroElOff.style.pointerEvents='';
             const hgEl=document.getElementById('hero-map-gradient');
             if(hgEl) hgEl.style.transition='none';
             const hintElOff=document.getElementById('hero-scroll-hint');
             if(hintElOff) hintElOff.style.transition='none';
+
+            // Ease the zoom back to 1 (rather than snapping it) while the scroll that
+            // triggered this plays out underneath — same duration as the zoom-in.
+            gentleZoomOut(()=>{
+                zoomOutTransitionPending=false;
+                hideMapChrome();
+                resetMapZoom();
+                if(p5Instance&&particleMapPos.length) placeParticlesOnMap();
+            }, HERO_ZOOM_ANIM_MS);
+
             const heroSectionEl=document.querySelector('.scroll-section[data-section="s0-hero"]');
             const heroHpx=heroSectionEl?heroSectionEl.offsetHeight:window.innerHeight;
             const targetScroll=heroHpx*0.5+2;
@@ -1882,7 +2069,7 @@ function initViz(){
                     _zoomTipPopupVisible=false;
                 } else if(scrolled>0 && slideT<1){
                     tipEl.classList.remove('idle-faded');
-                    tipEl.style.top=(canvasOffsetPx + vh/2)+'px';
+                    updateZoomTipPosition();
                     if(!tipEl.classList.contains('visible')){
                         tipEl.classList.add('visible');
                         _zoomTipPopupVisible=true;
@@ -2003,10 +2190,16 @@ function initViz(){
             _counterOnScreen = (scrolled >= vh * 0.2 && scrolled < vh * 1.0);
             updateZoomTipVisibility();
 
+            // While the map is zoomed in, favor full-color dots and hide the
+            // counter (it fades back in / the dim returns once zoomed back out).
+            const zoomedIn = mapZoomActive && mapZoom.k > 1.05;
+            if(zoomedIn) overviewAlpha = 1;
+
             const counterTop = vh * 1.1 - scrolled;
             statsEl.style.top = counterTop + 'px';
             statsEl.style.transform = 'translate(-50%, -50%)';
-            statsEl.style.opacity = '1';
+            statsEl.style.transition = 'opacity 0.3s ease';
+            statsEl.style.opacity = zoomedIn ? '0' : '1';
 
             const introTop = vh * 1.9 - scrolled;
             introEl.style.top = introTop + 'px';
@@ -2060,8 +2253,7 @@ function initViz(){
                             document.getElementById('info-btn').style.display='none';
                             document.getElementById('data-source-label').style.display='flex';
                             mapZoomActive=true;
-                            document.getElementById('zoom-tip-popup').classList.add('visible');
-                            updateZoomTipVisibility();
+                            // The Region section never shows the zoom tip popup.
                         }
                     }
                 }
@@ -2077,11 +2269,14 @@ function initViz(){
         if(!mapZoomActive) return;
         if(e.target && e.target.closest && e.target.closest('#map-proj-btn, #print-btn, #skip-btn, #info-btn, #zoom-controls, #section-nav, #map-proj-popup, #pinned-tooltip, #country-name-display')) return;
         if(currentSection==='s0-hero' && !heroZoomOverrideActive && !_zoomUIRevealed){
-            if(heroSlideT<1){
-                smoothlyCenterHeroMap(()=>{ activateHeroZoomOverride(); });
-                return;
-            }
-            activateHeroZoomOverride();
+            // Only a "zoom in" gesture should trigger the entry animation. Without this
+            // check, the tail end of a zoom-OUT gesture that crosses back below the exit
+            // threshold gets reinterpreted as a fresh "enter" request on the very next
+            // wheel tick, so the map appears to bounce back in right after exiting.
+            const dyCheck=e.deltaY;
+            if(dyCheck>=0) return;
+            animateHeroZoomEnter(()=>{ activateHeroZoomOverride(); });
+            return;
         }
         const cx=e.clientX, cy=e.clientY-canvasOffsetPx;
         const k0=mapZoom.k;
@@ -2091,6 +2286,7 @@ function initViz(){
         mapZoom.tx=cx-(cx-mapZoom.tx)*(mapZoom.k/k0);
         mapZoom.ty=cy-(cy-mapZoom.ty)*(mapZoom.k/k0);
         clampZoom(); applyZoomToParticles();
+        refreshStatsCounterForZoom();
         if(heroZoomOverrideActive && currentSection==='s0-hero' && mapZoom.k<=1.001){
             exitHeroZoomOverride();
         }
@@ -2120,14 +2316,11 @@ function initViz(){
             const dx=e.touches[1].clientX-e.touches[0].clientX;
             const dy=e.touches[1].clientY-e.touches[0].clientY;
             _drag.down=false;
-            if(currentSection==='s0-hero' && !heroZoomOverrideActive && !_zoomUIRevealed && heroSlideT<1){
+            if(currentSection==='s0-hero' && !heroZoomOverrideActive && !_zoomUIRevealed){
                 _pinch={active:false,dist:Math.hypot(dx,dy),k0:mapZoom.k,tx0:mapZoom.tx,ty0:mapZoom.ty};
-                smoothlyCenterHeroMap(()=>{ activateHeroZoomOverride(); });
+                animateHeroZoomEnter(()=>{ activateHeroZoomOverride(); });
             } else {
                 _pinch={active:true,dist:Math.hypot(dx,dy),k0:mapZoom.k,tx0:mapZoom.tx,ty0:mapZoom.ty};
-                if(currentSection==='s0-hero' && !heroZoomOverrideActive && !_zoomUIRevealed){
-                    activateHeroZoomOverride();
-                }
             }
         }
         e.preventDefault();
@@ -2146,6 +2339,7 @@ function initViz(){
             mapZoom.tx=cx-(cx-_pinch.tx0)*(mapZoom.k/k0);
             mapZoom.ty=cy-(cy-_pinch.ty0)*(mapZoom.k/k0);
             clampZoom(); syncSlider(); applyZoomToParticles();
+            refreshStatsCounterForZoom();
             if(heroZoomOverrideActive && currentSection==='s0-hero' && mapZoom.k<=1.001){
                 exitHeroZoomOverride();
             }
@@ -2181,7 +2375,7 @@ function drawMap(p, alpha){
         ctx.beginPath(); pathGen(feat);
         const resolvedName=resolveGeoName(name);
         const effectiveHovered=hoveredCountry?resolveGeoName(hoveredCountry):null;
-        const isSelected=selectedCountry&&resolvedName===selectedCountry;
+        const isSelected=(selectedCountry&&resolvedName===selectedCountry)||(particleClickCountry&&resolvedName===particleClickCountry);
         const isHovered=!isSelected&&resolvedName===effectiveHovered;
         if(isSelected||isHovered){
             ctx.fillStyle=`rgba(61,61,49,${a})`;
@@ -2253,6 +2447,24 @@ function updateZoomTipVisibility(){
     _zoomTipPopupVisible = !suppressed;
 }
 
+const ZOOM_TIP_IDLE_MS = 2000;
+// Shows the zoom tip and unconditionally arms its auto-hide: it disappears
+// ZOOM_TIP_IDLE_MS after being shown (or after the last scroll), even if the
+// user never scrolls at all — rather than only fading via scroll activity.
+function showZoomTipPopup(){
+    const tipEl=document.getElementById('zoom-tip-popup');
+    if(!tipEl) return;
+    tipEl.classList.add('visible');
+    tipEl.classList.remove('idle-faded');
+    _zoomTipIdle=false;
+    updateZoomTipVisibility();
+    clearTimeout(_zoomTipIdleTimer);
+    _zoomTipIdleTimer=setTimeout(()=>{
+        _zoomTipIdle=true;
+        updateZoomTipVisibility();
+    }, ZOOM_TIP_IDLE_MS);
+}
+
 let _scrollLockActive=false, _scrollLockTimer=null;
 function _blockScrollEvent(e){ e.preventDefault(); }
 function _blockScrollKeys(e){
@@ -2315,6 +2527,15 @@ function deactivateMapZoomUI(){
     if(p5Instance&&particleMapPos.length) placeParticlesOnMap();
 }
 
+/* Re-run the s1-stats counter/dim scroll logic after a zoom change (wheel/pinch/
+   buttons don't fire a 'scroll' event themselves, so the counter fade + full-color
+   map tied to zoom level wouldn't otherwise update until the next real scroll). */
+function refreshStatsCounterForZoom(){
+    if(currentSection==='s1-stats'){
+        window.dispatchEvent(new Event('scroll'));
+    }
+}
+
 function resetMapZoom(){
     mapZoom={k:1,tx:0,ty:0};
     _drag={down:false,x:0,y:0,tx:0,ty:0};
@@ -2358,6 +2579,7 @@ function showPinned(p){
     selectedCountry=null; selectedCountryParticles.clear();
     document.getElementById('country-name-display').style.opacity='0';
     selectedParticle=p;
+    particleClickCountry = worldGeoJson ? particleCountryGeoName(p) : null;
     _pinnedShownAt=Date.now();
     document.getElementById('pt-title').textContent=p.title;
     const ptNatureText=p.data['Primary Nature Type']||'';
@@ -2371,6 +2593,7 @@ function showPinned(p){
 }
 function hidePinned(){
     selectedParticle=null;
+    particleClickCountry=null;
     document.getElementById('pinned-tooltip').style.display='none';
 }
 
@@ -2444,17 +2667,12 @@ function typewrite(text, onDone, isHTML){
 
     if(isHTML) animateNarrativeNumbers(200);
 
+    // Text appears instantly (no per-line fade/stagger) — it should just be there
+    // as you scroll, not animate in.
     const lines=box.querySelectorAll('.fade-line');
-    const FADE_DURATION=450;
-    lines.forEach((line,i)=>{
-        const t=setTimeout(()=>{
-            line.classList.add('revealed');
-        }, 120+i*160);
-        typewriterTimers.push(t);
-    });
+    lines.forEach(line=>line.classList.add('revealed'));
     if(onDone){
-        const lastLineDelay=120+(lines.length-1)*160;
-        const t=setTimeout(onDone, lastLineDelay+FADE_DURATION);
+        const t=setTimeout(onDone, 0);
         typewriterTimers.push(t);
     }
 }
@@ -2777,6 +2995,9 @@ function onSectionEnter(sec){
         pb.classList.remove('btn-visible');
     } else {
         pb.classList.add('btn-visible');
+        pb.style.pointerEvents = '';
+        pb.style.opacity = '';
+        pb.style.transition = '';
     }
 
     if(sec!=='s1-stats'){
@@ -2827,8 +3048,7 @@ function onSectionEnter(sec){
             document.getElementById('zoom-controls').classList.add('visible');
             document.getElementById('map-proj-btn').style.display='flex';
             document.getElementById('data-source-label').style.display='flex';
-            document.getElementById('zoom-tip-popup').classList.add('visible');
-            updateZoomTipVisibility();
+            showZoomTipPopup();
             if(window.parent !== window) window.parent.postMessage('ejm:reset', '*');
             break;
 
@@ -2839,8 +3059,9 @@ function onSectionEnter(sec){
             if(worldGeoJson) worldGeoJson.features.forEach(f=>{ const r=resolveGeoName(f.properties.name); if(countryCounts[r]>0) highlightCountries.add(f.properties.name); });
             document.getElementById('map-proj-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
             document.getElementById('zoom-controls').classList.add('visible');
-            document.getElementById('zoom-tip-popup').classList.add('visible');
-            updateZoomTipVisibility();
+            // The Region section never shows the zoom tip popup.
+            document.getElementById('zoom-tip-popup').classList.remove('visible','idle-faded');
+            clearTimeout(_zoomTipIdleTimer);
             mapZoomActive=true;
             const total4=particles.length||1;
             const americas=particles.filter(p=>p.data.Region==='North America'||p.data.Region==='Latin America').length;
@@ -2912,6 +3133,7 @@ function onSectionEnter(sec){
             if(window.parent !== window) window.parent.postMessage('ejm:done', '*');
             break;
     }
+    updateZoomTipPosition();
 }
 
 /* OBSERVER */
@@ -2952,7 +3174,7 @@ function setupObserver(){
                 return;
             }
             if(sec!==currentSection){
-                if(currentSection==='s1-stats' && mapZoomActive && mapZoom.k>1.01){
+                if((currentSection==='s1-stats' || currentSection==='s0-hero') && mapZoomActive && mapZoom.k>1.01){
                     zoomOutTransitionPending=true;
                     pendingSec=sec;
                     gentleZoomOut(()=>{
@@ -2991,7 +3213,7 @@ function setupObserver(){
         _zoomTipIdleTimer=setTimeout(()=>{
             _zoomTipIdle=true;
             updateZoomTipVisibility();
-        }, 500);
+        }, ZOOM_TIP_IDLE_MS);
     }, {passive:true});
 
 }
