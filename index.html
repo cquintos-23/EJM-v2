@@ -149,7 +149,7 @@
     #scroll-down-btn {
         position:fixed; bottom:36px; left:36px; z-index:50; display:flex;
         align-items:center; justify-content:center;
-        box-sizing:border-box; padding:0; height:44px; width:44px;
+        box-sizing:border-box; padding:0; height:36px; width:36px;
         background:transparent; border:none;
         pointer-events:none; cursor:default; box-shadow:none;
         opacity:0; transition:opacity 0.3s ease;
@@ -221,6 +221,10 @@
     .chart-label.axis { pointer-events:auto; cursor:default; padding:4px 6px; margin:0; text-decoration:none; }
     .chart-label.axis.clickable { cursor:pointer; color:#3D3D31; }
     .chart-label.axis.clickable:hover { text-decoration:underline; }
+    .chart-label.axis.country-dark-overlap {
+        background:rgba(255,255,255,0.55);
+        border-radius:4px;
+    }
 
     #tooltip {
         position:fixed; background:#FBFBEE; color:#3D3D31;
@@ -264,7 +268,7 @@
     #pinned-tooltip {
         position:fixed; background:#FBFBEE; color:#3D3D31;
         padding:10px 14px; border-radius:4px; font-family:'Geist',sans-serif;
-        font-size:var(--sz-small); pointer-events:auto; z-index:2000; width:260px; max-width:260px;
+        font-size:var(--sz-small); pointer-events:auto; z-index:2200; width:260px; max-width:260px;
         line-height:1.5; display:none; box-shadow:0 4px 16px rgba(0,0,0,.25);
         border-left:6px solid var(--pt-accent,#8ECBF0);
     }
@@ -357,7 +361,7 @@
         #initiative-carousel { width: calc(100% - 10px) !important; }
 
         #skip-btn { bottom: 20px; right: 16px; padding: 8px 16px; height: 36px; }
-        #scroll-down-btn { bottom: 20px; left: 16px; height: 40px; width: 40px; }
+        #scroll-down-btn { bottom: 20px; left: 16px; height: 36px; width: 36px; }
         #print-btn { top: 16px; right: calc(16px + 32px + 4px); width: 32px; height: 32px; }
 
         #section-nav { right: 12px; gap: 8px; }
@@ -605,7 +609,7 @@
 <button id="skip-btn">Skip</button>
 <button id="scroll-down-btn" aria-hidden="true">
     <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M8 2.5V13.5M8 13.5L3.5 9M8 13.5L12.5 9" stroke="#B5B5B1" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M8 2.5V13.5M8 13.5L3.5 9M8 13.5L12.5 9" stroke="#757559" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
 </button>
 <button id="map-proj-btn"><img src="Globe.svg" alt="Map Projection"></button>
@@ -676,7 +680,7 @@
     <div id="explore-inner">
         <div id="explore-explainer">
             <h2 id="explore-heading">What is Ecological Jurisprudence?</h2>
-            <p id="explore-subtext">This is an approach to law that recognizes humans are part of Earth's systems and challenges traditional frameworks that treat nature as property. It encompasses Rights of Nature, Indigenous laws, responsibility-based governance, and policies informed by ecological science and Traditional Ecological Knowledge.</p>
+            <p id="explore-subtext">An approach to law that recognizes humans are part of Earth's systems and challenges traditional frameworks that treat nature as property. It encompasses Rights of Nature, Indigenous laws, responsibility-based governance, and policies informed by ecological science and Traditional Ecological Knowledge. Explore some key initiatives.</p>
         </div>
         <div id="initiative-carousel">
             <!-- Cards injected by JS once data loads -->
@@ -1051,6 +1055,12 @@ const REGION_URLS={
 };
 const YEAR_URLS={};
 for(let y=2006;y<=2026;y++){ YEAR_URLS[y]=`https://ecojurisprudence.org/?post_type=ejm_initiative&_ejm_year=${y}`; }
+const STATUS_URLS={
+    'Approved':'https://ecojurisprudence.org/?post_type=ejm_initiative&_ejm_status=approved',
+    'Drafted':'https://ecojurisprudence.org/?post_type=ejm_initiative&_ejm_status=drafted',
+    'Submitted':'https://ecojurisprudence.org/?post_type=ejm_initiative&_ejm_status=submitted',
+    'Failed':'https://ecojurisprudence.org/?post_type=ejm_initiative&_ejm_status=failed'
+};
 const FRAMEWORK_URLS={
     'Constitution':'https://ecojurisprudence.org/legal-provision/constitution/',
     'Legislation':'https://ecojurisprudence.org/legal-provision/legislation/',
@@ -1349,6 +1359,7 @@ function initViz(){
                 const baseAlpha=overviewFade?overviewAlpha:1;
                 drawMap(p, baseAlpha*mapAlpha);
             }
+            updateCountryLabelContrast();
             if(overviewFade) ctx.globalAlpha=overviewAlpha;
             if(particlesPlaced) particles.forEach(pt=>{pt.update();pt.display();});
             if(overviewFade) ctx.globalAlpha=1.0;
@@ -2355,6 +2366,41 @@ function initViz(){
     });
 }
 
+/* Keep any bar-chart-style labels legible when they visually overlap a
+   darkened (selected or hovered) country on the map. Only labels whose
+   on-screen bounding box actually intersects the dark country's bounding
+   box are switched to white; all others keep their normal color. */
+function countryScreenBBox(resolvedName){
+    if(!worldGeoJson||!mapProjection||!resolvedName) return null;
+    const feat=worldGeoJson.features.find(f=>resolveGeoName(f.properties.name)===resolvedName);
+    if(!feat) return null;
+    const pathGen=d3.geoPath().projection(mapProjection);
+    const b=pathGen.bounds(feat);
+    if(!b) return null;
+    const k=mapZoom.k||1, tx=mapZoom.tx||0, ty=mapZoom.ty||0;
+    const x0=b[0][0]*k+tx, y0=b[0][1]*k+ty;
+    const x1=b[1][0]*k+tx, y1=b[1][1]*k+ty;
+    return {
+        left:Math.min(x0,x1), right:Math.max(x0,x1),
+        top:Math.min(y0,y1)+canvasOffsetPx, bottom:Math.max(y0,y1)+canvasOffsetPx
+    };
+}
+function rectsOverlap(a,b){
+    return a.left<b.right && a.right>b.left && a.top<b.bottom && a.bottom>b.top;
+}
+function updateCountryLabelContrast(){
+    const axisEls=document.querySelectorAll('#axis-labels-container .chart-label.axis');
+    if(!axisEls.length) return;
+    const activeCountry=selectedCountry||hoveredCountry;
+    const cbox=activeCountry?countryScreenBBox(activeCountry):null;
+    axisEls.forEach(el=>{
+        if(!cbox){ el.classList.remove('country-dark-overlap'); return; }
+        const r=el.getBoundingClientRect();
+        const overlap=rectsOverlap(cbox,{left:r.left,right:r.right,top:r.top,bottom:r.bottom});
+        el.classList.toggle('country-dark-overlap', overlap);
+    });
+}
+
 /* MAP DRAWING */
 function countryBinAlpha(count){
     if(count>=1) return 0.20;
@@ -2744,7 +2790,7 @@ function addAxisLabel(text,x,opts={}){
     el.addEventListener('mousemove',e=>{ct.style.left=(e.clientX+10)+'px';ct.style.top=(e.clientY-36)+'px';});
     el.addEventListener('mouseleave',()=>ct.style.display='none');
     if(opts.clickable){
-        const clickUrl=opts.year!=null?YEAR_URLS[opts.year]:(opts.nature!=null?NATURE_URLS[opts.nature]:REGION_URLS[opts.region]);
+        const clickUrl=opts.year!=null?YEAR_URLS[opts.year]:(opts.nature!=null?NATURE_URLS[opts.nature]:(opts.status!=null?STATUS_URLS[opts.status]:REGION_URLS[opts.region]));
         el.addEventListener('click',()=>window.open(clickUrl,'_blank'));
     }
     document.getElementById('axis-labels-container').appendChild(el);
@@ -2759,9 +2805,11 @@ function hide(id){document.getElementById(id).style.opacity='0';}
 
 /* LANDMARK HIGHLIGHT POPUPS */
 let _savedParticleDuringLandmark=null;
+let _lmSession=0;
 
 function showLandmarkPopups(){
     landmarkMode=true;
+    _lmSession++;
     _savedParticleDuringLandmark=selectedParticle;
     if(selectedParticle){
         selectedParticle=null;
@@ -2792,15 +2840,26 @@ function showLandmarkPopups(){
 }
 function hideLandmarkPopups(){
     landmarkMode=false;
+    const container=document.getElementById('lm-popups');
+    // Nothing currently shown (e.g. this is just the routine call made on every
+    // section entry) — bail out without scheduling a cleanup timer below, since
+    // that stray timer is what was wiping out popups a later showLandmarkPopups()
+    // call had just created.
+    if(!container.children.length) return;
     document.querySelectorAll('.landmark-popup').forEach(el=>{
         el.classList.remove('visible');
     });
+    // Restore any manually-pinned particle right away (not after the popup
+    // fade-out delay below) so the dots switch directly from the landmark
+    // highlight to the manual highlight, with no moment of nothing highlighted.
+    if(_savedParticleDuringLandmark){
+        showPinned(_savedParticleDuringLandmark);
+        _savedParticleDuringLandmark=null;
+    }
+    const mySession=_lmSession;
     setTimeout(()=>{
-        document.getElementById('lm-popups').innerHTML='';
-        if(_savedParticleDuringLandmark){
-            showPinned(_savedParticleDuringLandmark);
-            _savedParticleDuringLandmark=null;
-        }
+        // Only clear if a new set of popups hasn't been shown in the meantime.
+        if(_lmSession===mySession) container.innerHTML='';
     },420);
 }
 function positionLandmarkPopups(show){
@@ -3085,7 +3144,16 @@ function onSectionEnter(sec){
             fadeOutMap(()=>highlightCountries.clear()); showCountryFills=false; hoveredCountry=null;
             document.getElementById('info-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
             typewrite('Several landmark initiatives helped shape its global expansion.', ()=>{
-                setTimeout(showLandmarkPopups, 300);
+                // Guarantee the year-chart layout has actually run before we try to
+                // show the landmark popups — otherwise the landmark particles may
+                // still be unplaced/invisible (layout is normally only triggered by
+                // scroll position) and the popups silently fail to appear.
+                if(_pendingLayout && _pendingLayout.fn===layoutByYear && !_pendingLayout.triggered){
+                    _pendingLayout.triggered=true;
+                }
+                layoutByYear();
+                const _lmT=setTimeout(showLandmarkPopups, 300);
+                typewriterTimers.push(_lmT);
             }, true);
             _pendingLayout={fn:layoutByYear, triggered:false};
             break;
@@ -3101,7 +3169,7 @@ function onSectionEnter(sec){
         case 's7-status':{
             fadeOutMap(()=>highlightCountries.clear()); showCountryFills=false;
             document.getElementById('info-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
-            typewrite(`Ecological jurisprudence is an evolving field. <strong>63%</strong> of initiatives are adopted, <strong>15%</strong> have been unsuccessful or overturned, and <strong>22%</strong> are in progress.`, null, true);
+            typewrite(`Ecological jurisprudence is an evolving field. <strong>63%</strong> of initiatives are approved, <strong>15%</strong> have failed, and <strong>22%</strong> have been drafted/submitted.`, null, true);
             _pendingLayout={fn:layoutByStatus, triggered:false};
             break;}
 
@@ -3475,7 +3543,7 @@ function layoutByStatus(){
     keys.forEach(s=>{
         sortByNature(st[s]);
         const labelCx=cx+barW/2;
-        addAxisLabel(s,labelCx,{count:st[s].length});
+        addAxisLabel(s,labelCx,{count:st[s].length,clickable:true,status:s});
         const colsUsed=Math.min(st[s].length,maxCols);
         const dotStartX=labelCx-(colsUsed-1)*dotSp/2;
         st[s].forEach((p,j)=>{p.frozen=false;p.setTarget(dotStartX+(j%maxCols)*dotSp,bottom-Math.floor(j/maxCols)*dotSp,true);});
@@ -3491,6 +3559,7 @@ function layoutByNature(){
     const isMobile=w<700;
     const groups={'Nature':[],'Plant':[],'Animal':[],'Water':[],'Land':[]};
     particles.forEach(p=>groups[getNatureCat(p.data['Primary Nature Type'])].push(p));
+    NATURE_ORDER.forEach(k=>sortByYear(groups[k]));
     const keys=NATURE_ORDER.filter(k=>groups[k].length);
     const dotSp=isMobile?6:8, maxCols=isMobile?6:8;
     const barW=maxCols*dotSp;
