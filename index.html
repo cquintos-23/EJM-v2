@@ -478,7 +478,7 @@
         line-height:1.55; color:var(--color-off-black); margin:0;
     }
     #initiative-carousel {
-        display:flex; gap:6px; width:calc(100% - 80px);
+        display:flex; gap:6px; width:calc(100% - 60px);
         height:380px; overflow:hidden; border-radius:12px;
     }
 
@@ -646,8 +646,9 @@
 
 <!-- Hero heading (visible on load, scrolls away) -->
 <div id="hero-text">
-    <h1>Explore the definitive tracker for<br>ecocentric laws around the world</h1>
-    <div class="hero-btns" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+    <h1 style="display:none;">Explore the definitive tracker for<br>ecocentric laws around the world</h1>
+    <!-- Hidden for now per request — kept in markup so it's easy to bring back. -->
+    <div class="hero-btns" style="display:none;gap:10px;justify-content:center;flex-wrap:wrap;">
         <a href="https://ecojurisprudence.org/?post_type=ejm_initiative" target="_blank" class="hero-btn" style="background-color:transparent;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;height:40px;width:auto;min-width:160px;border:1px solid #D1D1BF;border-radius:8px;font-family:'Geist',sans-serif;font-weight:500;font-size:16px;line-height:20px;color:#757559;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none;text-transform:none;">Go to More Charts</a>
         <a href="https://ecojurisprudence.org/?post_type=ejm_initiative" target="_blank" class="hero-btn" style="background-color:transparent;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;height:40px;width:auto;min-width:160px;border:1px solid #D1D1BF;border-radius:8px;font-family:'Geist',sans-serif;font-weight:500;font-size:16px;line-height:20px;color:#757559;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none;text-transform:none;">Go to Initiative Index</a>
     </div>
@@ -755,16 +756,10 @@ let currentSection='s0-hero';
 let landmarkMode=false;
 let _pendingLayout=null;
 
-/* Landmark initiative titles for the s5-year-b highlight sequence */
-const LANDMARK_TITLES=new Set([
-    'Ecuador Constitution of 2008: rights of nature',
-    'New Zealand Te Awa Tupua (Whanganui River Claims Settlement) Act 2017',
-    'Spain Mar Menor Law of 2022',
-]);
-function isLandmarkTitle(title){
-    if(LANDMARK_TITLES.has(title)) return true;
-    const t=(title||'').toLowerCase();
-    return t.includes('ecuador constitution of 2008')||t.includes('new zealand whanganui river')||t.includes('spain national mar menor');
+/* Landmark initiative IDs (from the "ID" column) for the s5-year-b highlight sequence */
+const LANDMARK_IDS=new Set(['3','127','268']);
+function isLandmarkId(id){
+    return LANDMARK_IDS.has(String(id||'').trim());
 }
 let p5Instance, worldGeoJson=null, mapProjection=null;
 let particlesPlaced=false;
@@ -1281,7 +1276,7 @@ class Particle {
         const isSel=selectedParticle===this, hasSel=selectedParticle!==null;
         const isCountrySel=selectedCountryParticles.has(this);
         const hasCountrySel=selectedCountry!==null;
-        const isLandmark=landmarkMode&&isLandmarkTitle(this.title);
+        const isLandmark=landmarkMode&&isLandmarkId(this.data&&this.data.ID);
         const zoomMult=(mapZoomActive&&mapZoom.k>1)?Math.sqrt(mapZoom.k):1;
         p5Instance.stroke(255); p5Instance.strokeWeight(0.5);
         if(landmarkMode){
@@ -2817,11 +2812,11 @@ function showLandmarkPopups(){
     }
     const container=document.getElementById('lm-popups');
     container.innerHTML='';
-    const landmarks=particles.filter(p=>isLandmarkTitle(p.title));
+    const landmarks=particles.filter(p=>isLandmarkId(p.data&&p.data.ID));
     landmarks.forEach(lm=>{
         const el=document.createElement('div');
         el.className='landmark-popup';
-        el.dataset.particleTitle=lm.title;
+        el.dataset.particleId=lm.data&&lm.data.ID;
         el.style.setProperty('--lm-accent', lm.color);
         const ptNatureText=lm.data['Primary Nature Type']||'';
         const metaHtml=`${lm.data['Primary Year']||'—'} · ${lm.data['Status']||'—'}`+(ptNatureText?` · <span style="color:${lm.color};font-weight:600">${ptNatureText}</span>`:'');
@@ -2865,9 +2860,8 @@ function hideLandmarkPopups(){
 function positionLandmarkPopups(show){
     const entries=[];
     document.querySelectorAll('.landmark-popup').forEach(el=>{
-        const title=el.dataset.particleTitle;
-        const lm=particles.find(p=>isLandmarkTitle(p.title)&&p.title===title)||
-                  particles.find(p=>isLandmarkTitle(p.title)&&(p.title||'').toLowerCase().includes((title||'').toLowerCase()));
+        const id=el.dataset.particleId;
+        const lm=particles.find(p=>isLandmarkId(p.data&&p.data.ID)&&String(p.data&&p.data.ID)===String(id));
         if(!lm||!lm.visible) return;
         const elH=el.offsetHeight||100;
         const elW=el.offsetWidth||260;
@@ -3063,7 +3057,16 @@ function onSectionEnter(sec){
         const introEl=document.getElementById('intro-textbox');
         if(introEl){ introEl.style.opacity='0'; }
         const statsEl=document.getElementById('stats-display');
-        if(statsEl){ statsEl.style.top='50%'; statsEl.style.transform='translate(-50%,-50%)'; statsEl.style.opacity='0'; }
+        if(statsEl){
+            // Snap out instantly rather than fading: the "top" position was just
+            // recentered to 50% with no transition, so an inherited opacity
+            // transition would fade the counter in fully at that new center-screen
+            // position for a moment before disappearing (a visible flash).
+            statsEl.style.transition='none';
+            statsEl.style.top='50%'; statsEl.style.transform='translate(-50%,-50%)'; statsEl.style.opacity='0';
+            void statsEl.offsetWidth;
+            statsEl.style.transition='';
+        }
     }
 
     switch(sec){
