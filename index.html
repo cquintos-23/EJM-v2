@@ -551,6 +551,7 @@
         color:var(--color-off-black);
         text-align:center; margin:0;
     }
+    #hero-text h1 .hero-line { display:block; white-space:nowrap; }
     #hero-text .hero-btns {
         pointer-events:auto;
         position:absolute;
@@ -562,7 +563,6 @@
     #hero-text .hero-btns.positioned { opacity:1; }
     @media (max-width: 768px) {
         #hero-text { padding:3vh 6vw 0; }
-        #hero-text h1 { font-size:clamp(26px, 8.4vw, 43px); }
     }
     #hero-scroll-hint { display:none; }
 
@@ -646,9 +646,8 @@
 
 <!-- Hero heading (visible on load, scrolls away) -->
 <div id="hero-text">
-    <h1 style="display:none;">Explore the definitive tracker for<br>ecocentric laws around the world</h1>
-    <!-- Hidden for now per request — kept in markup so it's easy to bring back. -->
-    <div class="hero-btns" style="display:none;gap:10px;justify-content:center;flex-wrap:wrap;">
+    <h1><span class="hero-line">Explore the definitive tracker for</span><span class="hero-line">ecocentric laws around the world</span></h1>
+    <div class="hero-btns" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
         <a href="https://ecojurisprudence.org/?post_type=ejm_initiative" target="_blank" class="hero-btn" style="background-color:transparent;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;height:40px;width:auto;min-width:160px;border:1px solid #D1D1BF;border-radius:8px;font-family:'Geist',sans-serif;font-weight:500;font-size:16px;line-height:20px;color:#757559;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none;text-transform:none;">Go to More Charts</a>
         <a href="https://ecojurisprudence.org/?post_type=ejm_initiative" target="_blank" class="hero-btn" style="background-color:transparent;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;height:40px;width:auto;min-width:160px;border:1px solid #D1D1BF;border-radius:8px;font-family:'Geist',sans-serif;font-weight:500;font-size:16px;line-height:20px;color:#757559;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none;text-transform:none;">Go to Initiative Index</a>
     </div>
@@ -1224,6 +1223,8 @@ function buildProjection(w,h){
 }
 
 /* HERO BUTTON POSITIONING */
+const HERO_TITLE_MAX_PX=50;
+const HERO_TITLE_MIN_PX=20;
 layoutHeroButtons();
 window.addEventListener('resize', layoutHeroButtons);
 if(document.fonts && document.fonts.ready){ document.fonts.ready.then(layoutHeroButtons); }
@@ -1311,11 +1312,29 @@ class Particle {
 }
 
 /* P5 INIT */
+function fitHeroTitle(){
+    const heroEl=document.getElementById('hero-text');
+    const h1=heroEl && heroEl.querySelector('h1');
+    const lines=h1 && [...h1.querySelectorAll('.hero-line')];
+    if(!heroEl || !h1 || !lines || !lines.length) return;
+    // Shrink font so the widest line fits, instead of wrapping to a 3rd line.
+    h1.style.fontSize=HERO_TITLE_MAX_PX+'px';
+    const cs=getComputedStyle(heroEl);
+    const padL=parseFloat(cs.paddingLeft)||0, padR=parseFloat(cs.paddingRight)||0;
+    const available=heroEl.clientWidth - padL - padR;
+    let widest=0;
+    lines.forEach(l=>{ widest=Math.max(widest, l.scrollWidth); });
+    if(widest>available && widest>0){
+        const size=Math.max(HERO_TITLE_MIN_PX, HERO_TITLE_MAX_PX*(available/widest));
+        h1.style.fontSize=size+'px';
+    }
+}
 function layoutHeroButtons(){
     const heroEl=document.getElementById('hero-text');
     const h1=heroEl && heroEl.querySelector('h1');
     const btns=heroEl && heroEl.querySelector('.hero-btns');
     if(!heroEl || !h1 || !btns) return;
+    fitHeroTitle();
     const prevTransform=heroEl.style.transform;
     heroEl.style.transform='translateY(0)';
     const vh=window.innerHeight;
@@ -3058,10 +3077,7 @@ function onSectionEnter(sec){
         if(introEl){ introEl.style.opacity='0'; }
         const statsEl=document.getElementById('stats-display');
         if(statsEl){
-            // Snap out instantly rather than fading: the "top" position was just
-            // recentered to 50% with no transition, so an inherited opacity
-            // transition would fade the counter in fully at that new center-screen
-            // position for a moment before disappearing (a visible flash).
+            // Snap out instantly to avoid a fade-flash at the recentered position.
             statsEl.style.transition='none';
             statsEl.style.top='50%'; statsEl.style.transform='translate(-50%,-50%)'; statsEl.style.opacity='0';
             void statsEl.offsetWidth;
