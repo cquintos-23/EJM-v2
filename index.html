@@ -358,7 +358,7 @@
         #explore-heading { font-size: 18px !important; line-height: 28px !important; }
         #explore-subtext { font-size: 14px !important; }
         .narrative-scroll-box { left: 3vw !important; max-width: 80vw !important; }
-        #initiative-carousel { width: calc(100% - 10px) !important; }
+        #initiative-carousel { width:auto !important; margin-left:5px !important; margin-right:5px !important; }
 
         #skip-btn { bottom: 20px; right: 16px; padding: 8px 16px; height: 36px; }
         #scroll-down-btn { bottom: 20px; left: 16px; height: 36px; width: 36px; }
@@ -478,14 +478,16 @@
         line-height:1.55; color:var(--color-off-black); margin:0;
     }
     #initiative-carousel {
-        display:flex; gap:6px; width:calc(100% - 60px);
+        display:flex; gap:6px;
+        align-self:stretch; width:auto;
+        margin-left:calc(36px - 9vw); margin-right:calc(36px - 9vw);
         height:380px; overflow:hidden; border-radius:12px;
     }
 
     .init-panel {
         flex:1 1 0; min-width:0; min-height:0; height:100%; border-radius:10px;
         overflow:hidden; cursor:pointer;
-        transition:flex-grow 0.45s cubic-bezier(0.4,0,0.2,1),
+        transition:flex-grow 0.225s cubic-bezier(0.4,0,0.2,1),
                    transform 0.75s cubic-bezier(0.16,1,0.3,1),
                    opacity 0.6s ease;
         position:relative;
@@ -715,6 +717,7 @@ function restoreScrollPosition(){
         window.dispatchEvent(new Event('scroll'));
         if(_pendingLayout && !_pendingLayout.triggered){
             _pendingLayout.triggered=true;
+            lastRenderedSection=currentSection;
             _pendingLayout.fn();
             if(currentSection==='s4-regions'){
                 document.getElementById('zoom-controls').classList.remove('visible');
@@ -752,6 +755,11 @@ function easeIn(t){ return t*t*t; }
 /* STATE */
 let data=[], particles=[];
 let currentSection='s0-hero';
+// Tracks the section whose chart layout is actually on screen right now (as
+// opposed to `currentSection`, which flips the instant the scroll observer
+// crosses into a new section — before that section's chart has actually been
+// triggered/laid out). Downloads should reflect what's visually rendered.
+let lastRenderedSection='s0-hero';
 let landmarkMode=false;
 let _pendingLayout=null;
 
@@ -1027,7 +1035,7 @@ const NATURE_COLORS={
 };
 
 const FORMAL_LAW=['Constitution','Indigenous Law','Court Case','Policy','Legislation','Declaration'];
-const SOFT_LAW=['Civil Society Declaration', 'Private Sector Governance', 'Civil Society Tribunal','Indigenous Declaration','Position Statement'];
+const SOFT_LAW=['Civil Society Declaration', 'Indigenous Declaration', 'Civil Society Tribunal','Private Sector Governance','Position Statement'];
 const FRAMEWORK_ORDER=[...FORMAL_LAW,...SOFT_LAW];
 const REGION_ORDER=['North America','Latin America','Europe','Africa','Asia','Oceania','International'];
 const NATURE_ORDER=['Nature','Animal','Plant','Water','Land'];
@@ -1233,7 +1241,7 @@ if(document.fonts && document.fonts.ready){ document.fonts.ready.then(layoutHero
 Papa.parse('https://docs.google.com/spreadsheets/d/e/2PACX-1vSKgeCFRWhEydDOm3JMjw-F9MI8bNvgWYkXSA-_3S8Mo9Ehxs3WrB07UbNfrFdfDiOLqHc67BR6kyaG/pub?gid=600477657&single=true&output=csv',{
     download:true, header:true,
     complete(results){
-        data=results.data.filter(r=>r.Region && ['aa','cc'].includes((r["Carmen's "]||'').trim().toLowerCase()));
+        data=results.data.filter(r=>r.Region);
         const rawCounts={};
         data.forEach(r=>{
             const c=parseCountryName(r.Country);
@@ -1338,11 +1346,10 @@ function layoutHeroButtons(){
     const prevTransform=heroEl.style.transform;
     heroEl.style.transform='translateY(0)';
     const vh=window.innerHeight;
-    const mapTopPx=vh * 0.30;
     const btnHeight=btns.offsetHeight;
     const h1Bottom=h1.getBoundingClientRect().bottom;
-    const CUSHION=16;
-    const top=Math.max(mapTopPx - btnHeight - CUSHION, h1Bottom + CUSHION);
+    const GAP=20;
+    const top=h1Bottom + GAP;
     btns.style.top=top + 'px';
     btns.classList.add('positioned');
     heroEl.style.transform=prevTransform;
@@ -1555,6 +1562,7 @@ function initViz(){
         setTimeout(()=>{
             if(_pendingLayout && !_pendingLayout.triggered){
                 _pendingLayout.triggered=true;
+                lastRenderedSection=currentSection;
                 _pendingLayout.fn();
             }
         }, 150);
@@ -1743,7 +1751,7 @@ function initViz(){
             's7-status-b':  { label:'Current Status',   caption:'the current status of the initiative' },
             's8-nature':    { label:'Nature Type',      caption:'the type of nature it references' },
         };
-        const catInfo = SECTION_CATEGORY[currentSection] || { label:'Category', caption:'the category' };
+        const catInfo = SECTION_CATEGORY[lastRenderedSection] || { label:'Category', caption:'the category' };
 
         const EXPORT_SCALE = 3;
         const logW = window.innerWidth;
@@ -1918,7 +1926,7 @@ function initViz(){
         ny += CAPTION_PARA_GAP;
         sourceLines.forEach(l=>{ ctx.fillText(l, MARGIN, ny); ny += CAPTION_LINE_H; });
 
-        triggerDownload(out, downloadFilename(SECTION_TO_FILENAME_CATEGORY[currentSection] || 'chart'));
+        triggerDownload(out, downloadFilename(SECTION_TO_FILENAME_CATEGORY[lastRenderedSection] || 'chart'));
     }
 
     function drawDataSourceTag(ctx, W, H){
@@ -2249,6 +2257,7 @@ function initViz(){
                     const shouldTrigger = boxRect.bottom <= window.innerHeight;
                     if(shouldTrigger && !_pendingLayout.triggered){
                         _pendingLayout.triggered=true;
+                        lastRenderedSection=currentSection;
                         const runMorph=()=>{
                             _pendingLayout.fn();
                             if(currentSection==='s4-regions'){
@@ -3220,6 +3229,7 @@ function onSectionEnter(sec){
             if(window.parent !== window) window.parent.postMessage('ejm:done', '*');
             break;
     }
+    if(!_pendingLayout) lastRenderedSection = sec;
     updateZoomTipPosition();
 }
 
@@ -3661,7 +3671,8 @@ let _carouselImagesPreloaded = false;
 function preloadCarouselImages(allData) {
     if (_carouselImagesPreloaded) return;
     _carouselImagesPreloaded = true;
-    const ccRows = allData.filter(r => r.Title && (r["Carmen's "] || '').trim().toLowerCase() === 'cc');
+    let ccRows = allData.filter(r => r.Title && (r["Carmen's "] || '').trim().toLowerCase() === 'cc');
+    if (!ccRows.length) ccRows = allData.filter(r => r.Title);
     ccRows.filter(r => r['Cover Image']).forEach(r => {
         const img = new Image();
         img.src = r['Cover Image'].trim();
@@ -3671,7 +3682,8 @@ function preloadCarouselImages(allData) {
 function buildCarousel(allData) {
     const container = document.getElementById('initiative-carousel');
     if (!container) return;
-    const ccRows = allData.filter(r => r.Title && (r["Carmen's "] || '').trim().toLowerCase() === 'cc');
+    let ccRows = allData.filter(r => r.Title && (r["Carmen's "] || '').trim().toLowerCase() === 'cc');
+    if (!ccRows.length) ccRows = allData.filter(r => r.Title);
     const sample = ccRows.filter(r => r['Cover Image']);
     const extra  = ccRows.filter(r => !r['Cover Image']);
     while (extra.length) sample.push(extra.shift());
