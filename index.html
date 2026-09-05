@@ -14,12 +14,20 @@
 
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link rel="preconnect" href="https://unpkg.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
     <link rel="preconnect" href="https://docs.google.com" crossorigin>
     <link rel="preload" as="script" href="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js">
     <link rel="preload" as="script" href="https://unpkg.com/papaparse@5.4.1/papaparse.min.js">
-    <link rel="preload" as="script" href="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js">
-    <link rel="preload" as="fetch" crossorigin href="https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson">
+    <!-- d3 full bundle (~273KB) swapped for just the two d3 modules the code
+         actually uses, d3-array + d3-geo (~52KB combined). -->
+    <link rel="preload" as="script" href="https://unpkg.com/d3-array@3.2.4/dist/d3-array.min.js">
+    <link rel="preload" as="script" href="https://unpkg.com/d3-geo@3.1.1/dist/d3-geo.min.js">
+    <!-- Served via jsDelivr's GitHub CDN mirror (pinned to a fixed commit, so
+         it's cached forever and never changes) instead of raw.githubusercontent.com,
+         which isn't meant for production traffic and has no real edge caching. -->
+    <link rel="preload" as="fetch" crossorigin href="https://cdn.jsdelivr.net/gh/holtzy/D3-graph-gallery@8f12759d589c09248d841795293be9197308531b/DATA/world.geojson">
+    <link rel="preload" as="font" type="font/ttf" crossorigin href="Herbik-Medium.ttf">
     <link rel="preload" as="fetch" crossorigin href="https://docs.google.com/spreadsheets/d/e/2PACX-1vSKgeCFRWhEydDOm3JMjw-F9MI8bNvgWYkXSA-_3S8Mo9Ehxs3WrB07UbNfrFdfDiOLqHc67BR6kyaG/pub?gid=600477657&single=true&output=csv">
     <style>
     @font-face {
@@ -27,6 +35,7 @@
         src: url('Herbik-Medium.ttf') format('truetype');
         font-weight: 500;
         font-style: normal;
+        font-display: swap;
     }
     :root {
         --color-off-black: #3D3D31;
@@ -496,70 +505,56 @@
         line-height:1.55; color:var(--color-off-black); margin:0;
     }
     #initiative-carousel {
-        position:relative;
+        display:flex; gap:6px;
         align-self:stretch; width:auto;
         margin-left:calc(36px - 9vw); margin-right:calc(36px - 9vw);
         height:380px; overflow:hidden; border-radius:12px;
-        /* Cards are absolutely positioned and sized in JS (left/width in real
-           pixels), not laid out by flexbox — flex-grow/flex-basis transitions
-           are the part that was choppy (browsers, Safari especially, don't
-           animate flex properties smoothly; they resolve the whole flex
-           algorithm at each sampled value instead of interpolating a plain
-           length). Plain "left"/"width" on an absolutely positioned box is a
-           completely ordinary, reliably smooth CSS transition everywhere. */
-        contain:layout style;
     }
 
     .init-panel {
-        position:absolute; top:0; height:100%; border-radius:10px;
+        flex:1 1 0; min-width:0; min-height:0; height:100%; border-radius:10px;
         overflow:hidden; cursor:pointer;
-        /* Cards are positioned with plain "left"/"width" (set from JS, in real
-           pixels) instead of flex-grow/flex-basis. All hover-driven properties
-           below share this same duration/easing so the width change, image
-           brighten, and overlay fade read as one continuous glide instead of
-           several out-of-sync animations. */
-        transition:left 0.225s cubic-bezier(0.33,1,0.68,1),
-                   width 0.225s cubic-bezier(0.33,1,0.68,1),
+        position:relative;
+        /* flex-grow: reference carousel's hover-expand, sped up 1.3x (0.45s -> 0.346s).
+           transform/opacity: unrelated to the reference — this is this site's
+           existing card entrance/exit slide animation, kept as-is. */
+        transition:flex-grow 0.346s cubic-bezier(0.4,0,0.2,1),
                    transform 0.75s cubic-bezier(0.16,1,0.3,1),
                    opacity 0.6s ease;
         display:block; text-decoration:none; color:inherit;
     }
+    .init-panel:hover, .init-panel:focus-visible { flex-grow:4; }
     .init-panel.slide-pre { transition:none; opacity:0; }
     .init-panel.slide-pre.from-left  { transform:translateX(-90px); }
     .init-panel.slide-pre.from-right { transform:translateX(90px); }
     .init-panel.slide-out { opacity:0; }
     .init-panel.slide-out.from-left  { transform:translateX(-90px); }
     .init-panel.slide-out.from-right { transform:translateX(90px); }
-    .init-panel:focus-visible { outline:none; box-shadow:inset 0 0 0 3px var(--color-off-black); }
     .init-panel-bg {
         position:absolute; inset:0;
         background-size:cover; background-position:center;
-        transition:filter 0.225s cubic-bezier(0.33,1,0.68,1); filter:brightness(0.82);
+        /* 0.3s -> 0.231s (1.3x faster) */
+        transition:filter 0.231s; filter:brightness(0.82);
     }
     .init-panel:hover .init-panel-bg,
-    .init-panel.is-hovered .init-panel-bg,
     .init-panel:focus-visible .init-panel-bg { filter:brightness(1); }
     .init-panel-bg::after {
         content:''; position:absolute; inset:0;
         background:linear-gradient(to top, rgba(0, 0, 0, 0.75) 0%, transparent 85%);
-        opacity:0; transition:opacity 0.225s cubic-bezier(0.33,1,0.68,1);
+        opacity:0; transition:opacity 0.231s;
     }
     .init-panel:hover .init-panel-bg::after,
-    .init-panel.is-hovered .init-panel-bg::after,
     .init-panel:focus-visible .init-panel-bg::after { opacity:1; }
     .init-panel-content {
         position:absolute; bottom:0; left:0; right:0;
         padding:16px 16px 18px;
-        opacity:0; transition:opacity 0.2s 0.42s;
+        /* 0.2s @ 0.42s delay -> 0.154s @ 0.323s delay (1.3x faster) */
+        opacity:0; transition:opacity 0.154s 0.323s;
     }
     .init-panel:hover .init-panel-content,
-    .init-panel.is-hovered .init-panel-content,
-    .init-panel:focus-visible .init-panel-content { opacity:1; transition:opacity 0.2s 0.42s; }
-    /* Was opacity 0s (an instant cut) — that abrupt disappearance, right as the
-       card starts shrinking, is what made switching cards feel like a jump
-       rather than a glide. A quick fade instead keeps it visually continuous
-       without changing how fast the open/close itself feels. */
-    .init-panel:not(:hover):not(.is-hovered):not(:focus-visible) .init-panel-content { opacity:0; transition:opacity 0.12s ease; }
+    .init-panel:focus-visible .init-panel-content { opacity:1; transition:opacity 0.154s 0.323s; }
+    .init-panel:not(:hover):not(:focus-visible) .init-panel-content { opacity:0; transition:opacity 0s; }
+    .init-panel:focus-visible { outline:none; box-shadow:inset 0 0 0 3px var(--color-off-black); }
     .init-card-title { font-family:'Geist',sans-serif; font-size:0.88rem; font-weight:600; color:#fff; margin-bottom:5px; line-height:1.35; }
     .init-card-meta  { font-family:'Geist Mono',monospace; font-size:7pt; color:rgba(255,255,255,0.75); line-height:1.6; }
     .init-card-link  { display:inline-block; margin-top:8px; font-family:'Geist',sans-serif; font-size:7.5pt; font-weight:600; color:#8ECBF0; text-decoration:none; }
@@ -751,7 +746,8 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
 <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://unpkg.com/d3-array@3.2.4/dist/d3-array.min.js"></script>
+<script src="https://unpkg.com/d3-geo@3.1.1/dist/d3-geo.min.js"></script>
 <script>
 /* SCROLL POSITION ACROSS REFRESH */
 const SCROLL_SAVE_KEY='ejm_scrollY';
@@ -1190,7 +1186,12 @@ const GEO_TO_REGION={
 };
 
 /* GEO JSON */
-fetch('https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson')
+/* Primary: jsDelivr mirror pinned to a fixed commit (cached forever, fast
+   edge delivery). Fallback: raw.githubusercontent.com, in case jsDelivr
+   itself is ever unreachable. Same file either way. */
+const GEOJSON_URL='https://cdn.jsdelivr.net/gh/holtzy/D3-graph-gallery@8f12759d589c09248d841795293be9197308531b/DATA/world.geojson';
+const GEOJSON_URL_FALLBACK='https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson';
+fetch(GEOJSON_URL).catch(()=>fetch(GEOJSON_URL_FALLBACK))
     .then(r=>r.json()).then(geo=>{
         geo.features=geo.features.filter(f=>f.properties.name!=='Antarctica');
         worldGeoJson=geo;
@@ -3816,56 +3817,8 @@ function buildCarousel(allData) {
         ${panelClose}`;
     }).join('');
 
-    layoutCarouselPanels(null);
-    const panels=[...container.querySelectorAll('.init-panel')];
-    panels.forEach((p,i)=>{
-        p.addEventListener('mouseenter', ()=>layoutCarouselPanels(i));
-        p.addEventListener('mouseleave', ()=>layoutCarouselPanels(null));
-        p.addEventListener('focus', ()=>layoutCarouselPanels(i));
-        p.addEventListener('blur', ()=>layoutCarouselPanels(null));
-    });
-    window.addEventListener('resize', ()=>{
-        const staticEl=document.getElementById('static-content');
-        if(staticEl && staticEl.classList.contains('visible')) layoutCarouselPanels(_carouselHoveredIndex);
-    });
-}
-
-/* Positions every carousel card with plain pixel "left"/"width" instead of
-   flex-grow/flex-basis. Flex-property transitions are the specific thing
-   that reads as choppy across browsers (Safari in particular resolves the
-   whole flex algorithm at each sampled value rather than interpolating a
-   plain length) — an absolutely positioned box's left/width transitions are
-   ordinary, reliably smooth CSS everywhere, which is what actually fixes it.
-   hoveredIndex is null for the resting (all-equal) layout, or the index of
-   the card that should be widened. */
-let _carouselHoveredIndex=null;
-function layoutCarouselPanels(hoveredIndex){
-    _carouselHoveredIndex=hoveredIndex;
-    const container=document.getElementById('initiative-carousel');
-    if(!container) return;
-    const panels=[...container.querySelectorAll('.init-panel')];
-    const n=panels.length;
-    if(!n) return;
-    const GAP=6;
-    const containerW=container.clientWidth;
-    const availW=Math.max(0, containerW-(n-1)*GAP);
-    let widths;
-    if(hoveredIndex==null || hoveredIndex<0 || hoveredIndex>=n){
-        const baseW=availW/n;
-        widths=new Array(n).fill(baseW);
-    } else {
-        const sum=(n-1)+4;
-        const hoverW=availW*4/sum;
-        const otherW=availW/sum;
-        widths=panels.map((_,i)=>i===hoveredIndex?hoverW:otherW);
-    }
-    let x=0;
-    panels.forEach((p,i)=>{
-        p.style.left=x+'px';
-        p.style.width=widths[i]+'px';
-        p.classList.toggle('is-hovered', i===hoveredIndex);
-        x+=widths[i]+GAP;
-    });
+    // Pure CSS now handles hover/focus growth (flex-grow on :hover/:focus-visible),
+    // so no JS layout or hover-tracking is needed here at all.
 }
 
 function playCarouselEntrance() {
