@@ -40,11 +40,29 @@
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family:'Geist',sans-serif; background:#fff; color:#3D3D31; overflow-x:hidden; }
 
+    /* Keyboard tab stops: reachable via Tab, invisible otherwise, revealed
+       (skip-link style) while focused so sighted keyboard users can see
+       where they are. */
+    #a11y-nav { position:relative; z-index:2000; }
+    .a11y-stop {
+        position:absolute; width:1px; height:1px; margin:-1px; padding:0;
+        overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;
+        background:none; font:inherit; cursor:pointer;
+    }
+    .a11y-stop:focus {
+        position:fixed; top:14px; left:50%; transform:translateX(-50%);
+        width:auto; height:auto; margin:0; padding:9px 16px;
+        overflow:visible; clip:auto; white-space:normal;
+        z-index:9999; background:#3D3D31; color:#fff;
+        border-radius:8px; font-family:'Geist',sans-serif; font-weight:500;
+        font-size:var(--sz-ui); line-height:1.4; text-align:center;
+        box-shadow:0 4px 14px rgba(0,0,0,0.25); max-width:80vw;
+    }
     #scroll-container { pointer-events:none; }
     .scroll-section { height:200vh; width:100%; pointer-events:none; position:relative; }
     .scroll-section[data-section="s1-stats"] { height:250vh; }
 
-    #p5-canvas { position:fixed; top:0; left:0; width:100%; height:100vh; z-index:1; cursor:default; will-change:transform; touch-action:none; transform:translateY(30vh); transition:none; }
+    #p5-canvas { position:fixed; top:0; left:0; width:100%; height:100vh; z-index:1; cursor:default; will-change:transform; touch-action:none; transform:translateY(15vh); transition:none; }
     #p5-canvas canvas { touch-action:none; }
 
     #fixed-overlays {
@@ -478,19 +496,32 @@
         line-height:1.55; color:var(--color-off-black); margin:0;
     }
     #initiative-carousel {
-        display:flex; gap:6px;
+        position:relative;
         align-self:stretch; width:auto;
         margin-left:calc(36px - 9vw); margin-right:calc(36px - 9vw);
         height:380px; overflow:hidden; border-radius:12px;
+        /* Cards are absolutely positioned and sized in JS (left/width in real
+           pixels), not laid out by flexbox — flex-grow/flex-basis transitions
+           are the part that was choppy (browsers, Safari especially, don't
+           animate flex properties smoothly; they resolve the whole flex
+           algorithm at each sampled value instead of interpolating a plain
+           length). Plain "left"/"width" on an absolutely positioned box is a
+           completely ordinary, reliably smooth CSS transition everywhere. */
+        contain:layout style;
     }
 
     .init-panel {
-        flex:1 1 0; min-width:0; min-height:0; height:100%; border-radius:10px;
+        position:absolute; top:0; height:100%; border-radius:10px;
         overflow:hidden; cursor:pointer;
-        transition:flex-grow 0.225s cubic-bezier(0.4,0,0.2,1),
+        /* Cards are positioned with plain "left"/"width" (set from JS, in real
+           pixels) instead of flex-grow/flex-basis. All hover-driven properties
+           below share this same duration/easing so the width change, image
+           brighten, and overlay fade read as one continuous glide instead of
+           several out-of-sync animations. */
+        transition:left 0.225s cubic-bezier(0.33,1,0.68,1),
+                   width 0.225s cubic-bezier(0.33,1,0.68,1),
                    transform 0.75s cubic-bezier(0.16,1,0.3,1),
                    opacity 0.6s ease;
-        position:relative;
         display:block; text-decoration:none; color:inherit;
     }
     .init-panel.slide-pre { transition:none; opacity:0; }
@@ -499,26 +530,36 @@
     .init-panel.slide-out { opacity:0; }
     .init-panel.slide-out.from-left  { transform:translateX(-90px); }
     .init-panel.slide-out.from-right { transform:translateX(90px); }
+    .init-panel:focus-visible { outline:none; box-shadow:inset 0 0 0 3px var(--color-off-black); }
     .init-panel-bg {
         position:absolute; inset:0;
         background-size:cover; background-position:center;
-        transition:filter 0.3s; filter:brightness(0.82);
+        transition:filter 0.225s cubic-bezier(0.33,1,0.68,1); filter:brightness(0.82);
     }
-    .init-panel:hover .init-panel-bg { filter:brightness(1); }
+    .init-panel:hover .init-panel-bg,
+    .init-panel.is-hovered .init-panel-bg,
+    .init-panel:focus-visible .init-panel-bg { filter:brightness(1); }
     .init-panel-bg::after {
         content:''; position:absolute; inset:0;
         background:linear-gradient(to top, rgba(0, 0, 0, 0.75) 0%, transparent 85%);
-        opacity:0; transition:opacity 0.3s;
+        opacity:0; transition:opacity 0.225s cubic-bezier(0.33,1,0.68,1);
     }
-    .init-panel:hover .init-panel-bg::after { opacity:1; }
-    .init-panel:hover { flex-grow:4; }
+    .init-panel:hover .init-panel-bg::after,
+    .init-panel.is-hovered .init-panel-bg::after,
+    .init-panel:focus-visible .init-panel-bg::after { opacity:1; }
     .init-panel-content {
         position:absolute; bottom:0; left:0; right:0;
         padding:16px 16px 18px;
         opacity:0; transition:opacity 0.2s 0.42s;
     }
-    .init-panel:hover .init-panel-content { opacity:1; transition:opacity 0.2s 0.42s; }
-    .init-panel:not(:hover) .init-panel-content { opacity:0; transition:opacity 0s; }
+    .init-panel:hover .init-panel-content,
+    .init-panel.is-hovered .init-panel-content,
+    .init-panel:focus-visible .init-panel-content { opacity:1; transition:opacity 0.2s 0.42s; }
+    /* Was opacity 0s (an instant cut) — that abrupt disappearance, right as the
+       card starts shrinking, is what made switching cards feel like a jump
+       rather than a glide. A quick fade instead keeps it visually continuous
+       without changing how fast the open/close itself feels. */
+    .init-panel:not(:hover):not(.is-hovered):not(:focus-visible) .init-panel-content { opacity:0; transition:opacity 0.12s ease; }
     .init-card-title { font-family:'Geist',sans-serif; font-size:0.88rem; font-weight:600; color:#fff; margin-bottom:5px; line-height:1.35; }
     .init-card-meta  { font-family:'Geist Mono',monospace; font-size:7pt; color:rgba(255,255,255,0.75); line-height:1.6; }
     .init-card-link  { display:inline-block; margin-top:8px; font-family:'Geist',sans-serif; font-size:7.5pt; font-weight:600; color:#8ECBF0; text-decoration:none; }
@@ -542,14 +583,14 @@
         position:fixed; top:0; left:0; width:100%; height:100vh;
         z-index:25; pointer-events:none;
         display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
-        padding: 3vh 9vw 0;
+        padding: 4.5vh 9vw 0;
         transition:none;
     }
     #hero-text h1 {
         font-family:'Herbik', sans-serif;
         font-weight:500;
         font-size:50px;
-        line-height:1.1; letter-spacing:-0.01em;
+        line-height:1.1; letter-spacing:0em;
         color:var(--color-off-black);
         text-align:center; margin:0;
     }
@@ -558,7 +599,7 @@
         pointer-events:auto;
         position:absolute;
         left:50%;
-        transform:translateX(-50%);
+        transform:translateX(-50%) translateY(20px);
         opacity:0;
         transition:opacity 0.25s ease;
     }
@@ -571,6 +612,24 @@
     </style>
 </head>
 <body class="is-hero">
+
+<!-- Keyboard-accessible outline of the scrollytelling story. These are the
+     only elements deliberately ordered for Tab: counter, then intro
+     narrative, then each chart section in turn (year is split into its own
+     chart and landmark-initiatives stops), then the initiative carousel.
+     Focusing one scrolls the centered-map story to that point. -->
+<div id="a11y-nav" role="navigation" aria-label="Story sections">
+    <button type="button" class="a11y-stop" id="a11y-stop-counter">Jump to initiative counter</button>
+    <button type="button" class="a11y-stop" id="a11y-stop-narrative">Jump to introduction</button>
+    <button type="button" class="a11y-stop" id="a11y-stop-region">Jump to chart: initiatives by region</button>
+    <button type="button" class="a11y-stop" id="a11y-stop-nature">Jump to chart: initiatives by nature type</button>
+    <button type="button" class="a11y-stop" id="a11y-stop-year">Jump to chart: initiatives by year</button>
+    <button type="button" class="a11y-stop" id="a11y-stop-year-landmark">Jump to landmark initiatives</button>
+    <button type="button" class="a11y-stop" id="a11y-stop-framework">Jump to chart: initiatives by legal framework</button>
+    <button type="button" class="a11y-stop" id="a11y-stop-status">Jump to chart: initiatives by status</button>
+    <button type="button" class="a11y-stop" id="a11y-stop-status-b">Jump to how to get involved</button>
+    <button type="button" class="a11y-stop" id="a11y-stop-carousel">Jump to featured initiatives carousel</button>
+</div>
 
 <!-- Orientation popup (mobile portrait only) -->
 <div id="orientation-popup">
@@ -762,9 +821,10 @@ let currentSection='s0-hero';
 let lastRenderedSection='s0-hero';
 let landmarkMode=false;
 let _pendingLayout=null;
+let _explorePauseTimer=null;
 
 /* Landmark initiative IDs (from the "ID" column) for the s5-year-b highlight sequence */
-const LANDMARK_IDS=new Set(['3','127','268']);
+const LANDMARK_IDS=new Set(['3','111','268']);
 function isLandmarkId(id){
     return LANDMARK_IDS.has(String(id||'').trim());
 }
@@ -774,6 +834,7 @@ let particlesBuilt=false;
 let canvasOffsetPx=0;
 let heroSlideT=1;
 let heroExitDistanceVh=45;
+let heroMapOffsetVh=34; // recomputed in layoutHeroButtons() from real content height
 let selectedParticle=null;
 let showMap=true;
 let showCountryFills=true;
@@ -853,7 +914,7 @@ function animateHeroZoomEnter(onComplete){
         // Center (if this is the first zoom of the hero visit; a no-op once startT is already 1)
         const curT=startT+(1-startT)*ease;
         heroSlideT=curT;
-        const mapOffset=30*(1-curT);
+        const mapOffset=heroMapOffsetVh*(1-curT);
         canvasOffsetPx=mapOffset/100*window.innerHeight;
         canvasEl.style.transform=`translateY(${mapOffset}vh)`;
         updateZoomTipPosition();
@@ -990,7 +1051,7 @@ function animateHeroZoomExit(onComplete){
         // Un-center back toward the partial, top-half view
         const curT=startT*(1-ease);
         heroSlideT=curT;
-        const mapOffset=30*(1-curT);
+        const mapOffset=heroMapOffsetVh*(1-curT);
         canvasOffsetPx=mapOffset/100*window.innerHeight;
         canvasEl.style.transform=`translateY(${mapOffset}vh)`;
         updateZoomTipPosition();
@@ -1011,7 +1072,7 @@ function animateHeroZoomExit(onComplete){
         } else {
             heroSlideT=0;
             mapZoom.k=1; mapZoom.tx=0; mapZoom.ty=0;
-            canvasOffsetPx=0.30*window.innerHeight;
+            canvasOffsetPx=heroMapOffsetVh/100*window.innerHeight;
             applyZoomToParticles();
             updateZoomTipPosition();
             _heroCenteringActive=false;
@@ -1354,6 +1415,26 @@ function layoutHeroButtons(){
     btns.classList.add('positioned');
     heroEl.style.transform=prevTransform;
     heroExitDistanceVh=Math.max(35, ((top + btnHeight) / vh) * 100 + 5);
+
+    // Map should start just below the real bottom of the title+buttons, so the
+    // gap scales with the actual rendered content (proportional to the buttons)
+    // instead of a fixed vh number. MAP_MIN_CROP_VH guarantees the map is always
+    // cropped at least a little, no matter the window size; MAP_MAX_GAP_VH caps
+    // how big the blank gap above the map can ever get.
+    const MAP_GAP_PX=24;
+    const MAP_MIN_CROP_VH=8;
+    const MAP_MAX_GAP_VH=22;
+    heroMapOffsetVh=Math.max(MAP_MIN_CROP_VH, Math.min(MAP_MAX_GAP_VH, ((top + btnHeight + MAP_GAP_PX) / vh) * 100));
+
+    // If we're currently resting in the hero (not mid-animation), reposition
+    // the canvas live so a resize/orientation-change/font-load takes effect
+    // immediately instead of only on the next hero enter/exit animation.
+    if(document.body.classList.contains('is-hero') && heroSlideT>=1 && !_heroCenteringActive){
+        canvasOffsetPx=heroMapOffsetVh/100*window.innerHeight;
+        const canvasEl=document.getElementById('p5-canvas');
+        if(canvasEl){ canvasEl.style.transition='none'; canvasEl.style.transform=`translateY(${heroMapOffsetVh}vh)`; }
+        if(typeof updateZoomTipPosition==='function') updateZoomTipPosition();
+    }
 }
 
 function initViz(){
@@ -1567,6 +1648,7 @@ function initViz(){
             }
         }, 150);
     }
+    window.jumpToSection = jumpToSection; // exposed for the keyboard tab-stop nav below
     document.querySelectorAll('.section-nav-item[data-nav]').forEach(item=>{
         item.addEventListener('click',()=>jumpToSection(item.dataset.nav));
     });
@@ -2086,7 +2168,7 @@ function initViz(){
         const heroH = heroSection ? heroSection.offsetHeight : vh;
         const slideT = Math.min(1, scrolled / (heroH * 0.5));
         heroSlideT = slideT;
-        const mapOffset = 30 * (1 - slideT);
+        const mapOffset = heroMapOffsetVh * (1 - slideT);
         canvasOffsetPx = mapOffset / 100 * vh;
         document.getElementById('p5-canvas').style.transform = `translateY(${mapOffset}vh)`;
 
@@ -3004,6 +3086,14 @@ let _prevSectionForZoomReset=null;
 function onSectionEnter(sec){
     const prevSec=_prevSectionForZoomReset;
     _prevSectionForZoomReset=sec;
+    // The canvas's draw loop runs continuously (map + every particle + labels,
+    // every frame) even while it's fully hidden behind the explore screen —
+    // that constant off-screen work was competing with the main thread for
+    // the card-hover transition, which is what made the card expansion look
+    // choppy no matter how the CSS transition itself was tuned. Resume it
+    // immediately whenever we're not sitting on that screen.
+    clearTimeout(_explorePauseTimer);
+    if(sec!=='s9-end' && p5Instance && typeof p5Instance.loop==='function') p5Instance.loop();
     hide('stats-display'); clearNarrative();
     overviewFade=false; overviewAlpha=1;
     _pendingLayout=null;
@@ -3108,10 +3198,10 @@ function onSectionEnter(sec){
             if(worldGeoJson) worldGeoJson.features.forEach(f=>{ const r=resolveGeoName(f.properties.name); if(countryCounts[r]>0) highlightCountries.add(f.properties.name); });
             if(p5Instance&&particleMapPos.length) placeParticlesOnMap(false);
             resetStats(); statsScrollTriggered=false;
-            canvasOffsetPx = 0.30 * window.innerHeight;
+            canvasOffsetPx = heroMapOffsetVh/100 * window.innerHeight;
             const heroCanvasEl=document.getElementById('p5-canvas');
             heroCanvasEl.style.transition='none';
-            heroCanvasEl.style.transform='translateY(30vh)';
+            heroCanvasEl.style.transform='translateY('+heroMapOffsetVh+'vh)';
             const heroTextResetEl=document.getElementById('hero-text');
             heroTextResetEl.style.transition='';
             heroTextResetEl.style.opacity='1';
@@ -3197,7 +3287,7 @@ function onSectionEnter(sec){
         case 's7-status':{
             fadeOutMap(()=>highlightCountries.clear()); showCountryFills=false;
             document.getElementById('info-btn').style.display='flex'; document.getElementById('data-source-label').style.display='flex';
-            typewrite(`Ecological jurisprudence is an evolving field. <strong>63%</strong> of initiatives are approved, <strong>15%</strong> have failed, and <strong>22%</strong> have been drafted/submitted.`, null, true);
+            typewrite(`Ecological jurisprudence is an evolving field. <strong>63%</strong> of initiatives are approved, <strong>15%</strong> have been unsuccessful, and <strong>22%</strong> are ongoing.`, null, true);
             _pendingLayout={fn:layoutByStatus, triggered:false};
             break;}
 
@@ -3227,6 +3317,14 @@ function onSectionEnter(sec){
             });
             showExploreScreen();
             if(window.parent !== window) window.parent.postMessage('ejm:done', '*');
+            // Let the flung particles fly off-screen for a moment, then stop the
+            // canvas's per-frame redraw entirely while this screen is up — it's
+            // fully covered anyway, so there's nothing to gain from still paying
+            // for it, and freeing the main thread is what makes the card hover
+            // expansion actually smooth here.
+            _explorePauseTimer=setTimeout(()=>{
+                if(currentSection==='s9-end' && p5Instance && typeof p5Instance.noLoop==='function') p5Instance.noLoop();
+            }, 1000);
             break;
     }
     if(!_pendingLayout) lastRenderedSection = sec;
@@ -3697,9 +3795,10 @@ function buildCarousel(allData) {
         const dir = i < half ? 'from-left' : 'from-right';
         const distFromCenter = i < half ? (half - i) : (i - half + 1);
         const delay = (distFromCenter * 0.06).toFixed(2);
+        const cardLabel = `${d.Title || 'Unknown Initiative'}, ${d['Primary Year'] || 'year unknown'}, ${(d.Status || 'status unknown').trim()}, ${d.Region || 'region unknown'}`;
         const panelOpen  = url
-            ? `<a class="init-panel slide-pre ${dir}" style="transition-delay:${delay}s" href="${url}" target="_blank" rel="noopener">`
-            : `<div class="init-panel slide-pre ${dir}" style="transition-delay:${delay}s">`;
+            ? `<a class="init-panel slide-pre ${dir}" style="transition-delay:${delay}s" href="${url}" target="_blank" rel="noopener" aria-label="${cardLabel}">`
+            : `<div class="init-panel slide-pre ${dir}" style="transition-delay:${delay}s" tabindex="0" role="button" aria-label="${cardLabel}">`;
         const panelClose = url ? `</a>` : `</div>`;
         return `
         ${panelOpen}
@@ -3716,6 +3815,57 @@ function buildCarousel(allData) {
             </div>
         ${panelClose}`;
     }).join('');
+
+    layoutCarouselPanels(null);
+    const panels=[...container.querySelectorAll('.init-panel')];
+    panels.forEach((p,i)=>{
+        p.addEventListener('mouseenter', ()=>layoutCarouselPanels(i));
+        p.addEventListener('mouseleave', ()=>layoutCarouselPanels(null));
+        p.addEventListener('focus', ()=>layoutCarouselPanels(i));
+        p.addEventListener('blur', ()=>layoutCarouselPanels(null));
+    });
+    window.addEventListener('resize', ()=>{
+        const staticEl=document.getElementById('static-content');
+        if(staticEl && staticEl.classList.contains('visible')) layoutCarouselPanels(_carouselHoveredIndex);
+    });
+}
+
+/* Positions every carousel card with plain pixel "left"/"width" instead of
+   flex-grow/flex-basis. Flex-property transitions are the specific thing
+   that reads as choppy across browsers (Safari in particular resolves the
+   whole flex algorithm at each sampled value rather than interpolating a
+   plain length) — an absolutely positioned box's left/width transitions are
+   ordinary, reliably smooth CSS everywhere, which is what actually fixes it.
+   hoveredIndex is null for the resting (all-equal) layout, or the index of
+   the card that should be widened. */
+let _carouselHoveredIndex=null;
+function layoutCarouselPanels(hoveredIndex){
+    _carouselHoveredIndex=hoveredIndex;
+    const container=document.getElementById('initiative-carousel');
+    if(!container) return;
+    const panels=[...container.querySelectorAll('.init-panel')];
+    const n=panels.length;
+    if(!n) return;
+    const GAP=6;
+    const containerW=container.clientWidth;
+    const availW=Math.max(0, containerW-(n-1)*GAP);
+    let widths;
+    if(hoveredIndex==null || hoveredIndex<0 || hoveredIndex>=n){
+        const baseW=availW/n;
+        widths=new Array(n).fill(baseW);
+    } else {
+        const sum=(n-1)+4;
+        const hoverW=availW*4/sum;
+        const otherW=availW/sum;
+        widths=panels.map((_,i)=>i===hoveredIndex?hoverW:otherW);
+    }
+    let x=0;
+    panels.forEach((p,i)=>{
+        p.style.left=x+'px';
+        p.style.width=widths[i]+'px';
+        p.classList.toggle('is-hovered', i===hoveredIndex);
+        x+=widths[i]+GAP;
+    });
 }
 
 function playCarouselEntrance() {
@@ -3738,6 +3888,58 @@ function playCarouselExit() {
         p.classList.add('slide-out');
     });
 }
+
+/* ACCESSIBLE TAB-STOP NAVIGATION
+   Lets keyboard users Tab through: initiative counter -> intro narrative ->
+   each chart section (the "year" stop is split into its own chart and
+   landmark-initiatives stops) -> the initiative carousel. Focusing a stop
+   scrolls the centered-map story to that point and centers its narrative
+   text, reusing the same jumpToSection() the section-nav dots use. */
+function _a11yScrollToStatsPoint(scrolledFracOfVh){
+    const heroSectionEl=document.querySelector('.scroll-section[data-section="s0-hero"]');
+    const heroHpx=heroSectionEl?heroSectionEl.offsetHeight:window.innerHeight;
+    const secTop=heroHpx*0.5;
+    const vh=window.innerHeight;
+    window.scrollTo({top:secTop+vh*scrolledFracOfVh, behavior:'instant'});
+}
+function a11yFocusStatsSubStop(kind){
+    // 'counter' centers the initiative/country count; 'narrative' centers
+    // the opening paragraph just below it — both live in the s1-stats
+    // section but sit at different scroll depths within it.
+    if(!window.jumpToSection) return;
+    window.jumpToSection('s1-stats');
+    setTimeout(()=>{ _a11yScrollToStatsPoint(kind==='counter'?0.6:1.4); }, 80);
+}
+function a11yFocusChartStop(sec){
+    if(window.jumpToSection) window.jumpToSection(sec);
+}
+function a11yFocusCarouselStop(){
+    if(window.jumpToSection) window.jumpToSection('s9-end');
+    // Hand keyboard focus off to the first real card once it's on screen so
+    // the very next Tab press continues into the carousel itself.
+    setTimeout(()=>{
+        const first=document.querySelector('#initiative-carousel .init-panel');
+        if(first) first.focus({preventScroll:true});
+    }, 260);
+}
+const A11Y_STOPS=[
+    ['a11y-stop-counter',       ()=>a11yFocusStatsSubStop('counter')],
+    ['a11y-stop-narrative',     ()=>a11yFocusStatsSubStop('narrative')],
+    ['a11y-stop-region',        ()=>a11yFocusChartStop('s4-regions')],
+    ['a11y-stop-nature',        ()=>a11yFocusChartStop('s8-nature')],
+    ['a11y-stop-year',          ()=>a11yFocusChartStop('s5-year')],
+    ['a11y-stop-year-landmark', ()=>a11yFocusChartStop('s5-year-b')],
+    ['a11y-stop-framework',     ()=>a11yFocusChartStop('s6-framework')],
+    ['a11y-stop-status',        ()=>a11yFocusChartStop('s7-status')],
+    ['a11y-stop-status-b',      ()=>a11yFocusChartStop('s7-status-b')],
+    ['a11y-stop-carousel',      a11yFocusCarouselStop],
+];
+A11Y_STOPS.forEach(([id, handler])=>{
+    const btn=document.getElementById(id);
+    if(!btn) return;
+    btn.addEventListener('focus', handler);
+    btn.addEventListener('click', handler);
+});
 
 initViz();
 </script>
