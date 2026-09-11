@@ -71,7 +71,12 @@
     .scroll-section { height:200vh; width:100%; pointer-events:none; position:relative; }
     .scroll-section[data-section="s1-stats"] { height:250vh; }
 
-    #p5-canvas { position:fixed; top:0; left:0; width:100%; height:100vh; z-index:1; cursor:default; will-change:transform; touch-action:none; transform:translateY(15vh); transition:none; }
+    #p5-canvas { position:fixed; top:0; left:0; width:100%; height:100vh; z-index:1; cursor:default; will-change:transform; touch-action:none; transform:translateY(15vh); transition:none; overflow:visible; }
+    /* Keeps the wide/narrow clamp from ever creating a horizontal scrollbar:
+       when the canvas is wider than the viewport (narrow-window crop case)
+       its edges bleed past 0/100vw, and this hides that overflow instead of
+       letting the page scroll sideways to reveal it. */
+    html, body { overflow-x:hidden; }
     #p5-canvas canvas { touch-action:none; }
 
     #fixed-overlays {
@@ -828,6 +833,55 @@ let p5Instance, worldGeoJson=null, mapProjection=null;
 let particlesPlaced=false;
 let particlesBuilt=false;
 let canvasOffsetPx=0;
+let canvasFrameLeft=0;
+
+/* ── Responsive map frame ──
+   The map canvas fills the window between guardrails instead of scaling
+   forever:
+   - MAP_MAX_ASPECT: on very wide/short windows, the canvas stops growing
+     wider once width/height passes this ratio; the extra space becomes
+     side margins (canvas is centered, background shows through).
+   - MAP_MIN_WIDTH: on very narrow windows, the canvas stops shrinking
+     once its width would drop below this many px; instead it holds that
+     width and gets cropped by the viewport edges (still centered), so
+     content never gets uncomfortably cramped. This only matters above the
+     768px mobile breakpoint — below that (and portrait) the rotate-device
+     prompt takes over anyway.
+   - MAP_MIN_HEIGHT: on very short windows, the canvas stops shrinking
+     vertically once it would drop below this many px; instead it holds
+     that height and simply extends past the bottom of the viewport (the
+     canvas stays top-anchored, so only the bottom gets cropped, not both
+     edges — there's nothing above the fold to protect).
+   Tune these numbers to change where each guardrail kicks in. */
+const MAP_MAX_ASPECT=1.6;
+const MAP_MIN_WIDTH=980;
+const MAP_MIN_HEIGHT=620;
+
+function computeCanvasFrame(){
+    const vw=window.innerWidth, vh=window.innerHeight;
+    let w=vw;
+    w=Math.min(w, vh*MAP_MAX_ASPECT);
+    w=Math.max(w, MAP_MIN_WIDTH);
+    const width=Math.round(w);
+    const height=Math.round(Math.max(vh, MAP_MIN_HEIGHT));
+    const left=Math.round((vw-width)/2);
+    return {width, height, left};
+}
+
+/* Sizes+positions the #p5-canvas div to the current frame. Call before
+   createCanvas/resizeCanvas so the p5 canvas element is created/resized to
+   match. Returns the frame so callers can also resize the p5 canvas. */
+function layoutCanvasFrame(){
+    const frame=computeCanvasFrame();
+    canvasFrameLeft=frame.left;
+    const el=document.getElementById('p5-canvas');
+    if(el){
+        el.style.width=frame.width+'px';
+        el.style.height=frame.height+'px';
+        el.style.left=frame.left+'px';
+    }
+    return frame;
+}
 let heroSlideT=1;
 let heroExitDistanceVh=45;
 let heroMapOffsetVh=34; // recomputed in layoutHeroButtons() from real content height
@@ -1443,7 +1497,8 @@ function initViz(){
         p5Instance=p;
         p.setup=function(){
             p.pixelDensity(window.devicePixelRatio||2);
-            const cnv=p.createCanvas(window.innerWidth,window.innerHeight).parent('p5-canvas');
+            const frame=layoutCanvasFrame();
+            const cnv=p.createCanvas(frame.width,frame.height).parent('p5-canvas');
             cnv.elt.style.touchAction='none';
             cnv.elt.removeEventListener('wheel', cnv.elt._wheelHandler, {passive:false});
             if(worldGeoJson) mapProjection=buildProjection(p.width,p.height);
@@ -1472,7 +1527,8 @@ function initViz(){
         };
         p.windowResized=function(){
             p.pixelDensity(window.devicePixelRatio||2);
-            p.resizeCanvas(window.innerWidth,window.innerHeight);
+            const frame=layoutCanvasFrame();
+            p.resizeCanvas(frame.width,frame.height);
             mapProjection=buildProjection(p.width,p.height);
             cacheMapPositions();
             const priorFn = (_pendingLayout && _pendingLayout.triggered) ? _pendingLayout.fn : null;
@@ -1521,7 +1577,7 @@ function initViz(){
                 requestAnimationFrame(()=>{
                     const ttW=ttEl.offsetWidth||260, ttH=ttEl.offsetHeight||100;
                     const dotY=found.y+canvasOffsetPx;
-                    let ttLeft=found.x-ttW/2;
+                    let ttLeft=found.x-ttW/2+canvasFrameLeft;
                     let ttTop=dotY-ttH-16;
                     if(ttLeft<8) ttLeft=8;
                     if(ttLeft+ttW>window.innerWidth-8) ttLeft=window.innerWidth-ttW-8;
@@ -1600,14 +1656,14 @@ function initViz(){
                                 ? `<a class="cnd-link" href="https://ecojurisprudence.org/?post_type=ejm_initiative&_ejm_country=${countryCode}" target="_blank" rel="noopener">${name}</a>`
                                 : `<strong>${name}</strong>`;
                             document.getElementById('cnd-text').innerHTML=`${nameHtml} ${n} initiative${n!==1?'s':''}`;
-                            nd.style.left=p.mouseX+'px';
+                            nd.style.left=(p.mouseX+canvasFrameLeft)+'px';
                             nd.style.top=(p.mouseY+canvasOffsetPx-48)+'px';
                             nd.style.opacity='1';
                         }
                     } else {
                         const nd=document.getElementById('country-name-display');
                         document.getElementById('cnd-text').innerHTML='<strong>'+name+'</strong> no initiatives in our dataset';
-                        nd.style.left=p.mouseX+'px';
+                        nd.style.left=(p.mouseX+canvasFrameLeft)+'px';
                         nd.style.top=(p.mouseY+canvasOffsetPx-48)+'px';
                         nd.style.opacity='1';
                         setTimeout(()=>{ if(!selectedCountry) nd.style.opacity='0'; }, 2000);
@@ -2395,7 +2451,7 @@ function initViz(){
             animateHeroZoomEnter(()=>{ activateHeroZoomOverride(); });
             return;
         }
-        const cx=e.clientX, cy=e.clientY-canvasOffsetPx;
+        const cx=e.clientX-canvasFrameLeft, cy=e.clientY-canvasOffsetPx;
         const k0=mapZoom.k;
         const dy=Math.max(-100, Math.min(100, e.deltaY));
         const factor=Math.exp(-dy*0.003);
@@ -2449,7 +2505,7 @@ function initViz(){
             const dy=e.touches[1].clientY-e.touches[0].clientY;
             const newDist=Math.hypot(dx,dy);
             const scale=newDist/_pinch.dist;
-            const cx=(e.touches[0].clientX+e.touches[1].clientX)/2;
+            const cx=(e.touches[0].clientX+e.touches[1].clientX)/2-canvasFrameLeft;
             const cy=(e.touches[0].clientY+e.touches[1].clientY)/2-canvasOffsetPx;
             const k0=_pinch.k0;
             mapZoom.k=Math.max(MAP_ZOOM_MIN,Math.min(MAP_ZOOM_MAX,k0*scale));
@@ -2487,7 +2543,7 @@ function countryScreenBBox(resolvedName){
     const x0=b[0][0]*k+tx, y0=b[0][1]*k+ty;
     const x1=b[1][0]*k+tx, y1=b[1][1]*k+ty;
     return {
-        left:Math.min(x0,x1), right:Math.max(x0,x1),
+        left:Math.min(x0,x1)+canvasFrameLeft, right:Math.max(x0,x1)+canvasFrameLeft,
         top:Math.min(y0,y1)+canvasOffsetPx, bottom:Math.max(y0,y1)+canvasOffsetPx
     };
 }
@@ -2719,7 +2775,7 @@ function positionPinnedTooltip(){
     el.style.display='block';
     const elH=el.offsetHeight||100, elW=el.offsetWidth||220;
     const dotY=selectedParticle.y+canvasOffsetPx;
-    let left=selectedParticle.x-elW/2;
+    let left=selectedParticle.x-elW/2+canvasFrameLeft;
     let top=dotY-elH-16;
     if(left<10) left=10;
     if(left+elW>window.innerWidth-10) left=window.innerWidth-elW-10;
@@ -2886,7 +2942,7 @@ function addAxisLabel(text,x,opts={}){
         const words=text.split(' ');
         el.innerHTML=words.join('<br>');
     }
-    el.style.left=x+'px';
+    el.style.left=(x+canvasFrameLeft)+'px';
     el.style.transform='translateX(-50%)';
     el.style.textAlign='center';
     el.style.top='0';
@@ -2903,7 +2959,7 @@ function addAxisLabel(text,x,opts={}){
 }
 function addMainLabel(text,x){
     const el=document.createElement('div');
-    el.className='chart-label main'; el.textContent=text; el.style.left=x+'px';
+    el.className='chart-label main'; el.textContent=text; el.style.left=(x+canvasFrameLeft)+'px';
     document.getElementById('main-labels-container').appendChild(el);
 }
 function show(id){document.getElementById(id).style.opacity='1';}
@@ -2983,7 +3039,7 @@ function positionLandmarkPopups(show){
     const positions=entries.map(({lm, elH, elW})=>{
         const dotY=lm.y+canvasOffsetPx;
         let top=dotY - elH - 40;
-        let left=lm.x;
+        let left=lm.x+canvasFrameLeft;
         if(left - elW/2 < 8) left = 8 + elW/2;
         if(left + elW/2 > window.innerWidth - 8) left = window.innerWidth - 8 - elW/2;
         if(top < 8) top = dotY + 10;
@@ -3416,12 +3472,16 @@ function setupObserver(){
 
 /* BOTTOM Y */
 function bY(){ return p5Instance.height*0.70; }
+/* Canvas-local chart width — use instead of window.innerWidth for anything
+   drawn on the p5 canvas (particle targets, bar/column layout) or derived
+   from it, since the canvas can now be narrower or wider than the window. */
+function cW(){ return p5Instance?p5Instance.width:window.innerWidth; }
 
 /* LAYOUTS */
 /* ── Responsive helpers ── */
-function respDotSp(){ return window.innerWidth < 700 ? 6 : 8; }
-function respMaxCols(base){ return window.innerWidth < 700 ? Math.max(4, base-2) : base; }
-function respBarSp(base){ return window.innerWidth < 700 ? Math.max(16, base*0.55) : base; }
+function respDotSp(){ return cW() < 700 ? 6 : 8; }
+function respMaxCols(base){ return cW() < 700 ? Math.max(4, base-2) : base; }
+function respBarSp(base){ return cW() < 700 ? Math.max(16, base*0.55) : base; }
 
 function setNavDot(sec){
     const NAV_ALIAS={'s0-hero':null,'s2-narrate1':'s4-regions','s5-year-b':'s5-year','s7-status-b':'s7-status'};
@@ -3434,7 +3494,7 @@ function setNavDot(sec){
 function layoutAllRegions(){
     setNavDot('s4-regions');
     if(!p5Instance) return; clearLabels();
-    const w=window.innerWidth;
+    const w=cW();
     const dotSp=respDotSp(), maxCols=respMaxCols(8);
     const barW=maxCols*dotSp;
     const sideMargin=w<700?16:40;
@@ -3467,7 +3527,7 @@ function layoutAllRegions(){
 function layoutByYear(){
     setNavDot('s5-year');
     if(!p5Instance) return; clearLabels();
-    const w=window.innerWidth, bottom=bY();
+    const w=cW(), bottom=bY();
     const isMobile=w<700;
     const margin=isMobile?20:60;
     const dotSp=isMobile?5:8;
@@ -3495,7 +3555,7 @@ function layoutByYear(){
 function layoutByFramework(){
     setNavDot('s6-framework');
     if(!p5Instance) return; clearLabels();
-    const w=window.innerWidth, bottom=bY();
+    const w=cW(), bottom=bY();
     const isMobile=w<700;
     const dotSp=isMobile?5:8, maxCols=isMobile?6:8;
     const colW=maxCols*dotSp;
@@ -3536,7 +3596,7 @@ function layoutByFramework(){
             const words=cat.split(' ');
             el.innerHTML=words.join('<br>');
         }
-        el.style.left=x+'px';
+        el.style.left=(x+canvasFrameLeft)+'px';
         el.style.transform='translateX(-50%)';
         el.style.top='0';
         el.style.textAlign='center';
@@ -3623,7 +3683,7 @@ function drawFrameworkBrackets(p){
         const els=container.querySelectorAll('.bracket-label');
         frameworkBrackets.forEach((b,i)=>{
             const el=els[i];
-            if(el){ el.style.left=(b.x+b.w/2)+'px'; el.style.top=(bracketY+barH/2+FRAMEWORK_BRACKET_GAP_BELOW)+'px'; }
+            if(el){ el.style.left=(b.x+b.w/2+canvasFrameLeft)+'px'; el.style.top=(bracketY+barH/2+FRAMEWORK_BRACKET_GAP_BELOW)+'px'; }
         });
     }
 }
@@ -3653,7 +3713,7 @@ function initFrameworkBracketLabels(){
 function layoutByStatus(){
     setNavDot('s7-status');
     if(!p5Instance) return; clearLabels();
-    const w=window.innerWidth, bottom=bY();
+    const w=cW(), bottom=bY();
     const isMobile=w<700;
     const CANONICAL=['Approved','Drafted','Submitted','Failed'];
     function norm(s){ const l=(s||'').trim().toLowerCase(); if(l.startsWith('app'))return'Approved'; if(l.startsWith('dra'))return'Drafted'; if(l.startsWith('sub'))return'Submitted'; if(l.startsWith('fai'))return'Failed'; return null; }
@@ -3683,7 +3743,7 @@ function layoutByStatus(){
 function layoutByNature(){
     setNavDot('s8-nature');
     if(!p5Instance) return; clearLabels();
-    const w=window.innerWidth, bottom=bY();
+    const w=cW(), bottom=bY();
     const isMobile=w<700;
     const groups={'Nature':[],'Plant':[],'Animal':[],'Water':[],'Land':[]};
     particles.forEach(p=>groups[getNatureCat(p.data['Primary Nature Type'])].push(p));
