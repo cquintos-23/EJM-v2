@@ -589,7 +589,7 @@
     #hero-text h1 {
         font-family:'Herbik', sans-serif;
         font-weight:500;
-        font-size:50px;
+        font-size:52px;
         line-height:1.1; letter-spacing:0em;
         color:var(--color-off-black);
         text-align:center; margin:0;
@@ -709,7 +709,7 @@
 <div id="hero-text">
     <h1><span class="hero-line">Explore the definitive tracker for</span><span class="hero-line">ecocentric laws around the world</span></h1>
     <div class="hero-btns" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
-        <a href="https://ecojurisprudence.org/?post_type=ejm_initiative" target="_blank" class="hero-btn" style="background-color:transparent;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;height:40px;width:auto;min-width:160px;border:1px solid #D1D1BF;border-radius:8px;font-family:'Geist',sans-serif;font-weight:500;font-size:16px;line-height:20px;color:#757559;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none;text-transform:none;">Go to More Charts</a>
+        <a href="https://ecojurisprudence.org/charts/?map-style=political" target="_blank" class="hero-btn" style="background-color:transparent;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;height:40px;width:auto;min-width:160px;border:1px solid #D1D1BF;border-radius:8px;font-family:'Geist',sans-serif;font-weight:500;font-size:16px;line-height:20px;color:#757559;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none;text-transform:none;">Go to More Charts</a>
         <a href="https://ecojurisprudence.org/?post_type=ejm_initiative" target="_blank" class="hero-btn" style="background-color:transparent;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;height:40px;width:auto;min-width:160px;border:1px solid #D1D1BF;border-radius:8px;font-family:'Geist',sans-serif;font-weight:500;font-size:16px;line-height:20px;color:#757559;text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none;text-transform:none;">Go to Initiative Index</a>
     </div>
 </div>
@@ -924,7 +924,7 @@ let _heroCenteringActive=false;
    little, and slides the hero text/buttons up — all driven by the same easing
    curve over the same duration, so everything moves in lockstep. ── */
 const HERO_ZOOM_ANIM_MS = 900;
-const HERO_ZOOM_TARGET_K = 1.35;
+const HERO_ZOOM_TARGET_K = 1.65;
 const HERO_TEXT_MOVE_VH = 120;
 
 /* The map's on-screen vertical center is at (canvasOffsetPx + viewport-height/2) —
@@ -1341,13 +1341,14 @@ function particleCountryGeoName(pt){
 function buildProjection(w,h){
     if (!worldGeoJson) return null;
     const proj=d3.geoNaturalEarth1().fitExtent([[30,10],[w-30,h-10]],worldGeoJson);
+    proj.scale(proj.scale()*1.05);
     const [tx,ty]=proj.translate();
     proj.translate([tx-w*0.05, ty]);
     return proj;
 }
 
 /* HERO BUTTON POSITIONING */
-const HERO_TITLE_MAX_PX=50;
+const HERO_TITLE_MAX_PX=52;
 const HERO_TITLE_MIN_PX=20;
 layoutHeroButtons();
 window.addEventListener('resize', layoutHeroButtons);
