@@ -388,7 +388,7 @@
         #intro-textbox .narrative-inner { font-size: 14px !important; padding: 1rem !important; }
         .narrative-inner { font-size: 14px !important; padding: 1rem !important; }
         #explore-heading { font-size: 18px !important; line-height: 28px !important; }
-        #explore-subtext { font-size: 14px !important; }
+        #explore-subtext, #explore-subtext-cta { font-size: 14px !important; }
         .narrative-scroll-box { left: 3vw !important; max-width: 80vw !important; }
         #initiative-carousel { width:auto !important; margin-left:5px !important; margin-right:5px !important; }
 
@@ -505,7 +505,7 @@
         line-height:42px; letter-spacing:-0.01em;
         color:var(--color-off-black); margin:0 0 14px 0;
     }
-    #explore-subtext {
+    #explore-subtext, #explore-subtext-cta {
         font-family:'Geist',sans-serif; font-size:var(--sz-narrative); font-weight:400;
         line-height:1.55; color:var(--color-off-black); margin:0;
     }
@@ -741,7 +741,8 @@
     <div id="explore-inner">
         <div id="explore-explainer">
             <h2 id="explore-heading">What is Ecological Jurisprudence?</h2>
-            <p id="explore-subtext">An approach to law that recognizes humans are part of Earth's systems and challenges traditional frameworks that treat nature as property. It encompasses Rights of Nature, Indigenous laws, responsibility-based governance, and policies informed by ecological science and Traditional Ecological Knowledge. Explore some key initiatives.</p>
+            <p id="explore-subtext">An approach to law that recognizes humans are part of Earth's systems and challenges traditional frameworks that treat nature as property. It encompasses Rights of Nature, Indigenous laws, responsibility-based governance, and policies informed by ecological science and Traditional Ecological Knowledge.</p>
+            <p id="explore-subtext-cta">Explore some key initiatives.</p>
         </div>
         <div id="initiative-carousel">
             <!-- Cards injected by JS once data loads -->
@@ -836,11 +837,9 @@ let canvasOffsetPx=0;
 let canvasFrameLeft=0;
 
 /* ── Responsive map frame ──
-   The map canvas fills the window between guardrails instead of scaling
-   forever:
-   - MAP_MAX_ASPECT: on very wide/short windows, the canvas stops growing
-     wider once width/height passes this ratio; the extra space becomes
-     side margins (canvas is centered, background shows through).
+   The map canvas always fills the full window width — it never gets
+   capped/centered with side margins, so it can't look cut off next to the
+   nav menu/buttons regardless of browser size or aspect ratio.
    - MAP_MIN_WIDTH: on very narrow windows, the canvas stops shrinking
      once its width would drop below this many px; instead it holds that
      width and gets cropped by the viewport edges (still centered), so
@@ -853,15 +852,12 @@ let canvasFrameLeft=0;
      canvas stays top-anchored, so only the bottom gets cropped, not both
      edges — there's nothing above the fold to protect).
    Tune these numbers to change where each guardrail kicks in. */
-const MAP_MAX_ASPECT=1.6;
 const MAP_MIN_WIDTH=980;
 const MAP_MIN_HEIGHT=620;
 
 function computeCanvasFrame(){
     const vw=window.innerWidth, vh=window.innerHeight;
-    let w=vw;
-    w=Math.min(w, vh*MAP_MAX_ASPECT);
-    w=Math.max(w, MAP_MIN_WIDTH);
+    let w=Math.max(vw, MAP_MIN_WIDTH);
     const width=Math.round(w);
     const height=Math.round(Math.max(vh, MAP_MIN_HEIGHT));
     const left=Math.round((vw-width)/2);
