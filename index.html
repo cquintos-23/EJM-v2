@@ -837,29 +837,30 @@ let canvasOffsetPx=0;
 let canvasFrameLeft=0;
 
 /* ── Responsive map frame ──
-   The map canvas always fills the full window width — it never gets
-   capped/centered with side margins, so it can't look cut off next to the
-   nav menu/buttons regardless of browser size or aspect ratio.
+   The map canvas fills the window edge-to-edge horizontally — no side
+   margins — but is guarded so it never gets uncomfortably small:
    - MAP_MIN_WIDTH: on very narrow windows, the canvas stops shrinking
      once its width would drop below this many px; instead it holds that
-     width and gets cropped by the viewport edges (still centered), so
-     content never gets uncomfortably cramped. This only matters above the
-     768px mobile breakpoint — below that (and portrait) the rotate-device
-     prompt takes over anyway.
-   - MAP_MIN_HEIGHT: on very short windows, the canvas stops shrinking
-     vertically once it would drop below this many px; instead it holds
-     that height and simply extends past the bottom of the viewport (the
-     canvas stays top-anchored, so only the bottom gets cropped, not both
-     edges — there's nothing above the fold to protect).
+     width and gets cropped by the viewport edges (centered — equal
+     amounts cropped left and right)
+   - MAP_BOTTOM_CROP_PX: the canvas height always tracks the window height
+     (plus this small constant), so the map keeps rescaling — getting
+     smaller — as the window gets shorter, the same way it does as the
+     window gets narrower.
+   - MAP_MIN_HEIGHT: a hard floor purely as a last-resort guard against a
+     degenerate near-zero canvas on extreme/tiny windows — not meant to be
+     hit under normal resizing, since MAP_BOTTOM_CROP_PX keeps the canvas
+     tracking the window at every ordinary height.
    Tune these numbers to change where each guardrail kicks in. */
 const MAP_MIN_WIDTH=980;
-const MAP_MIN_HEIGHT=620;
+const MAP_BOTTOM_CROP_PX=40;
+const MAP_MIN_HEIGHT=300;
 
 function computeCanvasFrame(){
     const vw=window.innerWidth, vh=window.innerHeight;
     let w=Math.max(vw, MAP_MIN_WIDTH);
     const width=Math.round(w);
-    const height=Math.round(Math.max(vh, MAP_MIN_HEIGHT));
+    const height=Math.round(Math.max(vh+MAP_BOTTOM_CROP_PX, MAP_MIN_HEIGHT));
     const left=Math.round((vw-width)/2);
     return {width, height, left};
 }
@@ -878,6 +879,7 @@ function layoutCanvasFrame(){
     }
     return frame;
 }
+
 let heroSlideT=1;
 let heroExitDistanceVh=45;
 let heroMapOffsetVh=34; // recomputed in layoutHeroButtons() from real content height
@@ -1339,7 +1341,7 @@ function buildProjection(w,h){
     const proj=d3.geoNaturalEarth1().fitExtent([[30,10],[w-30,h-10]],worldGeoJson);
     proj.scale(proj.scale()*1.05);
     const [tx,ty]=proj.translate();
-    proj.translate([tx-w*0.05, ty]);
+    proj.translate([tx-w*0.05, ty-18]);
     return proj;
 }
 
@@ -1469,14 +1471,18 @@ function layoutHeroButtons(){
     heroExitDistanceVh=Math.max(35, ((top + btnHeight) / vh) * 100 + 5);
 
     // Map should start just below the real bottom of the title+buttons, so the
-    // gap scales with the actual rendered content (proportional to the buttons)
-    // instead of a fixed vh number. MAP_MIN_CROP_VH guarantees the map is always
-    // cropped at least a little, no matter the window size; MAP_MAX_GAP_VH caps
-    // how big the blank gap above the map can ever get.
-    const MAP_GAP_PX=24;
+    // gap scales with the actual rendered content (proportional to the
+    // buttons) instead of a fixed vh number. MAP_MIN_CROP_VH guarantees the
+    // map is always cropped at least a little, no matter the window size.
+    // Deliberately uncapped at the top end: on a short window the buttons'
+    // real pixel height eats a bigger share of it, and if that share were
+    // clamped down, the map would get pushed down less than the buttons
+    // actually need — hiding its top edge behind them instead of leaving a
+    // gap. Always honoring the real measured need means the map may show
+    // less of itself on a short window, but its top is never covered.
+    const MAP_GAP_PX=48;
     const MAP_MIN_CROP_VH=8;
-    const MAP_MAX_GAP_VH=22;
-    heroMapOffsetVh=Math.max(MAP_MIN_CROP_VH, Math.min(MAP_MAX_GAP_VH, ((top + btnHeight + MAP_GAP_PX) / vh) * 100));
+    heroMapOffsetVh=Math.max(MAP_MIN_CROP_VH, ((top + btnHeight + MAP_GAP_PX) / vh) * 100);
 
     // If we're currently resting in the hero (not mid-animation), reposition
     // the canvas live so a resize/orientation-change/font-load takes effect
@@ -2317,7 +2323,11 @@ function initViz(){
         if(currentSection === 's0-hero'){
             const heroEl = document.getElementById('hero-text');
             const hintEl = document.getElementById('hero-scroll-hint');
-            const heroTranslateVh = Math.min(heroExitDistanceVh, (scrolled / (heroH * 0.5)) * 30);
+            // Match the map's own pace exactly (same slideT driving mapOffset
+            // above) so the buttons/text and the map arrive at their resting
+            // positions together, instead of the text lagging behind and
+            // ending up overlapped by the map.
+            const heroTranslateVh = heroExitDistanceVh * slideT;
             heroEl.style.transform = `translateY(${-heroTranslateVh}vh)`;
             const hintT = Math.min(1, scrolled / vh);
             if(hintEl) hintEl.style.opacity = String(Math.max(0, 0.4 - hintT * 2));
