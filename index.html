@@ -265,13 +265,16 @@
         line-height:1.5; display:none; box-shadow:0 4px 16px rgba(0,0,0,.25);
         border-left:6px solid var(--tt-accent,#8ECBF0);
     }
+    /* Hover label for countries — matches the click label (#country-name-display). */
     #country-tooltip {
-        position:fixed; background:#3D3D31; color:#fff;
-        padding:8px 12px; border-radius:4px; font-family:'Geist',sans-serif;
-        font-size:var(--sz-ui); pointer-events:none; z-index:1000;
-        max-width:160px; width:auto;
-        line-height:1.5; display:none; box-shadow:0 4px 14px rgba(0,0,0,.22);
+        position:fixed; z-index:59; pointer-events:none; display:none;
+        font-family:'Geist',sans-serif; font-size:var(--sz-ui); font-weight:400;
+        color:#757559; line-height:1.5;
+        background:#FBFBEE; padding:10px 18px; border-radius:6px;
+        box-shadow:0 4px 16px rgba(0,0,0,.18);
+        white-space:nowrap; width:max-content; transform:translate(-50%,-50%);
     }
+    #country-tooltip strong { color:#3D3D31; font-weight:600; margin-right:8px; }
     #zoom-tip-popup {
         position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
         background:#FBFBEE; color:#757559;
@@ -498,7 +501,7 @@
         gap:52px; width:100%;
     }
     #explore-explainer {
-        text-align:center; max-width:680px;
+        text-align:center; max-width:760px;
     }
     #explore-heading {
         font-family:'Geist',sans-serif; font-size:28px; font-weight:600;
@@ -508,6 +511,7 @@
     #explore-subtext, #explore-subtext-cta {
         font-family:'Geist',sans-serif; font-size:var(--sz-narrative); font-weight:400;
         line-height:1.55; color:var(--color-off-black); margin:0;
+        text-wrap:pretty; /* avoids a single word stranded on the last line */
     }
     #initiative-carousel {
         display:flex; gap:6px;
@@ -741,7 +745,7 @@
     <div id="explore-inner">
         <div id="explore-explainer">
             <h2 id="explore-heading">What is Ecological Jurisprudence?</h2>
-            <p id="explore-subtext">An approach to law that recognizes humans are part of Earth's systems and challenges traditional frameworks that treat nature as property. It encompasses Rights of Nature, Indigenous laws, responsibility-based governance, and policies informed by ecological science and Traditional Ecological Knowledge.</p>
+            <p id="explore-subtext">An approach to law that recognizes humans are part of Earth's systems and challenges traditional frameworks that treat nature as individual stocks of resources. It encompasses Rights of Nature, Indigenous laws, responsibility-based governance, and policies informed by ecological science and Traditional Ecological Knowledge.</p>
             <p id="explore-subtext-cta">Explore some key initiatives.</p>
         </div>
         <div id="initiative-carousel">
@@ -1103,6 +1107,7 @@ function exitHeroZoomOverride(){
 
     document.body.classList.add('is-hero');
     _chromeElsShown=false;
+    _heroChromeFirstRevealDone=false;
     hideMapChrome();
 
     animateHeroZoomExit(()=>{
@@ -1131,13 +1136,26 @@ function animateHeroZoomExit(onComplete){
     const startT=heroSlideT;
     const startK=mapZoom.k, startTx=mapZoom.tx, startTy=mapZoom.ty;
     const startTime=performance.now();
+    const startTextVh=HERO_TEXT_MOVE_VH;
+    // Where the hero should rest for the CURRENT scroll position (0 at the very top).
+    // Re-read every frame so it tracks the user if they keep scrolling during the animation.
+    function scrollTargets(){
+        const secEl=document.querySelector('.scroll-section[data-section="s0-hero"]');
+        const hH=secEl?secEl.offsetHeight:window.innerHeight;
+        const y=Math.max(0,window.scrollY);
+        return {
+            slideT:Math.min(1, y/(hH*0.5)),
+            textVh:Math.min(heroExitDistanceVh, (y/(hH*0.5))*30)
+        };
+    }
 
     function step(now){
         const t=Math.min((now-startTime)/HERO_ZOOM_ANIM_MS,1);
         const ease=1-Math.pow(1-t,3);
+        const tgt=scrollTargets();
 
-        // Un-center back toward the partial, top-half view
-        const curT=startT*(1-ease);
+        // Un-center back toward the scroll-appropriate hero view
+        const curT=startT+(tgt.slideT-startT)*ease;
         heroSlideT=curT;
         const mapOffset=heroMapOffsetVh*(1-curT);
         canvasOffsetPx=mapOffset/100*window.innerHeight;
@@ -1151,25 +1169,31 @@ function animateHeroZoomExit(onComplete){
         applyZoomToParticles();
 
         // Slide hero text/buttons back down + fade gradient/scroll hint back in
-        heroEl.style.transform=`translateY(-${HERO_TEXT_MOVE_VH*(1-ease)}vh)`;
-        if(gradEl) gradEl.style.opacity=String(Math.min(1,ease));
+        heroEl.style.transform=`translateY(-${startTextVh+(tgt.textVh-startTextVh)*ease}vh)`;
+        if(gradEl) gradEl.style.opacity=String(Math.max(0,1-curT));
         if(hintEl) hintEl.style.opacity=String(Math.min(0.4,0.4*ease));
 
         if(t<1){
             requestAnimationFrame(step);
         } else {
-            heroSlideT=0;
+            heroSlideT=tgt.slideT;
             mapZoom.k=1; mapZoom.tx=0; mapZoom.ty=0;
-            canvasOffsetPx=heroMapOffsetVh/100*window.innerHeight;
+            canvasOffsetPx=heroMapOffsetVh*(1-tgt.slideT)/100*window.innerHeight;
             applyZoomToParticles();
             updateZoomTipPosition();
             _heroCenteringActive=false;
             if(onComplete) onComplete();
+            // Hand control back to the normal scroll-driven hero layout.
+            window.dispatchEvent(new Event('scroll'));
         }
     }
     requestAnimationFrame(step);
 }
-const MAP_ZOOM_MIN=1, MAP_ZOOM_MAX=12;
+const MAP_ZOOM_MIN=1, MAP_ZOOM_MAX=60;
+/* Dots grow with zoom (sqrt) up to this zoom level, then hold their size so that
+   zooming further only spreads them apart — this is what separates dense clusters. */
+const DOT_GROWTH_MAX_ZOOM=12;
+function dotZoomMult(){ return (mapZoomActive&&mapZoom.k>1)?Math.sqrt(Math.min(mapZoom.k,DOT_GROWTH_MAX_ZOOM)):1; }
 
 /* CONSTANTS */
 const NATURE_COLORS={
@@ -1376,10 +1400,12 @@ function particleCountryGeoName(pt){
     const key=parsed.toLowerCase().trim();
     return dataToGeoName[key] || resolveGeoName(parsed);
 }
+/* Overall map size. Was 1.05; raise/lower in small steps (e.g. 1.08-1.15). */
+const MAP_SCALE=1.10;
 function buildProjection(w,h){
     if (!worldGeoJson) return null;
     const proj=d3.geoNaturalEarth1().fitExtent([[30,10],[w-30,h-10]],worldGeoJson);
-    proj.scale(proj.scale()*1.05);
+    proj.scale(proj.scale()*MAP_SCALE);
     const [tx,ty]=proj.translate();
     proj.translate([tx-w*0.05, ty]);
     return proj;
@@ -1392,11 +1418,60 @@ layoutHeroButtons();
 window.addEventListener('resize', layoutHeroButtons);
 if(document.fonts && document.fonts.ready){ document.fonts.ready.then(layoutHeroButtons); }
 
+/* The aa/bb/cc marker column ("Carmen's" in the sheet). Looked up by prefix so
+   renaming/trimming the header doesn't break the carousel. */
+function carmenFlag(r){
+    if(!r) return '';
+    if(!carmenFlag._key){
+        carmenFlag._key=Object.keys(r).find(k=>/^carmen/i.test(k.trim()))||null;
+    }
+    return carmenFlag._key ? String(r[carmenFlag._key]||'').trim().toLowerCase() : '';
+}
+
+/* Prints a breakdown to the browser console explaining where the initiative
+   counter's number comes from, so it can be reconciled with the website. */
+function logCounterDiagnostics(allRows, withRegion, kept, dupes){
+    try{
+        const byFlag={}, byStatus={};
+        kept.forEach(r=>{
+            const f=carmenFlag(r)||'(blank)'; byFlag[f]=(byFlag[f]||0)+1;
+            const s=(r.Status||'(blank)').trim(); byStatus[s]=(byStatus[s]||0)+1;
+        });
+        const noLink=kept.filter(r=>!(r.Permalink||'').trim());
+        const titleCounts={};
+        kept.forEach(r=>{ const t=(r.Title||'').trim().toLowerCase(); if(t) titleCounts[t]=(titleCounts[t]||0)+1; });
+        const sameTitle=Object.entries(titleCounts).filter(([,n])=>n>1);
+        console.groupCollapsed(`[EJM counter] showing ${kept.length} initiatives`);
+        console.log('Rows in sheet:', allRows.length);
+        console.log('Rows skipped (no Region):', allRows.length-withRegion.length);
+        console.log('Duplicate Permalink rows removed:', dupes.length, dupes.map(r=>r.Title));
+        console.log('Counted rows with no Permalink (may not be published on the site):', noLink.length, noLink.map(r=>r.Title));
+        console.log('Different rows sharing a Title:', sameTitle);
+        console.log('Counted rows by aa/bb/cc column:', byFlag);
+        console.log('Counted rows by Status:', byStatus);
+        console.groupEnd();
+    }catch(e){}
+}
+
 /* DATA */
 Papa.parse('https://docs.google.com/spreadsheets/d/e/2PACX-1vSKgeCFRWhEydDOm3JMjw-F9MI8bNvgWYkXSA-_3S8Mo9Ehxs3WrB07UbNfrFdfDiOLqHc67BR6kyaG/pub?gid=600477657&single=true&output=csv',{
     download:true, header:true,
+    // Trim header names so a stray trailing space in the sheet (e.g. "Carmen's ")
+    // can't silently break a column lookup.
+    transformHeader:h=>(h||'').trim(),
     complete(results){
-        data=results.data.filter(r=>r.Region);
+        window._allSheetRows=results.data;
+        const withRegion=results.data.filter(r=>r.Region);
+        // The website counts published posts, so the same initiative appearing on
+        // two sheet rows (same Permalink) must only be counted/drawn once.
+        const seenLinks=new Set(), dupes=[];
+        data=withRegion.filter(r=>{
+            const link=(r.Permalink||'').trim().replace(/\/+$/,'').toLowerCase();
+            if(!link) return true;
+            if(seenLinks.has(link)){ dupes.push(r); return false; }
+            seenLinks.add(link); return true;
+        });
+        logCounterDiagnostics(results.data, withRegion, data, dupes);
         const rawCounts={};
         data.forEach(r=>{
             const c=parseCountryName(r.Country);
@@ -1406,6 +1481,10 @@ Papa.parse('https://docs.google.com/spreadsheets/d/e/2PACX-1vSKgeCFRWhEydDOm3JMj
         resolveCountryCounts();
         finalizeParticlesIfReady();
         preloadCarouselImages(data);
+        // If the explore screen was already open before the sheet finished loading
+        // (e.g. refreshed at the bottom of the page), build the carousel now.
+        const _sc=document.getElementById('static-content');
+        if(_sc && _sc.classList.contains('visible') && typeof showExploreScreen==='function') showExploreScreen();
     },
     error(){ console.error('Data load failed'); }
 });
@@ -1441,7 +1520,7 @@ class Particle {
         const isCountrySel=selectedCountryParticles.has(this);
         const hasCountrySel=selectedCountry!==null;
         const isLandmark=landmarkMode&&isLandmarkId(this.data&&this.data.ID);
-        const zoomMult=(mapZoomActive&&mapZoom.k>1)?Math.sqrt(mapZoom.k):1;
+        const zoomMult=dotZoomMult();
         p5Instance.stroke(255); p5Instance.strokeWeight(0.5);
         if(landmarkMode){
             if(isLandmark){
@@ -1540,6 +1619,11 @@ function initViz(){
             const cnv=p.createCanvas(frame.width,frame.height).parent('p5-canvas');
             _canvasZoomExpanded=false;
             cnv.elt.style.touchAction='none';
+            cnv.elt.addEventListener('mouseleave',()=>{
+                const ct=document.getElementById('country-tooltip');
+                if(ct) ct.style.display='none';
+                hoveredCountry=null;
+            });
             cnv.elt.removeEventListener('wheel', cnv.elt._wheelHandler, {passive:false});
             if(worldGeoJson) mapProjection=buildProjection(p.width,p.height);
             resolveCountryCounts();
@@ -1650,7 +1734,18 @@ function initViz(){
                         const resolvedHover=resolveGeoName(hit.properties.name);
                         const n=countryCounts[resolvedHover]||0;
                         hoveredCountry=hit.properties.name;
-                        ctEl.style.display='none';
+                        // Show the same name + count label the click shows, following the
+                        // cursor. Skipped for the country already clicked (its label is up).
+                        if(selectedCountry===resolvedHover){
+                            ctEl.style.display='none';
+                        } else {
+                            ctEl.innerHTML = n>0
+                                ? `<strong>${resolvedHover}</strong>${n} initiative${n!==1?'s':''}`
+                                : `<strong>${resolvedHover}</strong>no initiatives in our dataset`;
+                            ctEl.style.left=p.winMouseX+'px';
+                            ctEl.style.top=(p.winMouseY-40)+'px';
+                            ctEl.style.display='block';
+                        }
                         p.canvas.style.cursor=n>0?(mapZoomActive?'grab':'pointer'):(mapZoomActive?'grab':'default');
                     } else {
                         hoveredCountry=null; ctEl.style.display='none';
@@ -1664,6 +1759,8 @@ function initViz(){
         };
         p.mouseClicked=function(){
             if(isPointerOverUI(p.winMouseX,p.winMouseY)) return;
+            // The click label takes over from the hover label.
+            document.getElementById('country-tooltip').style.display='none';
             const found=findParticle(p.mouseX,p.mouseY);
             if(found && !landmarkMode){ selectedParticle===found?hidePinned():showPinned(found); return; }
             if(found && landmarkMode){ return; }
@@ -1867,7 +1964,7 @@ function initViz(){
         ctx.restore();
 
         // Particle dots scale by sqrt(zoom), matching the on-screen Particle.display() behavior.
-        const zoomMult = (mapZoomActive && mapZoom.k>1) ? Math.sqrt(mapZoom.k) : 1;
+        const zoomMult = dotZoomMult();
         particles.forEach((pt,i)=>{
             const pos=particleMapPos[i];
             if(!pos) return;
@@ -2213,6 +2310,7 @@ function initViz(){
     });
 
     let _ejmParentNotifiedScrolling=false;
+    let _lastHeroScrollY=window.scrollY;
     window.addEventListener('scroll', ()=>{
         // Notify the parent WordPress page whenever this iframe scrolls,
         // so the site header can react (e.g. shrink/compact state).
@@ -2226,8 +2324,19 @@ function initViz(){
             }
         }
 
+        const _scrollYNow=window.scrollY;
+        const _scrollingUp=_scrollYNow<_lastHeroScrollY;
+        _lastHeroScrollY=_scrollYNow;
+
         if(heroZoomOverrideActive){
             if(zoomOutTransitionPending) return;
+            // Scrolling UP while zoomed in on the hero: reverse the zoom and bring the
+            // hero text/buttons back, instead of the scroll-down path below (which
+            // jumps the page forward past the hero and pushes the text off-screen).
+            if(_scrollingUp){
+                exitHeroZoomOverride();
+                return;
+            }
             heroZoomOverrideActive=false;
             _heroZoomAutoTriggered=false;
             zoomOutTransitionPending=true;
@@ -2363,7 +2472,10 @@ function initViz(){
             }
         }
 
-        if(currentSection === 's0-hero'){
+        // Also while still within the hero's scroll range but the section switch
+        // back to the hero is being held for the zoom-out animation — otherwise the
+        // text stays parked off-screen after scrolling up from a zoomed-in map.
+        if(currentSection === 's0-hero' || scrolled < heroH*0.5){
             const heroEl = document.getElementById('hero-text');
             const hintEl = document.getElementById('hero-scroll-hint');
             const heroTranslateVh = Math.min(heroExitDistanceVh, (scrolled / (heroH * 0.5)) * 30);
@@ -2483,7 +2595,13 @@ function initViz(){
     function syncSlider(){}
 
     window.addEventListener('wheel', (e)=>{
-        if(!(e.metaKey || e.ctrlKey)) return;
+        if(!(e.metaKey || e.ctrlKey)){
+            // Already at the top, so scrolling up fires no 'scroll' event — handle it here.
+            if(e.deltaY<0 && window.scrollY<=0 && heroZoomOverrideActive && currentSection==='s0-hero' && !_heroCenteringActive){
+                exitHeroZoomOverride();
+            }
+            return;
+        }
         e.preventDefault();
         if(!mapZoomActive) return;
         if(e.target && e.target.closest && e.target.closest('#map-proj-btn, #print-btn, #skip-btn, #info-btn, #zoom-controls, #section-nav, #map-proj-popup, #pinned-tooltip, #country-name-display')) return;
@@ -2952,7 +3070,8 @@ function animateNarrativeNumbers(delay){
 }
 function animateStats(){
     if(statsAnimated)return; statsAnimated=true;
-    const nI=particles.length;
+    // Initiative count = every sheet row marked aa, bb or cc in the Carmen's column.
+    const nI=(window._allSheetRows||data).filter(r=>['aa','bb','cc'].includes(carmenFlag(r))).length;
     const nC=new Set(data.map(r=>(r.Country||'').trim()).filter(Boolean)).size;
     let f=0; const iv=setInterval(()=>{
         f++; const e=1-Math.pow(1-f/60,3);
@@ -3478,6 +3597,8 @@ function setupObserver(){
                     gentleZoomOut(()=>{
                         zoomOutTransitionPending=false;
                         applySectionChange(pendingSec);
+                        // Re-sync hero text/map offset to where the page actually is now.
+                        window.dispatchEvent(new Event('scroll'));
                     }, 500);
                     return;
                 }
@@ -3857,7 +3978,7 @@ function showExploreScreen() {
     if (el) el.classList.add('visible');
     const axEl = document.getElementById('axis-labels-container');
     if (axEl) axEl.style.pointerEvents = 'none';
-    if (!carouselBuilt) {
+    if (!carouselBuilt && data && data.length) {
         buildCarousel(data);
         carouselBuilt = true;
     }
@@ -3872,12 +3993,27 @@ function hideExploreScreen() {
     playCarouselExit();
 }
 
+/* Rows marked "cc" in the aa/bb/cc column. If none are found (e.g. the column
+   was renamed), fall back to a small set of initiatives with cover images rather
+   than every row — hundreds of flex panels squeeze each one to 0px wide, which
+   makes the whole carousel look empty. */
+const CAROUSEL_MAX_PANELS=12;
+function featuredCarouselRows(allData){
+    const rows=(allData||[]).filter(r=>r.Title);
+    let cc=rows.filter(r=>carmenFlag(r)==='cc');
+    if(!cc.length){
+        console.warn('[EJM carousel] No rows marked "cc" found; showing a fallback selection.');
+        cc=rows.filter(r=>(r['Cover Image']||'').trim());
+        if(!cc.length) cc=rows;
+    }
+    return cc.slice(0, CAROUSEL_MAX_PANELS);
+}
+
 let _carouselImagesPreloaded = false;
 function preloadCarouselImages(allData) {
     if (_carouselImagesPreloaded) return;
     _carouselImagesPreloaded = true;
-    let ccRows = allData.filter(r => r.Title && (r["Carmen's "] || '').trim().toLowerCase() === 'cc');
-    if (!ccRows.length) ccRows = allData.filter(r => r.Title);
+    let ccRows = featuredCarouselRows(allData);
     ccRows.filter(r => r['Cover Image']).forEach(r => {
         const img = new Image();
         img.src = r['Cover Image'].trim();
@@ -3887,8 +4023,7 @@ function preloadCarouselImages(allData) {
 function buildCarousel(allData) {
     const container = document.getElementById('initiative-carousel');
     if (!container) return;
-    let ccRows = allData.filter(r => r.Title && (r["Carmen's "] || '').trim().toLowerCase() === 'cc');
-    if (!ccRows.length) ccRows = allData.filter(r => r.Title);
+    let ccRows = featuredCarouselRows(allData);
     const sample = ccRows.filter(r => r['Cover Image']);
     const extra  = ccRows.filter(r => !r['Cover Image']);
     while (extra.length) sample.push(extra.shift());
